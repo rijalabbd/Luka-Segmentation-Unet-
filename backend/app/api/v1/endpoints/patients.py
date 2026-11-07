@@ -1,7 +1,8 @@
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, Response, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -20,6 +21,47 @@ from app.services.storage import (
 )
 
 router = APIRouter(prefix="/patients", tags=["patients"])
+
+# Daftar putih ketat berkas foto sampel dari ml/test_set (S6)
+DEMO_SAMPLE_PHOTO_WHITELIST: dict[str, str] = {
+    "P10T_1.jpg": "Images/Patient_10/P10T_1.jpg",
+    "P10T_2.jpg": "Images/Patient_10/P10T_2.jpg",
+    "P10T_3.jpg": "Images/Patient_10/P10T_3.jpg",
+    "P16T_1.jpg": "Images/Patient_16/P16T_1.jpg",
+    "P16T_2.jpg": "Images/Patient_16/P16T_2.jpg",
+    "P17T_1.jpg": "Images/Patient_17/P17T_1.jpg",
+    "P17T_2.jpg": "Images/Patient_17/P17T_2.jpg",
+    "P22T_1.jpg": "Images/Patient_22/P22T_1.jpg",
+    "P23T_1.jpg": "Images/Patient_23/P23T_1.jpg",
+    "P23T_2.jpg": "Images/Patient_23/P23T_2.jpg",
+    "P25T_1.jpg": "Images/Patient_25/P25T_1.jpg",
+}
+
+DEFAULT_DEMO_SAMPLE_BY_RM: dict[str, str] = {
+    "RM-0010": "P10T_3.jpg",
+    "RM-0012": "P25T_1.jpg",
+    "RM-0016": "P16T_2.jpg",
+    "RM-0017": "P17T_2.jpg",
+    "RM-0023": "P23T_2.jpg",
+    "RM-0024": "P22T_1.jpg",
+}
+
+
+def _resolve_test_set_sample(rel_path: str) -> Path:
+    for root_candidate in (
+        Path("/app/ml/test_set"),
+        Path("ml/test_set"),
+        Path("../ml/test_set"),
+    ):
+        if root_candidate.is_dir():
+            root_resolved = root_candidate.resolve()
+            target = (root_resolved / rel_path).resolve()
+            if root_resolved in target.parents and target.is_file():
+                return target
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Berkas foto sampel tidak ditemukan di ml/test_set.",
+    )
 
 
 def _norm(s: str | None) -> str:
@@ -215,6 +257,43 @@ async def list_patient_final_visits(
         key=lambda v: (v.visit_index if v.visit_index is not None else 999999, v.visit_date, v.id),
     )
     return [VisitResponse.model_validate(v) for v in ordered]
+
+
+@router.get("/{patient_id}/sample-photo")
+async def get_demo_sample_photo(
+    patient_id: str,
+    db: DBSession,
+    filename: Annotated[
+        str | None,
+        Query(description="Nama berkas dari daftar putih ml/test_set (opsional)"),
+    ] = None,
+) -> Response:
+    patient = await _get_patient_or_404(db, patient_id)
+    if not patient.is_demo:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Foto sampel hanya tersedia untuk pasien mode demo (is_demo=true).",
+        )
+
+    chosen_name = filename or DEFAULT_DEMO_SAMPLE_BY_RM.get(
+        patient.rm_code.upper(), "P10T_3.jpg"
+    )
+    rel_path = DEMO_SAMPLE_PHOTO_WHITELIST.get(chosen_name)
+    if rel_path is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nama berkas foto sampel tidak ada dalam daftar putih.",
+        )
+
+    img_path = _resolve_test_set_sample(rel_path)
+    return Response(
+        content=img_path.read_bytes(),
+        media_type="image/jpeg",
+        headers={
+            "Content-Disposition": f'inline; filename="{chosen_name}"',
+            "X-Sample-Filename": chosen_name,
+        },
+    )
 
 
 @router.delete("/{patient_id}")

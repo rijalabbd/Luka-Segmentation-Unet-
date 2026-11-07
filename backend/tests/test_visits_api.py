@@ -1440,4 +1440,47 @@ async def test_38_fallback_reason_logging_and_no_secret_leak(
     assert secret_key not in caplog.text
 
 
+async def test_39_demo_sample_photo_whitelist_and_non_demo_rejected(
+    visit_client: tuple[AsyncClient, Path],
+) -> None:
+    """
+    S6: Endpoint GET /api/v1/patients/{id}/sample-photo:
+    - Menolak pasien non-demo (is_demo=false) dengan HTTP 403.
+    - Melayani citra nyata dari ml/test_set untuk pasien is_demo=true.
+    - Menolak nama berkas di luar daftar putih ( termasuk percobaan '..' ) dengan HTTP 400.
+    """
+    ac, _ = visit_client
+
+    # 1. Patient_10 (is_demo=False) -> ditolak 403
+    r_non_demo = await ac.get("/api/v1/patients/Patient_10/sample-photo")
+    assert r_non_demo.status_code == 403
+
+    # 2. Buat pasien demo RM-0024 (is_demo=True) -> berhasil mengambil foto sampel nyata
+    await ac.post(
+        "/api/v1/patients",
+        json={
+            "id": "RM-0024",
+            "nama": "Tn. B",
+            "umur": 48,
+            "jk": "Laki-laki",
+            "lokasi": "Tumit kaki kanan",
+            "consent": True,
+            "is_demo": True,
+        },
+    )
+    r_demo = await ac.get("/api/v1/patients/RM-0024/sample-photo")
+    assert r_demo.status_code == 200
+    assert r_demo.headers["content-type"] == "image/jpeg"
+    assert r_demo.headers["x-sample-filename"] == "P22T_1.jpg"
+    assert len(r_demo.content) > 1000
+
+    # 3. Nama berkas di luar daftar putih ditolak 400
+    r_bad_file = await ac.get(
+        "/api/v1/patients/RM-0024/sample-photo",
+        params={"filename": "../secret.jpg"},
+    )
+    assert r_bad_file.status_code == 400
+
+
+
 
