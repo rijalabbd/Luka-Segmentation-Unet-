@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     storage_dir: str = "storage"
     model_checkpoint_path: str = "ml/checkpoints/best_resnet34_unet_01norm.pth"
     model_normalization: str = "zero_one"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+    gemini_timeout_seconds: float = 10.0
     max_upload_size_bytes: int = 10 * 1024 * 1024
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 

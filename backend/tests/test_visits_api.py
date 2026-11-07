@@ -1,9 +1,11 @@
 from collections.abc import AsyncGenerator
+import asyncio
 from datetime import date, datetime, timedelta, timezone
 import io
 from pathlib import Path
 
 from PIL import Image
+import httpx
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
@@ -14,6 +16,14 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.main import app
 from app.models.patient import Patient, Visit
+from app.services.narrative import (
+    FORBIDDEN_WORDS,
+    build_gemini_user_prompt,
+    generate_fallback_narrative,
+    generate_longitudinal_narrative,
+    get_narrative_service,
+    validate_narrative_text,
+)
 from app.services.segmentation import (
     EXPECTED_RESNET34_UNET_PARAMS,
     SegmentationFn,
@@ -646,4 +656,446 @@ async def test_24_storage_whitelist_and_path_traversal_rejected(
         resolve_storage_path("uploads/../../secret_outside.txt")
     with pytest.raises(ValueError):
         resolve_storage_path("")
+
+
+# ==============================================================================
+# FASE 3 (H4: SK-3 Evaluasi Grounding LLM, Konfirmasi, PAC, & Fallback Tabel 3.5)
+# ==============================================================================
+
+
+async def test_25_sk3_k4_confirm_menurun_gemini_mocked(
+    visit_client: tuple[AsyncClient, Path],
+) -> None:
+    """SK-3 K4: A0=5.00%, At=3.50% -> delta_A=-1.50%, PAC=+30.00% -> Tren Menurun."""
+    ac, _ = visit_client
+    png_bytes = _make_dummy_png_bytes()
+
+    # 1. Baseline A0 = 5.00% (3277 px)
+    _override_segmentation_px(3277)
+    r1 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-01", "distance_confirmed": "true"},
+        files={"file": ("v1.png", png_bytes, "image/png")},
+    )
+    v1_id = r1.json()["id"]
+    await ac.post(f"/api/v1/visits/{v1_id}/confirm")
+
+    # 2. Visit 2 At = 3.50% (2294 px)
+    _override_segmentation_px(2294)
+    r2 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-15", "distance_confirmed": "true"},
+        files={"file": ("v2.png", png_bytes, "image/png")},
+    )
+    v2_id = r2.json()["id"]
+
+    mock_called = 0
+
+    async def _mock_narrative(a0, at, delta_a, pac, trend_status, badge):
+        nonlocal mock_called
+        mock_called += 1
+        assert a0 == 5.0
+        assert at == 3.5
+        assert delta_a == -1.5
+        assert pac == 30.0
+        assert badge == "menurun"
+        assert trend_status == "Tren Menurun (Area Luka Mengecil)"
+        return (
+            "Evaluasi Longitudinal: Area luka terukur menurun dari 5.00% menjadi 3.50% (PAC: +30.00%, ΔA: -1.50%). Hasil estimasi berdasarkan foto memerlukan pemeriksaan langsung tenaga medis.",
+            "Area luka terdeteksi mengecil berkurang sekitar 30.00%. Hasil ini merupakan estimasi berdasarkan foto dan memerlukan pemeriksaan langsung dokter.",
+            "llm",
+        )
+
+    app.dependency_overrides[get_narrative_service] = lambda: _mock_narrative
+
+    c2 = await ac.post(f"/api/v1/visits/{v2_id}/confirm")
+    assert c2.status_code == 200
+    b2 = c2.json()
+    assert mock_called == 1
+    assert b2["status"] == "final"
+    assert b2["visit_index"] == 2
+    assert b2["area_pct"] == 3.5
+    assert b2["delta_area"] == -1.5
+    assert b2["pac"] == 30.0
+    assert b2["trend_status"] == "Tren Menurun (Area Luka Mengecil)"
+    assert b2["narrative_source"] == "llm"
+    assert "30.00%" in b2["patient_narrative"]
+    assert "5.00%" in b2["clinician_notes"]
+
+
+async def test_26_sk3_k5_confirm_stabil_gemini_mocked(
+    visit_client: tuple[AsyncClient, Path],
+) -> None:
+    """SK-3 K5: A0=5.00%, At=4.90% -> delta_A=-0.10%, PAC=+2.00% -> Tren Stabil."""
+    ac, _ = visit_client
+    png_bytes = _make_dummy_png_bytes()
+
+    # Baseline A0 = 5.00%
+    _override_segmentation_px(3277)
+    r1 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-01", "distance_confirmed": "true"},
+        files={"file": ("v1.png", png_bytes, "image/png")},
+    )
+    v1_id = r1.json()["id"]
+    await ac.post(f"/api/v1/visits/{v1_id}/confirm")
+
+    # Visit 2 At = 4.90% (3211 px -> delta_A = -0.10, PAC = +2.00%)
+    _override_segmentation_px(3211)
+    r2 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-15", "distance_confirmed": "true"},
+        files={"file": ("v2.png", png_bytes, "image/png")},
+    )
+    v2_id = r2.json()["id"]
+
+    async def _mock_narrative(a0, at, delta_a, pac, trend_status, badge):
+        assert badge == "stabil"
+        assert pac == 2.0
+        assert delta_a == -0.1
+        return (
+            "Evaluasi Longitudinal: Tidak terdeteksi perubahan berarti (5.00% -> 4.90%, PAC: +2.00%, ΔA: -0.10%). Hasil pengukuran estimasi berdasarkan foto memerlukan pemeriksaan langsung tenaga medis.",
+            "Area luka relatif stabil dengan luas sekitar 4.90%. Hasil merupakan estimasi berdasarkan foto dan memerlukan pemeriksaan langsung dokter.",
+            "llm",
+        )
+
+    app.dependency_overrides[get_narrative_service] = lambda: _mock_narrative
+
+    c2 = await ac.post(f"/api/v1/visits/{v2_id}/confirm")
+    assert c2.status_code == 200
+    b2 = c2.json()
+    assert b2["pac"] == 2.0
+    assert b2["delta_area"] == -0.1
+    assert b2["trend_status"] == "Tren Stabil (Perubahan Minimal)"
+    assert b2["narrative_source"] == "llm"
+
+
+async def test_27_sk3_k6_confirm_meningkat_gemini_mocked(
+    visit_client: tuple[AsyncClient, Path],
+) -> None:
+    """SK-3 K6: A0=5.00%, At=6.50% -> delta_A=+1.50%, PAC=-30.00% -> Tren Meningkat."""
+    ac, _ = visit_client
+    png_bytes = _make_dummy_png_bytes()
+
+    _override_segmentation_px(3277)
+    r1 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-01", "distance_confirmed": "true"},
+        files={"file": ("v1.png", png_bytes, "image/png")},
+    )
+    await ac.post(f"/api/v1/visits/{r1.json()['id']}/confirm")
+
+    # Visit 2 At = 6.50% (4260 px -> delta_A = +1.50, PAC = -30.00%)
+    _override_segmentation_px(4260)
+    r2 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-15", "distance_confirmed": "true"},
+        files={"file": ("v2.png", png_bytes, "image/png")},
+    )
+    v2_id = r2.json()["id"]
+
+    async def _mock_narrative(a0, at, delta_a, pac, trend_status, badge):
+        assert badge == "meningkat"
+        assert pac == -30.0
+        assert delta_a == 1.5
+        return (
+            "Evaluasi Longitudinal: Area luka terukur meningkat dari 5.00% menjadi 6.50% (PAC: -30.00%, ΔA: +1.50%). Hasil estimasi berdasarkan foto memerlukan pemeriksaan langsung tenaga medis.",
+            "Area luka terdeteksi membesar bertambah sekitar 30.00%. Hasil ini estimasi berdasarkan foto dan memerlukan pemeriksaan langsung dokter.",
+            "llm",
+        )
+
+    app.dependency_overrides[get_narrative_service] = lambda: _mock_narrative
+
+    c2 = await ac.post(f"/api/v1/visits/{v2_id}/confirm")
+    assert c2.status_code == 200
+    b2 = c2.json()
+    assert b2["pac"] == -30.0
+    assert b2["delta_area"] == 1.5
+    assert b2["trend_status"] == "Tren Meningkat (Area Luka Membesar)"
+    assert b2["narrative_source"] == "llm"
+
+
+async def test_28_sk3_k7_confirm_exact_boundary_stabil(
+    visit_client: tuple[AsyncClient, Path],
+) -> None:
+    """SK-3 K7: A0=10.00%, At=9.50% -> PAC tepat +5.00%, delta_A=-0.50% -> Tren Stabil (Batas Eksak)."""
+    ac, _ = visit_client
+    png_bytes = _make_dummy_png_bytes()
+
+    # Baseline A0 = 10.00% (6554 px)
+    _override_segmentation_px(6554)
+    r1 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-01", "distance_confirmed": "true"},
+        files={"file": ("v1.png", png_bytes, "image/png")},
+    )
+    await ac.post(f"/api/v1/visits/{r1.json()['id']}/confirm")
+
+    # Visit 2 At = 9.50% (6226 px -> PAC = (10.00 - 9.50)/10.00 = +5.00%)
+    _override_segmentation_px(6226)
+    r2 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-15", "distance_confirmed": "true"},
+        files={"file": ("v2.png", png_bytes, "image/png")},
+    )
+    c2 = await ac.post(f"/api/v1/visits/{r2.json()['id']}/confirm")
+    assert c2.status_code == 200
+    b2 = c2.json()
+    assert b2["pac"] == 5.0
+    assert b2["delta_area"] == -0.5
+    assert b2["trend_status"] == "Tren Stabil (Perubahan Minimal)"
+
+
+async def test_29_sk3_k8_foreign_numbers_rejected_and_fallback() -> None:
+    """SK-3 K8: Narasi LLM yang mengandung angka asing di luar input ditolak dan fallback."""
+    a0 = 5.0
+    at = 3.5
+    delta_a = -1.5
+    pac = 30.0
+    badge = "menurun"
+
+    # Narasi dengan angka asing 45.0% dan 12.5%
+    c_notes_bad = "Evaluasi: luas luka 45.0% dan PAC +30.00%. Estimasi visual memerlukan pemeriksaan langsung tenaga medis."
+    p_text_bad = "Luka mengecil sekitar 12.5%. Estimasi visual memerlukan pemeriksaan langsung dokter."
+    is_valid, reason = validate_narrative_text(c_notes_bad, p_text_bad, a0, at, delta_a, pac, badge)
+    assert not is_valid
+    assert "Angka asing" in reason
+
+    # Verifikasi templat fallback Tabel 3.5 persis yang dihasilkan
+    c_fb, p_fb, src = generate_fallback_narrative(a0, at, delta_a, pac, badge)
+    assert src == "template_fallback"
+    assert "5.00%" in c_fb
+    assert "3.50%" in c_fb
+    assert "+30.00%" in c_fb
+    assert "30.00%" in p_fb
+
+
+async def test_30_sk3_k9_timeout_error_malformed_json_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SK-3 K9: Timeout (>10s), network error, dan JSON rusak beralih ke templat fallback."""
+    a0 = 5.0
+    at = 3.5
+    delta_a = -1.5
+    pac = 30.0
+    trend_status = "Tren Menurun (Area Luka Mengecil)"
+    badge = "menurun"
+
+    # 1. Timeout (>10s)
+    async def mock_post_timeout(*args, **kwargs):
+        raise httpx.TimeoutException("Read timeout > 10s")
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post_timeout)
+    c1, p1, s1 = await generate_longitudinal_narrative(
+        a0, at, delta_a, pac, trend_status, badge, api_key="test_key"
+    )
+    assert s1 == "template_fallback"
+    assert "30.00%" in p1
+
+    # 2. HTTP 500 error
+    async def mock_post_500(*args, **kwargs):
+        return httpx.Response(500, text="Internal Server Error")
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post_500)
+    c2, p2, s2 = await generate_longitudinal_narrative(
+        a0, at, delta_a, pac, trend_status, badge, api_key="test_key"
+    )
+    assert s2 == "template_fallback"
+
+    # 3. JSON rusak / bukan format JSON
+    async def mock_post_malformed(*args, **kwargs):
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "Bukan format JSON yang valid"}]}}]})
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post_malformed)
+    c3, p3, s3 = await generate_longitudinal_narrative(
+        a0, at, delta_a, pac, trend_status, badge, api_key="test_key"
+    )
+    assert s3 == "template_fallback"
+
+
+async def test_31_sk3_k10_gemini_payload_no_pii_and_forbidden_words() -> None:
+    """SK-3 K10: Payload hanya 5 parameter tanpa PII, dan larangan kata terlarang."""
+    prompt = build_gemini_user_prompt(
+        a0=10.26,
+        at=8.10,
+        delta_a=-2.16,
+        pac=21.05,
+        trend_status="Tren Menurun (Area Luka Mengecil)",
+    )
+
+    # Pastikan tepat 5 field tanpa data pribadi pasien
+    assert "A0: 10.26%" in prompt
+    assert "At: 8.10%" in prompt
+    assert "delta_A: -2.16%" in prompt
+    assert "PAC: +21.05%" in prompt
+    assert "trend_status: Tren Menurun (Area Luka Mengecil)" in prompt
+
+    forbidden_pii = ["Patient", "RM", "nama", "umur", "jk", "lokasi", "foto", "image"]
+    for pii in forbidden_pii:
+        assert pii not in prompt.lower()
+
+    # Validasi kata terlarang
+    for word in FORBIDDEN_WORDS:
+        bad_notes = f"Kondisi luka {word} secara klinis. Estimasi visual memerlukan pemeriksaan langsung tenaga medis."
+        good_patient = "Luka terdeteksi mengecil sekitar 21.05%. Estimasi visual memerlukan pemeriksaan langsung dokter."
+        is_val, reason = validate_narrative_text(
+            bad_notes, good_patient, 10.26, 8.10, -2.16, 21.05, "menurun"
+        )
+        assert not is_val
+        assert "Kata terlarang" in reason
+
+
+async def test_32_baseline_visit_does_not_call_llm(
+    visit_client: tuple[AsyncClient, Path],
+) -> None:
+    """Kunjungan baseline (t=1) tidak pernah memanggil LLM."""
+    ac, _ = visit_client
+    png_bytes = _make_dummy_png_bytes()
+
+    llm_called = False
+
+    async def _mock_narrative(*args, **kwargs):
+        nonlocal llm_called
+        llm_called = True
+        return ("a", "b", "llm")
+
+    app.dependency_overrides[get_narrative_service] = lambda: _mock_narrative
+
+    _override_segmentation_px(3277)
+    r1 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-01", "distance_confirmed": "true"},
+        files={"file": ("v1.png", png_bytes, "image/png")},
+    )
+    c1 = await ac.post(f"/api/v1/visits/{r1.json()['id']}/confirm")
+    assert c1.status_code == 200
+    b1 = c1.json()
+    assert not llm_called
+    assert b1["visit_index"] == 1
+    assert b1["pac"] is None
+    assert b1["clinician_notes"] is None
+    assert b1["patient_narrative"] is None
+    assert b1["narrative_source"] is None
+
+
+async def test_33_a0_zero_baseline_does_not_call_llm_and_shows_notice(
+    visit_client: tuple[AsyncClient, Path],
+) -> None:
+    """Jika A0=0, PAC tidak dapat dihitung, LLM tidak dipanggil, dan fallback aman."""
+    ac, _ = visit_client
+    png_bytes = _make_dummy_png_bytes()
+
+    llm_called = False
+
+    async def _mock_narrative(*args, **kwargs):
+        nonlocal llm_called
+        llm_called = True
+        return ("a", "b", "llm")
+
+    app.dependency_overrides[get_narrative_service] = lambda: _mock_narrative
+
+    # Baseline dengan 0 piksel
+    _override_segmentation_px(0)
+    r1 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-01", "distance_confirmed": "true"},
+        files={"file": ("v1.png", png_bytes, "image/png")},
+    )
+    await ac.post(f"/api/v1/visits/{r1.json()['id']}/confirm")
+
+    # Kunjungan 2 dengan 1311 piksel (2.00%)
+    _override_segmentation_px(1311)
+    r2 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-15", "distance_confirmed": "true"},
+        files={"file": ("v2.png", png_bytes, "image/png")},
+    )
+    c2 = await ac.post(f"/api/v1/visits/{r2.json()['id']}/confirm")
+    assert c2.status_code == 200
+    b2 = c2.json()
+    assert not llm_called
+    assert b2["pac"] is None
+    assert b2["narrative_source"] == "template_fallback"
+    assert "A₀ = 0" in b2["clinician_notes"]
+
+
+async def test_34_concurrent_confirm_does_not_call_gemini_twice(
+    visit_client: tuple[AsyncClient, Path],
+) -> None:
+    """Konfirmasi bersamaan (konkuren) pada draf yang sama tidak memanggil LLM dua kali."""
+    ac, _ = visit_client
+    png_bytes = _make_dummy_png_bytes()
+
+    _override_segmentation_px(3277)
+    r1 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-01", "distance_confirmed": "true"},
+        files={"file": ("v1.png", png_bytes, "image/png")},
+    )
+    await ac.post(f"/api/v1/visits/{r1.json()['id']}/confirm")
+
+    _override_segmentation_px(2294)
+    r2 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-15", "distance_confirmed": "true"},
+        files={"file": ("v2.png", png_bytes, "image/png")},
+    )
+    v2_id = r2.json()["id"]
+
+    call_count = 0
+
+    async def _mock_narrative(a0, at, delta_a, pac, trend_status, badge):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.05)  # Simulasi jeda network
+        return (
+            "Evaluasi Longitudinal: Area luka menurun dari 5.00% ke 3.50% (PAC: +30.00%, ΔA: -1.50%). Estimasi visual memerlukan pemeriksaan langsung tenaga medis.",
+            "Area luka mengecil berkurang sekitar 30.00%. Estimasi visual memerlukan pemeriksaan langsung dokter.",
+            "llm",
+        )
+
+    app.dependency_overrides[get_narrative_service] = lambda: _mock_narrative
+
+    # Panggil confirm serentak
+    resp1, resp2 = await asyncio.gather(
+        ac.post(f"/api/v1/visits/{v2_id}/confirm"),
+        ac.post(f"/api/v1/visits/{v2_id}/confirm"),
+    )
+
+    assert resp1.status_code == 200
+    assert resp2.status_code == 200
+    assert resp1.json()["confirmed_at"] == resp2.json()["confirmed_at"]
+    assert call_count == 1, f"LLM harus dipanggil tepat 1 kali, tapi terpanggil {call_count} kali"
+
+
+async def test_35_reversed_trend_direction_rejected_and_fallback() -> None:
+    """Arah tren terbalik pada narasi LLM ditolak dan beralih ke fallback."""
+    # Kasus menurun, tapi teks menyebut membesar/bertambah
+    notes = "Evaluasi: luka dari 5.00% ke 3.50% (PAC: +30.00%, ΔA: -1.50%). Estimasi visual memerlukan pemeriksaan langsung tenaga medis."
+    bad_patient = "Area luka terdeteksi membesar bertambah sekitar 30.00%. Estimasi visual memerlukan pemeriksaan langsung dokter."
+    is_val, reason = validate_narrative_text(notes, bad_patient, 5.0, 3.5, -1.5, 30.0, "menurun")
+    assert not is_val
+    assert "Arah tren terbalik" in reason
+
+
+async def test_36_real_gemini_api_call_manual() -> None:
+    """Uji manual panggilan nyata ke Gemini API jika GEMINI_API_KEY disetel di env."""
+    if not settings.gemini_api_key:
+        pytest.skip("belum diverifikasi (GEMINI_API_KEY kosong)")
+
+    c_notes, p_narrative, src = await generate_longitudinal_narrative(
+        a0=10.26,
+        at=8.10,
+        delta_a=-2.16,
+        pac=21.05,
+        trend_status="Tren Menurun (Area Luka Mengecil)",
+        badge="menurun",
+        api_key=settings.gemini_api_key,
+        model=settings.gemini_model,
+        timeout_seconds=10.0,
+    )
+    assert src in ("llm", "template_fallback")
+    assert len(c_notes) > 20
+    assert len(p_narrative) > 20
+
 

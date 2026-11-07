@@ -145,6 +145,44 @@ export async function deleteVisit(visitId: number): Promise<void> {
   }
 }
 
+export async function fetchVisit(visitId: number): Promise<VisitRecord> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/visits/${encodeURIComponent(String(visitId))}`, {
+      headers: { Accept: 'application/json' },
+    })
+  } catch {
+    throw new ApiError(0, 'Tidak dapat terhubung ke server backend lokal untuk memuat data kunjungan.')
+  }
+  if (!res.ok) {
+    const fallback =
+      res.status === 404
+        ? `Data kunjungan #${visitId} tidak ditemukan.`
+        : `Gagal memuat data kunjungan (HTTP ${res.status}).`
+    throw new ApiError(res.status, await readErrorDetail(res, fallback))
+  }
+  return (await res.json()) as VisitRecord
+}
+
+export async function confirmVisit(visitId: number): Promise<VisitRecord> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/visits/${encodeURIComponent(String(visitId))}/confirm`, {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+    })
+  } catch {
+    throw new ApiError(0, 'Tidak dapat terhubung ke server backend lokal saat menyimpan konfirmasi.')
+  }
+  if (!res.ok) {
+    throw new ApiError(
+      res.status,
+      await readErrorDetail(res, 'Gagal mengonfirmasi dan menyimpan hasil kunjungan.'),
+    )
+  }
+  return (await res.json()) as VisitRecord
+}
+
 export async function createDraftVisit(
   patientId: string,
   visitDate: string,
