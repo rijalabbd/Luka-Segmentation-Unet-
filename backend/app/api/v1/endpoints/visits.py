@@ -67,8 +67,9 @@ async def confirm_visit(
 
         # Aturan bisnis: confirm bersifat idempoten
         if visit.status == "final":
+            resp = VisitResponse.model_validate(visit)
             await db.rollback()
-            return VisitResponse.model_validate(visit)
+            return resp
 
         # Tolak konfirmasi jika masker luka kosong (A_t = 0 / n_wound_px = 0)
         if visit.n_wound_px <= 0 or visit.area_pct <= 0.0:
@@ -126,8 +127,9 @@ async def confirm_visit(
         )
         visit_locked = await _get_visit_or_404(db, visit_id, for_update=True)
         if visit_locked.status == "final":
+            resp_locked = VisitResponse.model_validate(visit_locked)
             await db.rollback()
-            return VisitResponse.model_validate(visit_locked)
+            return resp_locked
 
         final_visits_locked = list((await db.execute(stmt)).scalars().all())
         next_index = len(final_visits_locked) + 1

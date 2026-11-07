@@ -402,7 +402,7 @@ async def generate_longitudinal_narrative(
 
     try:
         raw_resp = await request_gemini_api(
-            user_payload,
+            user_payload=user_payload,
             api_key=api_key,
             model=settings.gemini_model,
             timeout_seconds=settings.gemini_timeout_seconds,
