@@ -396,6 +396,7 @@ async def generate_longitudinal_narrative(
 
     api_key = settings.gemini_api_key.strip()
     if not api_key:
+        logger.warning("Narrative fallback reason=no_api_key")
         return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
 
     user_payload = build_gemini_user_prompt(
@@ -413,12 +414,20 @@ async def generate_longitudinal_narrative(
             model=settings.gemini_model,
             timeout_seconds=settings.gemini_timeout_seconds,
         )
+    except (httpx.TimeoutException, TimeoutError):
+        logger.warning("Narrative fallback reason=timeout")
+        return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
+    except httpx.HTTPStatusError as exc:
+        logger.warning("Narrative fallback reason=http_error:%s", exc.response.status_code)
+        return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
+    except Exception:
+        logger.warning("Narrative fallback reason=http_error:network")
+        return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
+
+    try:
         parsed = _extract_json_from_gemini_response(raw_resp)
-    except Exception as exc:
-        logger.warning(
-            "Panggilan Gemini gagal (%s); beralih ke template_fallback.",
-            type(exc).__name__,
-        )
+    except (ValueError, json.JSONDecodeError, KeyError, TypeError):
+        logger.warning("Narrative fallback reason=invalid_json")
         return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
 
     is_valid, reason = validate_narrative_output(
@@ -431,7 +440,7 @@ async def generate_longitudinal_narrative(
         badge=badge,
     )
     if not is_valid:
-        logger.warning("Narasi Gemini ditolak validator (%s); beralih ke template_fallback.", reason)
+        logger.warning("Narrative fallback reason=validator_rejected:%s", reason)
         return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
 
     return parsed["clinician_notes"].strip(), parsed["patient_narrative"].strip(), "llm"

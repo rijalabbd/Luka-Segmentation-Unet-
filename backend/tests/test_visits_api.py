@@ -1334,3 +1334,110 @@ async def test_37_real_gemini_api_call_manual(
     assert is_valid, f"Narasi tidak valid: {reason}"
 
 
+async def test_38_fallback_reason_logging_and_no_secret_leak(
+    visit_client: tuple[AsyncClient, Path],
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    S3: Verifikasi log mencatat alasan fallback tepat satu nilai dari:
+    no_api_key, timeout, http_error:<kode>, invalid_json, validator_rejected:<aturan>,
+    serta tidak pernah mencatat API key, URL berkunci, atau isi respons mentah.
+    """
+    import logging
+
+    ac, _ = visit_client
+    caplog.set_level(logging.WARNING, logger="app.services.narrative")
+    secret_key = "SUPER_SECRET_API_KEY_DO_NOT_LOG_98765"
+
+    await _create_and_confirm_baseline(ac, n_px=3277, visit_date="2026-10-01")
+
+    # 1. no_api_key
+    caplog.clear()
+    monkeypatch.setattr(settings, "gemini_api_key", "")
+    _override_segmentation_px(2294)
+    r1 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-05", "distance_confirmed": "true"},
+        files={"file": ("s3_1.png", _make_dummy_png_bytes(), "image/png")},
+    )
+    await ac.post(f"/api/v1/visits/{r1.json()['id']}/confirm")
+    assert any("reason=no_api_key" in rec.message for rec in caplog.records)
+
+    # 2. timeout
+    caplog.clear()
+    monkeypatch.setattr(settings, "gemini_api_key", secret_key)
+
+    async def _raise_timeout(**_kwargs: object) -> dict[str, object]:
+        raise httpx.TimeoutException("Timed out")
+
+    monkeypatch.setattr(narrative_module, "request_gemini_api", _raise_timeout)
+    r2 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-06", "distance_confirmed": "true"},
+        files={"file": ("s3_2.png", _make_dummy_png_bytes(), "image/png")},
+    )
+    await ac.post(f"/api/v1/visits/{r2.json()['id']}/confirm")
+    assert any("reason=timeout" in rec.message for rec in caplog.records)
+    assert secret_key not in caplog.text
+
+    # 3. http_error:<kode>
+    caplog.clear()
+
+    async def _raise_503(**_kwargs: object) -> dict[str, object]:
+        req = httpx.Request("POST", "https://generativelanguage.googleapis.com/v1beta/models/x")
+        resp = httpx.Response(503, request=req, text="RAW_ERROR_BODY_SHOULD_NOT_BE_LOGGED")
+        raise httpx.HTTPStatusError("Service unavailable", request=req, response=resp)
+
+    monkeypatch.setattr(narrative_module, "request_gemini_api", _raise_503)
+    r3 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-07", "distance_confirmed": "true"},
+        files={"file": ("s3_3.png", _make_dummy_png_bytes(), "image/png")},
+    )
+    await ac.post(f"/api/v1/visits/{r3.json()['id']}/confirm")
+    assert any("reason=http_error:503" in rec.message for rec in caplog.records)
+    assert secret_key not in caplog.text
+    assert "RAW_ERROR_BODY_SHOULD_NOT_BE_LOGGED" not in caplog.text
+
+    # 4. invalid_json
+    caplog.clear()
+
+    async def _return_bad_json(**_kwargs: object) -> dict[str, object]:
+        return {
+            "candidates": [
+                {"content": {"parts": [{"text": "{RAW_MALFORMED_JSON_SECRET_BODY"}]}}
+            ]
+        }
+
+    monkeypatch.setattr(narrative_module, "request_gemini_api", _return_bad_json)
+    r4 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-08", "distance_confirmed": "true"},
+        files={"file": ("s3_4.png", _make_dummy_png_bytes(), "image/png")},
+    )
+    await ac.post(f"/api/v1/visits/{r4.json()['id']}/confirm")
+    assert any("reason=invalid_json" in rec.message for rec in caplog.records)
+    assert "RAW_MALFORMED_JSON_SECRET_BODY" not in caplog.text
+
+    # 5. validator_rejected:<aturan>
+    caplog.clear()
+
+    async def _return_invalid_narrative(**_kwargs: object) -> dict[str, object]:
+        return _build_gemini_mock_response(
+            clinician_notes="Area luka menurun 99.9%.",
+            patient_narrative="Area luka mengecil.",
+        )
+
+    monkeypatch.setattr(narrative_module, "request_gemini_api", _return_invalid_narrative)
+    r5 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-09", "distance_confirmed": "true"},
+        files={"file": ("s3_5.png", _make_dummy_png_bytes(), "image/png")},
+    )
+    await ac.post(f"/api/v1/visits/{r5.json()['id']}/confirm")
+    assert any("reason=validator_rejected:" in rec.message for rec in caplog.records)
+    assert secret_key not in caplog.text
+
+
+
