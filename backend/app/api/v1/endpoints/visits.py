@@ -1,20 +1,44 @@
+import asyncio
 from datetime import datetime, timezone
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 
 from app.core.database import DBSession
+from app.models.patient import Patient
 from app.models.visit import Visit
 from app.schemas.visit import VisitResponse
-from app.services.narrative import generate_fallback_narrative
+from app.services.narrative import NarrativeServiceFn, get_narrative_service
 from app.services.pac import evaluate_pac_and_trend
 from app.services.storage import delete_visit_files
 
 router = APIRouter(prefix="/visits", tags=["visits"])
 
+NarrativeDep = Annotated[NarrativeServiceFn, Depends(get_narrative_service)]
 
-async def _get_visit_or_404(db: DBSession, visit_id: int) -> Visit:
+# shortcut: in-memory lock dictionary per visit_id untuk mencegah panggilan ganda ke Gemini pada proses tunggal; gunakan pg_advisory_lock jika kelak berjalan multi-worker.
+_confirm_locks: dict[int, asyncio.Lock] = {}
+
+
+def _get_visit_confirm_lock(visit_id: int) -> asyncio.Lock:
+    lock = _confirm_locks.get(visit_id)
+    if lock is None:
+        if len(_confirm_locks) > 2048:
+            unlocked = [k for k, v in _confirm_locks.items() if not v.locked()]
+            for k in unlocked[:1024]:
+                _confirm_locks.pop(k, None)
+        lock = asyncio.Lock()
+        _confirm_locks[visit_id] = lock
+    return lock
+
+
+async def _get_visit_or_404(
+    db: DBSession, visit_id: int, *, for_update: bool = False
+) -> Visit:
     stmt = select(Visit).where(Visit.id == visit_id)
+    if for_update:
+        stmt = stmt.with_for_update()
     visit = (await db.execute(stmt)).scalar_one_or_none()
     if visit is None:
         raise HTTPException(
@@ -31,59 +55,105 @@ async def get_visit(visit_id: int, db: DBSession) -> VisitResponse:
 
 
 @router.post("/{visit_id}/confirm", response_model=VisitResponse)
-async def confirm_visit(visit_id: int, db: DBSession) -> VisitResponse:
-    visit = await _get_visit_or_404(db, visit_id)
+async def confirm_visit(
+    visit_id: int,
+    db: DBSession,
+    narrative_service: NarrativeDep,
+) -> VisitResponse:
+    lock = _get_visit_confirm_lock(visit_id)
+    async with lock:
+        # Transaksi 1 (singkat): kunci baris visit, periksa status & validitas A_t, lalu lepaskan transaksi
+        visit = await _get_visit_or_404(db, visit_id, for_update=True)
 
-    # Aturan bisnis: confirm bersifat idempoten
-    if visit.status == "final":
-        return VisitResponse.model_validate(visit)
+        # Aturan bisnis: confirm bersifat idempoten
+        if visit.status == "final":
+            await db.rollback()
+            return VisitResponse.model_validate(visit)
 
-    stmt = (
-        select(Visit)
-        .where(Visit.patient_id == visit.patient_id, Visit.status == "final")
-        .order_by(Visit.visit_index.asc(), Visit.id.asc())
-    )
-    final_visits = list((await db.execute(stmt)).scalars().all())
-    next_index = len(final_visits) + 1
+        # Tolak konfirmasi jika masker luka kosong (A_t = 0 / n_wound_px = 0)
+        if visit.n_wound_px <= 0 or visit.area_pct <= 0.0:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    "Konfirmasi ditolak: tidak ada area luka yang terdeteksi pada citra "
+                    "(A_t = 0%). Silakan buang draf dan ambil foto ulang."
+                ),
+            )
 
-    visit.status = "final"
-    visit.visit_index = next_index
-    visit.confirmed_at = datetime.now(timezone.utc)
+        patient_id = visit.patient_id
+        visit_area = visit.area_pct
 
-    if next_index == 1:
-        # Baseline (A0): delta_area, pac, trend_status, dan narasi bernilai Null
-        visit.delta_area = None
-        visit.pac = None
-        visit.trend_status = None
-        visit.clinician_notes = None
-        visit.patient_narrative = None
-        visit.narrative_source = None
-    else:
-        baseline = final_visits[0]
-        delta_a, pac, badge, trend_label = evaluate_pac_and_trend(
-            baseline.area_pct, visit.area_pct
+        stmt = (
+            select(Visit)
+            .where(Visit.patient_id == patient_id, Visit.status == "final")
+            .order_by(Visit.visit_index.asc(), Visit.id.asc())
         )
-        rounded_delta = round(delta_a, 2)
-        rounded_pac = round(pac, 2) if pac is not None else None
+        final_visits = list((await db.execute(stmt)).scalars().all())
+        is_baseline = len(final_visits) == 0
+        baseline_area = final_visits[0].area_pct if final_visits else 0.0
 
-        visit.delta_area = rounded_delta
-        visit.pac = rounded_pac
-        visit.trend_status = trend_label
+        # Akhiri transaksi baca agar koneksi DB tidak ditahan selama pemanggilan Gemini (hingga 10 detik)
+        await db.rollback()
 
-        clinician_notes, patient_narrative, source = generate_fallback_narrative(
-            a0=baseline.area_pct,
-            at=visit.area_pct,
-            delta_a=rounded_delta,
-            pac=rounded_pac,
-            badge=badge,
+        # Di luar transaksi database: hitung PAC & panggil layanan narasi (Gemini + validator + fallback)
+        rounded_delta: float | None = None
+        rounded_pac: float | None = None
+        trend_label: str | None = None
+        clinician_notes: str | None = None
+        patient_narrative: str | None = None
+        narrative_source: str | None = None
+
+        if not is_baseline:
+            delta_a, pac, badge, trend_label = evaluate_pac_and_trend(
+                baseline_area, visit_area
+            )
+            rounded_delta = round(delta_a, 2)
+            rounded_pac = round(pac, 2) if pac is not None else None
+
+            clinician_notes, patient_narrative, narrative_source = await narrative_service(
+                baseline_area,
+                visit_area,
+                rounded_delta,
+                rounded_pac,
+                badge,
+                trend_label,
+            )
+
+        # Transaksi 2 (singkat): kunci baris pasien dan visit, tetapkan visit_index, dan simpan final
+        await db.execute(
+            select(Patient).where(Patient.rm_code == patient_id).with_for_update()
         )
-        visit.clinician_notes = clinician_notes
-        visit.patient_narrative = patient_narrative
-        visit.narrative_source = source
+        visit_locked = await _get_visit_or_404(db, visit_id, for_update=True)
+        if visit_locked.status == "final":
+            await db.rollback()
+            return VisitResponse.model_validate(visit_locked)
 
-    await db.commit()
-    await db.refresh(visit)
-    return VisitResponse.model_validate(visit)
+        final_visits_locked = list((await db.execute(stmt)).scalars().all())
+        next_index = len(final_visits_locked) + 1
+
+        visit_locked.status = "final"
+        visit_locked.visit_index = next_index
+        visit_locked.confirmed_at = datetime.now(timezone.utc)
+
+        if next_index == 1:
+            visit_locked.delta_area = None
+            visit_locked.pac = None
+            visit_locked.trend_status = None
+            visit_locked.clinician_notes = None
+            visit_locked.patient_narrative = None
+            visit_locked.narrative_source = None
+        else:
+            visit_locked.delta_area = rounded_delta
+            visit_locked.pac = rounded_pac
+            visit_locked.trend_status = trend_label
+            visit_locked.clinician_notes = clinician_notes
+            visit_locked.patient_narrative = patient_narrative
+            visit_locked.narrative_source = narrative_source
+
+        await db.commit()
+        await db.refresh(visit_locked)
+        return VisitResponse.model_validate(visit_locked)
 
 
 @router.delete("/{visit_id}")
@@ -110,4 +180,3 @@ async def delete_visit(visit_id: int, db: DBSession) -> dict[str, int | str]:
         "deleted_visit_id": visit_id,
         "status": deleted_status,
     }
-
