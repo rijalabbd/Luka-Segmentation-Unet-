@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     model_normalization: str = "zero_one"
     max_upload_size_bytes: int = 10 * 1024 * 1024
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-3.5-flash"
     gemini_timeout_seconds: float = 10.0
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 

@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 # Enam aturan system prompt sesuai Tabel 3.4 proposal (Bab 3.8)
 SYSTEM_PROMPT_TABEL_3_4 = """Anda adalah asisten dokumentasi klinis untuk pemantauan longitudinal ulkus kusta.
 Hasilkan keluaran HANYA dalam format JSON valid dengan tepat dua kunci: "clinician_notes" dan "patient_narrative".
-Wajib patuhi enam aturan berikut tanpa pengecualian:
-1. Kepatuhan Angka: Gunakan angka sesuai data masukan (A0, A_t, delta_A, PAC) tanpa mengubah, membulatkan sembarangan, atau menambahkan angka baru apa pun di luar data masukan.
-2. Larangan Diagnosis: Dilarang memberikan diagnosis medis maupun meresepkan obat atau terapi spesifik.
-3. Bahasa Observasional: Gunakan istilah pengamatan fisik ("terdeteksi mengecil", "terukur membesar", "relatif stabil"). Dilarang keras memakai kata "membaik", "memburuk", "sembuh", "infeksi", "diagnosis", atau "resep".
-4. Disclaimer Medis: Wajib menyertakan keterangan di kedua narasi bahwa hasil merupakan estimasi visual berdasarkan foto dan memerlukan pemeriksaan klinis langsung oleh tenaga medis (perawat atau dokter), serta bukan diagnosis medis.
-5. Narasi Pasien ("patient_narrative"): Gunakan bahasa Indonesia sehari-hari yang sederhana, empatik, mudah dipahami awam, dan cantumkan nilai mutlak PAC (tanpa tanda negatif '-').
-6. Catatan Klinisi ("clinician_notes"): Gunakan bahasa medis formal dan ringkas dengan mencantumkan keempat nilai A0, A_t, delta_A (dengan tanda + atau -), dan PAC (dengan tanda + atau -)."""
+Wajib patuhi enam aturan Tabel 3.4 berikut tanpa pengecualian:
+1. Kepatuhan Angka: Menggunakan angka sesuai data masukan (A0, A_t, delta_A, PAC) tanpa mengubah atau menambahkan angka baru. A0 dan A_t dinyatakan dalam satuan %, delta_A dalam poin persentase, dan PAC dalam % (dilarang menggunakan satuan cm atau cm²).
+2. Larangan Diagnosis: Tidak memberikan diagnosis medis maupun meresepkan obat.
+3. Bahasa Observasional: Menggunakan istilah pengamatan fisik, seperti "terdeteksi mengecil", "terukur membesar", atau "relatif stabil". Dilarang memakai kata "membaik", "memburuk", "sembuh", "infeksi", "diagnosis" (kecuali dalam frasa disclaimer "bukan diagnosis medis"), atau "resep".
+4. Disclaimer Medis: Menyertakan keterangan di kedua narasi bahwa hasil merupakan estimasi visual sistem berdasarkan foto dan memerlukan pemeriksaan langsung oleh tenaga medis (perawat atau dokter), serta bukan diagnosis medis.
+5. Narasi Pasien (patient_narrative): Menggunakan bahasa Indonesia sehari-hari yang sederhana, empatik, dan mudah dipahami, serta mencantumkan nilai mutlak PAC (tanpa tanda minus '-').
+6. Catatan Klinisi (clinician_notes): Menggunakan bahasa formal dan ringkas dengan mencantumkan nilai A0, A_t, delta_A (dengan tanda + atau -), dan PAC (wajib diawali tanda '+' jika PAC > 0 atau '-' jika PAC < 0 sesuai tanda pada data masukan)."""
 
 FORBIDDEN_WORDS = (
     "membaik",
@@ -62,9 +62,9 @@ def build_gemini_user_prompt(
 def extract_numbers_from_text(text: str) -> list[float]:
     """
     Mengekstrak seluruh angka (integer maupun desimal dengan titik atau koma) dari teks,
-    setelah mengabaikan token notasi indeks tetap seperti 'T₁' atau 'T1'.
+    setelah mengabaikan token notasi indeks tetap seperti 'T₁', 'T1', 'A₀', atau 'A0'.
     """
-    cleaned = re.sub(r"\bT[₁1]\b", "T_awal", text)
+    cleaned = re.sub(r"\b(?:T[₁1]|A[₀0])\b", "ID_AWAL", text)
     matches = re.findall(r"(?<![A-Za-z_])\d+(?:[.,]\d+)?", cleaned)
     result: list[float] = []
     for token in matches:
@@ -78,8 +78,10 @@ def extract_numbers_from_text(text: str) -> list[float]:
 
 def _contains_forbidden_word(text: str) -> str | None:
     lowered = text.lower()
-    # Izinkan frasa disclaimer resmi "bukan diagnosis medis" / "bukanlah diagnosis medis"
-    sanitized = re.sub(r"\bbukan(?:lah)?\s+diagnosis(?:\s+medis)?\b", "", lowered)
+    # Izinkan frasa disclaimer resmi "bukan diagnosis medis" / "bukan merupakan diagnosis medis"
+    sanitized = re.sub(
+        r"\bbukan(?:lah)?(?:\s+merupakan)?\s+diagnosis(?:\s+medis)?\b", "", lowered
+    )
     for word in FORBIDDEN_WORDS:
         if re.search(rf"\b{re.escape(word)}\b", sanitized):
             return word
@@ -311,6 +313,22 @@ async def request_gemini_api(
     menggunakan header x-goog-api-key (agar API key tidak pernah muncul di URL log).
     """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    generation_config: dict[str, object] = {
+        "temperature": 0.3,
+        "maxOutputTokens": 800,
+        "responseMimeType": "application/json",
+        "responseSchema": {
+            "type": "OBJECT",
+            "properties": {
+                "clinician_notes": {"type": "STRING"},
+                "patient_narrative": {"type": "STRING"},
+            },
+            "required": ["clinician_notes", "patient_narrative"],
+        },
+    }
+    if any(ver in model for ver in ("2.5", "3.")):
+        generation_config["thinkingConfig"] = {"thinkingBudget": 0}
+
     request_body = {
         "systemInstruction": {
             "parts": [{"text": SYSTEM_PROMPT_TABEL_3_4}],
@@ -321,19 +339,7 @@ async def request_gemini_api(
                 "parts": [{"text": json.dumps(user_payload, ensure_ascii=False)}],
             }
         ],
-        "generationConfig": {
-            "temperature": 0.3,
-            "maxOutputTokens": 800,
-            "responseMimeType": "application/json",
-            "responseSchema": {
-                "type": "OBJECT",
-                "properties": {
-                    "clinician_notes": {"type": "STRING"},
-                    "patient_narrative": {"type": "STRING"},
-                },
-                "required": ["clinician_notes", "patient_narrative"],
-            },
-        },
+        "generationConfig": generation_config,
     }
     headers = {
         "Content-Type": "application/json",

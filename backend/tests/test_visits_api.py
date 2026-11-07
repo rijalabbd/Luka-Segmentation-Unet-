@@ -1305,6 +1305,8 @@ async def test_37_real_gemini_api_call_manual(
 ) -> None:
     """Uji manual dengan GEMINI_API_KEY asli (dilewati otomatis bila key kosong)."""
     ac, _ = visit_client
+    raw_key = settings.gemini_api_key.strip()
+    masked_key = f"{raw_key[:6]}...{raw_key[-4:]}" if len(raw_key) > 10 else "***"
     await _create_and_confirm_baseline(ac, n_px=3277, visit_date="2026-10-01")
     _override_segmentation_px(2294)
     r2 = await ac.post(
@@ -1315,6 +1317,10 @@ async def test_37_real_gemini_api_call_manual(
     c2 = await ac.post(f"/api/v1/visits/{r2.json()['id']}/confirm")
     assert c2.status_code == 200
     body = c2.json()
+    print(f"\n[TEST_37] GEMINI_MODEL={settings.gemini_model} KEY={masked_key}")
+    print(f"[TEST_37] narrative_source={body['narrative_source']}")
+    print(f"[TEST_37] clinician_notes={body['clinician_notes']}")
+    print(f"[TEST_37] patient_narrative={body['patient_narrative']}")
     assert body["narrative_source"] in ("llm", "template_fallback")
     is_valid, reason = validate_narrative_output(
         clinician_notes=body["clinician_notes"],

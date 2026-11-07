@@ -31,7 +31,7 @@ services:
       MODEL_NORMALIZATION: zero_one
       SEED_DEMO_ON_STARTUP: ${SEED_DEMO_ON_STARTUP:-false}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
