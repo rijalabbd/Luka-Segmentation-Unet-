@@ -39,6 +39,7 @@ ml/data/raw/
 ml/data/processed/
 ml/checkpoints/
 ml/test_set/
+ml/reports/
 
 # Local Uploaded Storage
 backend/storage/uploads/*
