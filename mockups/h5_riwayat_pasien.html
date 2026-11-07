@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Riwayat Pasien RM-0012 — Dokumentasi Luka</title>
+<style>
+:root{
+  --bg:#F8FAFC; --surface:#FFFFFF;
+  --navy:#0F2942; --navy-hover:#163A5F;
+  --teal:#2A6F73; --teal-soft:#EAF4F4;
+  --border:#E2E8F0; --border-strong:#CBD5E1;
+  --text:#0F172A; --text-2:#475569; --muted:#5B6B80;
+  --green:#15803D; --green-bg:#DCFCE7; --green-bd:#86EFAC;
+  --amber:#B45309; --amber-bg:#FEF3C7; --amber-bd:#FCD34D;
+  --error:#B91C1C; --error-bg:#FEE2E2;
+  --sans:Inter,"Geist Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --dur:180ms;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,p,dl,dd,dt,figure,ol{margin:0}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px;border-radius:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+[hidden]{display:none!important}
+.skip-link{position:absolute;left:16px;top:-80px;z-index:100;background:var(--navy);color:#fff;padding:10px 16px;font-size:14px;font-weight:600;border-radius:6px;transition:top var(--dur)}
+.skip-link:focus{top:10px}
+svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* Topbar (1120px, sama dengan H1–H4) */
+.topbar{min-height:64px;background:var(--surface);border-bottom:1px solid var(--border)}
+.topbar-in{min-height:64px;max-width:1120px;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:32px;height:32px;border:1px solid var(--navy);border-radius:50%;display:grid;place-items:center;color:var(--navy);font-weight:600;font-size:18px;flex:none}
+.brand-name{display:block;font-size:16px;font-weight:650;color:var(--navy);line-height:1.2}
+.brand-sub{display:block;font-size:12px;color:var(--muted);line-height:1.2}
+.topright{display:flex;align-items:center;gap:20px}
+.sys{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}
+.topnav{display:flex;height:64px;gap:4px}
+.topnav a{display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--text-2);position:relative;transition:color var(--dur)}
+.topnav a:hover{color:var(--navy)}
+.topnav a[aria-current="page"]{color:var(--navy);font-weight:650}
+.topnav a[aria-current="page"]::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;background:var(--teal)}
+
+main{max-width:1120px;margin:0 auto;padding:20px 24px 72px}
+.crumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;min-height:40px;color:var(--muted)}
+.crumb a{color:var(--teal);font-weight:600;display:inline-flex;align-items:center;min-height:40px}
+.crumb a:hover{text-decoration:underline}
+.crumb [aria-current]{color:var(--text-2);font-weight:600}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:6px 0 20px}
+h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:var(--navy)}
+.head p{margin-top:6px;color:var(--text-2);font-size:15px;max-width:620px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;font:inherit;font-size:14px;font-weight:600;border-radius:6px;border:1px solid transparent;cursor:pointer;white-space:nowrap;transition:background-color var(--dur),border-color var(--dur),color var(--dur),transform var(--dur)}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--navy);color:#fff}
+.btn-primary:hover{background:var(--navy-hover)}
+.btn-secondary{background:var(--surface);color:var(--navy);border-color:var(--border-strong)}
+.btn-secondary:hover{border-color:var(--navy);background:var(--bg)}
+.btn-danger{background:var(--error);color:#fff}
+.btn-danger:hover:not(:disabled){background:#991B1B}
+/* Tombol destruktif nonaktif: teks #475569 di atas #E2E8F0 (≈6:1, WCAG AA) */
+.btn-danger:disabled{background:#E2E8F0;color:#475569;border-color:#CBD5E1;cursor:not-allowed}
+.btn-danger-o{background:var(--surface);color:var(--error);border-color:var(--error)}
+.btn-danger-o:hover{background:var(--error-bg)}
+.btn-sm{min-height:40px;padding:0 14px;font-size:13px}
+
+/* Demo */
+.demo{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin-bottom:16px;font-size:12px;color:var(--muted)}
+.demo b{letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.link-btn{font:inherit;font-size:13px;color:var(--teal);font-weight:600;background:none;border:0;border-bottom:1px solid #8fb0b0;padding:10px 0 1px;cursor:pointer}
+.link-btn:hover{color:var(--navy)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px}
+
+/* Overview */
+.overview{border-left:4px solid var(--teal);padding:22px 24px}
+.ov-top{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.name-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.name{font-size:20px;font-weight:700;color:var(--text)}
+.rm{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;background:#F1F5F9;border:1px solid var(--border-strong);color:var(--navy);padding:3px 9px;border-radius:5px}
+.demog{margin-top:6px;font-size:14px;color:var(--text-2)}
+.dx{margin-top:4px;font-size:14px;color:var(--text-2)}
+.dx b{color:var(--text);font-weight:600}
+.ov-meta{display:grid;gap:6px;font-size:13px;color:var(--text-2);line-height:1.6;text-align:right;max-width:420px}
+.ov-meta dt{display:inline}
+.ov-meta dt::after{content:": "}
+.ov-meta dd{display:inline}
+.ov-meta b{color:var(--text);font-weight:650}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:650;padding:2px 10px;border-radius:999px;border:1px solid;margin-left:4px;white-space:nowrap}
+.st::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st.good{color:var(--green);background:var(--green-bg);border-color:var(--green-bd)}
+.st.warn{color:var(--amber);background:var(--amber-bg);border-color:var(--amber-bd)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);margin-top:20px;border:1px solid var(--border);border-radius:8px}
+.stat{padding:14px 18px}
+.stat+.stat{border-left:1px solid var(--border)}
+.s-label{font-size:13px;font-weight:600;color:var(--text-2)}
+.s-val{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:30px;font-weight:700;color:var(--navy);line-height:1.25;margin-top:4px;letter-spacing:-.02em}
+.s-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.pac-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:24px;font-weight:700;color:var(--green);background:var(--green-bg);border:1px solid var(--green-bd);border-radius:8px;padding:2px 12px 2px 8px;margin-top:4px}
+.pac-badge.neg{color:var(--amber);background:var(--amber-bg);border-color:var(--amber-bd)}
+.pac-badge svg{width:20px;height:20px;stroke-width:2}
+.pac-na{font-size:14px;color:var(--text-2);margin-top:8px}
+.note{margin-top:16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:14px;line-height:1.65;color:var(--text-2)}
+.note b{color:var(--text);font-weight:650;display:block;font-size:13px;margin-bottom:2px}
+
+/* Section cards */
+.section{margin-top:24px}
+.sec-head{padding:18px 24px 0}
+.sec-head h2{font-size:17px;font-weight:650;color:var(--navy)}
+.sec-head p{font-size:13px;color:var(--text-2);margin-top:2px}
+.sec-head p strong{color:var(--green);font-weight:650}
+
+/* Grafik */
+.chart-wrap{padding:6px 4px 8px;overflow:hidden}
+.chart-wrap svg{display:block;max-width:100%}
+.chart-wrap text{font-family:var(--sans);font-size:12px;fill:var(--muted)}
+.chart-wrap .axt{fill:var(--text-2);font-weight:600}
+.chart-wrap .tk{font-family:var(--mono)}
+.chart-wrap .xl{fill:var(--text);font-weight:650}
+.chart-wrap .xd{font-family:var(--mono)}
+.chart-wrap .vl{font-family:var(--mono);font-weight:700;fill:var(--navy)}
+.chart-wrap .al{font-family:var(--mono);fill:var(--text-2)}
+.chart-wrap .vl,.chart-wrap .al{paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
+.chart-legend{display:flex;gap:6px 18px;flex-wrap:wrap;padding:0 24px 18px;font-size:12px;color:var(--text-2)}
+.chart-legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-line{width:18px;height:3px;background:var(--teal);border-radius:2px}
+.lg-dot{width:10px;height:10px;border-radius:50%;border:3px solid var(--navy);background:#fff}
+
+/* Table */
+.tbl-scroll{overflow-x:auto;margin-top:14px;border-top:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;min-width:900px}
+th{font-size:12px;font-weight:650;text-align:left;color:var(--text-2);padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:14px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:14px}
+tr:last-child td{border-bottom:0}
+.visit{font-weight:650;color:var(--text)}
+.visit small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+.thumb-btn{display:inline-flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;padding:2px;border-radius:8px;cursor:zoom-in;min-width:48px;min-height:48px}
+.thumb{width:44px;height:44px;border-radius:6px;border:1px solid var(--border-strong);display:block;transition:border-color var(--dur),box-shadow var(--dur)}
+.thumb-btn:hover .thumb{border-color:var(--navy);box-shadow:0 0 0 2px rgba(15,41,66,.15)}
+.thumb-lbl{font-size:12px;font-weight:650;color:var(--teal)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;color:var(--navy);font-size:15px;white-space:nowrap}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{display:inline-flex;font-size:12px;font-weight:650;padding:3px 10px;border-radius:999px;border:1px solid;white-space:nowrap}
+.tag.neutral{background:#F1F5F9;border-color:var(--border-strong);color:#334155}
+.tag.good{background:var(--green-bg);border-color:var(--green-bd);color:var(--green)}
+.tag.warn{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber)}
+.delta{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+.acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.icon-btn{width:44px;height:44px;display:inline-grid;place-items:center;background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--error);cursor:pointer;transition:background-color var(--dur),border-color var(--dur)}
+.icon-btn:hover{background:var(--error-bg);border-color:var(--error)}
+.icon-btn svg{width:18px;height:18px}
+.lock{font-size:12px;color:var(--muted);max-width:220px;line-height:1.5}
+.tbl-foot{padding:10px 16px;font-size:12px;color:var(--muted);border-top:1px solid var(--border)}
+
+/* Audit trail */
+.audit{border-top:1px solid var(--border)}
+.audit summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:12px 20px;font-size:14px;font-weight:650;color:var(--navy)}
+.audit summary::-webkit-details-marker{display:none}
+.audit summary:hover{background:var(--bg)}
+.audit summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--text-2);border-bottom:2px solid var(--text-2);transform:rotate(45deg);margin:0 4px 4px 0;transition:transform var(--dur);flex:none}
+.audit[open] summary::after{transform:rotate(-135deg);margin-bottom:-4px}
+.a-count{margin-left:auto;font-size:12px;font-weight:600;color:var(--text-2);background:#F1F5F9;border:1px solid var(--border-strong);border-radius:999px;padding:1px 10px}
+.audit-body{padding:0 20px 18px}
+.audit-note{font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6}
+.audit-list{list-style:none;padding:0;display:grid;gap:0;border-left:2px solid var(--border-strong);margin-left:6px}
+.audit-list li{position:relative;padding:2px 0 16px 18px;display:grid;grid-template-columns:150px 1fr;gap:2px 16px}
+.audit-list li:last-child{padding-bottom:0}
+.audit-list li::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--teal)}
+.audit-list li.delete::before{border-color:var(--amber)}
+.a-time{font-family:var(--mono);font-size:12px;color:var(--text-2);padding-top:2px}
+.a-title{font-size:14px;font-weight:650;color:var(--text)}
+.a-title .st{margin-left:8px}
+.a-detail{font-size:13px;color:var(--text-2);margin-top:2px}
+.a-who{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* Danger zone */
+.danger{margin-top:32px;background:#FFF5F5;border:1px solid #FED7D7;border-radius:8px;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.danger h2{font-size:16px;font-weight:650;color:var(--error)}
+.danger p{font-size:14px;color:var(--text-2);margin-top:4px;max-width:520px}
+
+.done{margin-top:20px;padding:40px 24px;text-align:center}
+.done h2{font-size:20px;color:var(--navy);margin-bottom:8px}
+.done p{color:var(--text-2);max-width:520px;margin:0 auto 12px;font-size:14px}
+.done .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+
+/* Modal + toast */
+.modal-back{position:fixed;inset:0;background:rgba(15,23,42,.55);display:grid;place-items:center;padding:16px;z-index:50;overflow:auto;animation:fade var(--dur) ease}
+.modal{background:#fff;border-radius:10px;max-width:480px;width:100%;padding:24px 24px 20px;box-shadow:0 20px 50px rgba(15,23,42,.25)}
+.modal h2{font-size:18px;color:var(--navy);margin-bottom:8px}
+.modal p{font-size:14px;color:var(--text-2);line-height:1.65}
+.modal .btns{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+.field{margin-top:16px}
+.field label{display:block;font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px}
+.req{color:var(--error)}
+.control{width:100%;height:44px;padding:0 12px;font:inherit;font-size:14px;color:var(--text);background:#fff;border:1px solid var(--border-strong);border-radius:6px}
+.control:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px var(--navy)}
+.control[aria-invalid="true"]{border-color:var(--error)}
+.control.mono{font-family:var(--mono);letter-spacing:.02em}
+.err{margin-top:6px;font-size:13px;color:var(--error);font-weight:500}
+.hint{margin-top:6px;font-size:13px;color:var(--text-2)}
+.log-note{margin-top:14px;padding:10px 12px;font-size:13px!important;background:var(--bg);border:1px solid var(--border);border-radius:8px}
+.warn-box{margin-top:14px;padding:12px 14px;background:var(--error-bg);border:1px solid #FCA5A5;border-radius:8px;font-size:13px!important;color:var(--text)!important}
+
+/* Modal inspeksi */
+.modal.wide{max-width:900px;padding:18px 20px 16px;max-height:calc(100vh - 32px);overflow:auto}
+.mi-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.mi-head h2{margin:0}
+.mi-sub{font-size:13px!important;margin-top:2px}
+.mi-tools{display:flex;gap:10px 16px;flex-wrap:wrap;margin:14px 0}
+.seg{display:inline-flex;background:#EEF2F6;border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;flex-wrap:wrap;max-width:100%}
+.seg button{font:inherit;font-size:13px;color:var(--text-2);background:none;border:0;border-radius:6px;padding:8px 14px;min-height:40px;cursor:pointer;transition:background-color var(--dur),color var(--dur)}
+.seg button:hover:not(:disabled){color:var(--navy)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--navy);font-weight:650;box-shadow:0 1px 3px rgba(15,41,66,.12)}
+.seg button:disabled{color:#475569;border:1px dashed #94A3B8;cursor:not-allowed}
+.mi-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.mi-grid.single{grid-template-columns:minmax(0,560px);justify-content:center}
+.mi-grid canvas{display:block;width:100%;height:auto;aspect-ratio:4/3;border-radius:6px;border:1px solid var(--border);background:#e8ddd2}
+.mi-grid figcaption{margin-top:8px;font-size:13px;color:var(--text-2);line-height:1.5}
+.mi-grid figcaption b{display:block;color:var(--navy);font-weight:650}
+.mi-delta{margin-top:12px;font-size:14px!important;color:var(--text)!important;font-weight:500}
+.mi-note{margin-top:6px;font-size:12px!important;color:var(--muted)!important}
+
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:14px;font-weight:500;padding:12px 18px;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.25);display:flex;gap:10px;align-items:center;z-index:60;max-width:calc(100% - 32px);animation:tin var(--dur) ease}
+@keyframes tin{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+
+@media(max-width:900px){
+  .mi-grid{grid-template-columns:1fr}
+}
+@media(max-width:767px){
+  .topbar-in{padding:10px 16px}.topright{width:100%;justify-content:space-between;flex-wrap:wrap;gap:8px}.topnav{height:44px}.topnav a[aria-current="page"]::after{bottom:0}.brand-sub{display:none}
+  main{padding:12px 16px 56px}
+  h1{font-size:23px}
+  .head .btn{width:100%}
+  .overview{padding:18px 16px}
+  .ov-meta{text-align:left}
+  .stats{grid-template-columns:1fr}
+  .stat+.stat{border-left:0;border-top:1px solid var(--border)}
+  .sec-head{padding:16px 16px 0}.chart-legend{padding:0 16px 16px}
+  /* tabel menjadi kartu kronologis; peran ARIA eksplisit menjaga semantik tabel */
+  .tbl-scroll{overflow:visible;border-top:0}
+  table,tbody,tr,td{display:block;min-width:0;width:100%}
+  thead{display:block;position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  thead tr{border:0;margin:0;padding:0}
+  tr{border:1px solid var(--border);border-radius:8px;margin:12px 16px;width:auto;padding:4px 0}
+  td{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--border);padding:10px 14px;text-align:right}
+  tr td:last-child{border-bottom:0}
+  td::before{content:attr(data-label);font-size:12px;font-weight:650;color:var(--text-2);text-align:left;flex:none}
+  td .tags,td .acts{justify-content:flex-end}
+  .lock{max-width:none;text-align:right}
+  .danger{flex-direction:column;align-items:stretch}.danger .btn{width:100%}
+  .modal .btns{flex-direction:column-reverse}.modal .btns .btn{width:100%}
+  .audit summary{padding:12px 16px}.audit-body{padding:0 16px 16px}
+  .audit-list li{grid-template-columns:1fr}
+  .modal.wide{padding:14px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Lewati ke konten utama</a>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/" aria-label="Dokumentasi Luka, ke Beranda">
+      <span class="brand-mark" aria-hidden="true">+</span>
+      <span><span class="brand-name">Dokumentasi Luka</span><span class="brand-sub">Pemantauan Berkala</span></span>
+    </a>
+    <div class="topright">
+      <div class="sys" role="status"><span class="dot" aria-hidden="true"></span>Server Lokal Terhubung · Data Terisolasi</div>
+      <nav class="topnav" aria-label="Navigasi utama">
+        <a href="/">Beranda</a>
+        <a href="/pemeriksaan" aria-current="page">Pemeriksaan</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<main id="main-content">
+  <div id="app">
+    <nav class="crumb" aria-label="Breadcrumb">
+      <a href="/pemeriksaan">Pemeriksaan</a><span aria-hidden="true">/</span>
+      <span>RM-0012</span><span aria-hidden="true">/</span>
+      <span aria-current="page">Riwayat</span>
+    </nav>
+
+    <div class="head">
+      <div>
+        <h1>Riwayat Pasien</h1>
+        <p>Pantau lintasan perubahan luas luka dan perbandingan visual antarkunjungan.</p>
+      </div>
+      <a class="btn btn-primary" href="/pemeriksaan/RM-0012/unggah"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Pemeriksaan Baru</a>
+    </div>
+
+    <div class="demo"><b>Mode demo</b><span>Tanggal acuan: 31 Okt 2026 (hari Kunjungan 3)</span><button class="link-btn" type="button" id="reset">↻ Setel ulang data demo</button></div>
+
+    <section class="card overview" aria-labelledby="ov-name" id="overview"></section>
+
+    <section class="card section" aria-labelledby="t-chart">
+      <div class="sec-head">
+        <h2 id="t-chart">Perkembangan PAC terhadap Baseline A₀</h2>
+        <p><strong>Garis menanjak menandakan pengecilan area luka (PAC positif terhadap A₀).</strong></p>
+      </div>
+      <div class="chart-wrap" id="chart"></div>
+      <div class="chart-legend">
+        <span><i class="lg-line"></i>Lintasan PAC (%) terhadap A₀</span>
+        <span><i class="lg-dot"></i>Titik kunjungan</span>
+        <span>Angka di bawah titik: luas luka (% citra)</span>
+        <span>Sumbu X mengikuti jarak hari antar-pemeriksaan</span>
+      </div>
+    </section>
+
+    <section class="card section" aria-labelledby="t-table">
+      <div class="sec-head"><h2 id="t-table">Riwayat Kunjungan</h2><p>Urutan kronologis, terlama di atas. Klik foto untuk meninjau dan membandingkan dengan baseline.</p></div>
+      <div class="tbl-scroll" tabindex="0" role="region" aria-label="Tabel riwayat kunjungan, dapat digeser horizontal" id="tblScroll">
+        <table role="table">
+          <thead><tr role="row"><th role="columnheader" scope="col">Kunjungan</th><th role="columnheader" scope="col">Tanggal</th><th role="columnheader" scope="col">Foto Luka</th><th role="columnheader" scope="col">Estimasi Luas</th><th role="columnheader" scope="col">PAC (vs A₀)</th><th role="columnheader" scope="col">Tren &amp; Catatan</th><th role="columnheader" scope="col">Aksi</th></tr></thead>
+          <tbody id="rows" role="rowgroup"></tbody>
+        </table>
+      </div>
+      <p class="tbl-foot">Thumbnail adalah ilustrasi prototipe, bukan foto pasien sungguhan. Luas dan PAC merupakan estimasi relatif pada citra (% kanvas), bukan ukuran fisik. Selisih luas antar-kunjungan ditulis dalam poin persentase (pp).</p>
+    </section>
+
+    <section class="danger" aria-labelledby="t-danger">
+      <div><h2 id="t-danger">Zona Bahaya</h2><p>Tindakan di area ini bersifat permanen dan mempengaruhi rekam medis pasien.</p></div>
+      <button class="btn btn-danger-o" type="button" id="bDelPatient">Hapus Seluruh Data Pasien</button>
+    </section>
+  </div>
+
+  <section class="card done" id="done" hidden>
+    <h2 id="done-t" tabindex="-1">Rekam pasien RM-0012 dihapus</h2>
+    <p>Seluruh data RM-0012 beserta riwayat kunjungannya telah dihapus (simulasi prototipe).</p>
+    <p>Pada sistem sebenarnya Anda dialihkan otomatis ke <b>/pemeriksaan</b>, dan peristiwa penghapusan tercatat pada log sistem. Prototipe ini menampilkan layar konfirmasi ini sebagai gantinya.</p>
+    <div class="row"><a class="btn btn-primary" href="/pemeriksaan" id="toH2">Kembali ke Pilih Pasien</a><button class="btn btn-secondary" type="button" id="reset2">Setel ulang data demo</button></div>
+  </section>
+
+  <p class="sr" id="live" role="status" aria-live="polite"></p>
+</main>
+
+<!-- Modal: hapus kunjungan terakhir -->
+<div class="modal-back" id="mVisit" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="mv-t" aria-describedby="mv-d">
+    <h2 id="mv-t">Hapus Data Kunjungan Terakhir?</h2>
+    <p id="mv-d"></p>
+    <div class="field">
+      <label for="reason">Alasan penghapusan <span class="req" aria-hidden="true">*</span><span class="sr">(wajib)</span></label>
+      <select class="control" id="reason" aria-describedby="reason-err">
+        <option value="">Pilih alasan...</option>
+        <option value="Kesalahan input berkas foto">Kesalahan input berkas foto</option>
+        <option value="Batas masker segmentasi tidak valid / artefak berlebih">Batas masker segmentasi tidak valid / artefak berlebih</option>
+        <option value="Instruksi pembatalan oleh dokter penanggung jawab">Instruksi pembatalan oleh dokter penanggung jawab</option>
+      </select>
+      <p class="err" id="reason-err" role="alert" hidden></p>
+    </div>
+    <p class="log-note" id="mv-log"></p>
+    <div class="btns"><button class="btn btn-secondary" type="button" data-close>Batal</button><button class="btn btn-danger" type="button" id="doVisit">Hapus Kunjungan</button></div>
+  </div>
+</div>
+
+<!-- Modal: hapus seluruh pasien (konfirmasi berfriksi tinggi) -->
+<div class="modal-back" id="mPatient" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="mp-t" aria-describedby="mp-d">
+    <h2 id="mp-t">Hapus Seluruh Rekam Pasien RM-0012?</h2>
+    <p id="mp-d"></p>
+    <p class="warn-box">Tindakan ini permanen dan tidak dapat dibatalkan dari layar ini.</p>
+    <div class="field">
+      <label for="confirmRM">Ketik <b style="font-family:var(--mono)">RM-0012</b> untuk mengonfirmasi</label>
+      <input class="control mono" id="confirmRM" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="RM-0012" aria-describedby="confirm-hint" />
+      <p class="hint" id="confirm-hint" role="status" aria-live="polite">Tombol hapus aktif setelah nomor rekam medis diketik dengan benar.</p>
+    </div>
+    <div class="btns"><button class="btn btn-secondary" type="button" data-close>Batal</button><button class="btn btn-danger" type="button" id="doPatient" disabled>Hapus Pasien Permanen</button></div>
+  </div>
+</div>
+
+<!-- Modal: peninjauan visual luka -->
+<div class="modal-back" id="mInspect" hidden>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="mi-t">
+    <div class="mi-head">
+      <div><h2 id="mi-t">Peninjauan Visual Luka</h2><p class="mi-sub" id="mi-sub"></p></div>
+      <button class="btn btn-secondary btn-sm" type="button" data-close>Tutup</button>
+    </div>
+    <div class="mi-tools">
+      <div class="seg" role="group" aria-label="Tampilan foto">
+        <button type="button" data-ov="0" aria-pressed="false">Foto asli</button>
+        <button type="button" data-ov="1" aria-pressed="true">Dengan masker</button>
+      </div>
+      <div class="seg" role="group" aria-label="Perbandingan foto">
+        <button type="button" data-cmp="0" aria-pressed="false">Satu foto</button>
+        <button type="button" data-cmp="1" aria-pressed="true" id="cmpOn">Bandingkan dengan Baseline (K1)</button>
+      </div>
+    </div>
+    <div class="mi-grid" id="miGrid">
+      <figure><canvas id="miA" width="900" height="675" role="img" aria-label="Foto luka kunjungan terpilih (ilustrasi)"></canvas><figcaption id="capA"></figcaption></figure>
+      <figure id="figB"><canvas id="miB" width="900" height="675" role="img" aria-label="Foto luka baseline kunjungan 1 (ilustrasi)"></canvas><figcaption id="capB"></figcaption></figure>
+    </div>
+    <p class="mi-delta" id="miDelta" role="status" aria-live="polite"></p>
+    <p class="mi-note">Ilustrasi prototipe: bukan foto pasien sungguhan dan bukan hasil inferensi model. Luas masker digambar sesuai angka estimasi.</p>
+  </div>
+</div>
+
+<div id="toastBox" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  /* ================= Data & utilitas ================= */
+  const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const MON = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const PATIENT = { id: 'RM-0012', name: 'Tn. S' };      /* route: /pasien/RM-0012 */
+  const DEMO_TODAY = '2026-10-31';                         /* "hari ini" pada skenario demo = hari Kunjungan 3 (selaras H3/H4) */
+  const CONTROL_DAYS = 14;                                 /* interval kontrol sejak kunjungan terakhir */
+  const SEED = [
+    { n: 1, iso: '2026-10-01', area: 10.26 },
+    { n: 2, iso: '2026-10-17', area: 7.65 },
+    { n: 3, iso: '2026-10-31', area: 8.10 }
+  ];
+  const pad = n => String(n).padStart(2, '0');
+  const parts = iso => iso.split('-').map(Number);
+  const dayNum = iso => { const [y, m, d] = parts(iso); return Math.round(Date.UTC(y, m - 1, d) / 864e5); };
+  const isoOf = dn => new Date(dn * 864e5).toISOString().slice(0, 10);
+  const fmtLong = iso => { const [y, m, d] = parts(iso); return pad(d) + ' ' + MONTHS[m - 1] + ' ' + y; };
+  const fmtMid = iso => { const [y, m, d] = parts(iso); return pad(d) + ' ' + MON[m - 1] + ' ' + y; };
+  const fmtShort = iso => { const [, m, d] = parts(iso); return pad(d) + '/' + pad(m); };
+
+  /* Semantik angka: "%" hanya untuk luas (terhadap citra) dan PAC (relatif terhadap A₀);
+     selisih luas absolut selalu dalam "poin persentase (pp)". */
+  const fmtArea = n => n.toFixed(2).replace('.', ',') + '%';
+  const fmtPAC = p => Math.abs(p) < 0.05 ? '0,0%' : (p > 0 ? '+' : '−') + Math.abs(p).toFixed(1).replace('.', ',') + '%';
+  const pp = x => Math.abs(x).toFixed(2).replace('.', ',') + ' pp';
+  const ppLong = x => Math.abs(x).toFixed(2).replace('.', ',') + ' poin persentase (pp)';
+
+  let raw = SEED.map(v => ({ ...v }));
+
+  /* Data turunan: hari sejak baseline & PAC dihitung dari nilai tak terbulatkan */
+  const view = () => {
+    if (!raw.length) return [];
+    const a0 = raw[0].area, d0 = dayNum(raw[0].iso);
+    return raw.map(v => ({ ...v, day: dayNum(v.iso) - d0, pac: (a0 - v.area) / a0 * 100, date: fmtLong(v.iso), short: fmtShort(v.iso) }));
+  };
+
+  const ICON = {
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>',
+    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>',
+    check: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></svg>'
+  };
+
+  /* ================= Overview ================= */
+  const noteText = V => {
+    const n = V.length;
+    if (n === 0) return 'Belum ada kunjungan tersimpan untuk pasien ini.';
+    const last = V[n - 1], base = V[0];
+    if (n === 1) return 'Baru ada satu kunjungan tersimpan (baseline A₀). Perbandingan perubahan luas luka tersedia mulai kunjungan kedua.';
+    const dBase = base.area - last.area;
+    let t = 'Area luka ' + (dBase >= 0 ? 'mengecil ' : 'membesar ') + ppLong(dBase) + ' dari baseline awal (PAC ' + fmtPAC(last.pac) + ').';
+    if (n === 2) return t + ' Belum ada kunjungan lain sebagai pembanding selain baseline.';
+    const prev = V[n - 2], d = last.area - prev.area;
+    if (d > 0) t += ' Terdapat fluktuasi kenaikan sebesar ' + pp(d) + ' antara Kunjungan ' + prev.n + ' dan Kunjungan ' + last.n + (dBase > 0 ? ', namun luas luka saat ini tetap berada di bawah ukuran baseline.' : '.');
+    else t += ' Luas luka turun ' + pp(d) + ' dibandingkan Kunjungan ' + prev.n + '.';
+    return t;
+  };
+
+  const overview = () => {
+    const V = view(), n = V.length;
+    if (n === 0) {
+      $('overview').innerHTML =
+        '<div class="ov-top"><div>' +
+          '<div class="name-row"><h2 class="name" id="ov-name">' + PATIENT.name + '</h2><span class="rm">' + PATIENT.id + '</span></div>' +
+          '<div class="demog">54 tahun · Laki-laki</div>' +
+          '<div class="dx">Lokasi ulkus: <b>Telapak kaki kanan (Plantar pedis dextra)</b></div>' +
+        '</div><dl class="ov-meta">' +
+          '<div><dt>Riwayat</dt><dd><b>0 kunjungan</b> tersimpan</dd></div>' +
+          '<div><dt>Kunjungan terakhir</dt><dd><b>Belum ada</b></dd></div>' +
+        '</dl></div>' +
+        '<div class="note"><b>Catatan observasi</b>' + noteText(V) + '</div>';
+      return;
+    }
+    const last = V[n - 1], base = V[0], improving = last.pac >= 0;
+    const pacBlock = n > 1
+      ? '<div class="pac-badge' + (improving ? '' : ' neg') + '">' + ICON.up + fmtPAC(last.pac) + '</div><div class="s-sub">Area ' + (base.area >= last.area ? 'mengecil ' : 'membesar ') + pp(base.area - last.area) + ' vs baseline A₀</div>'
+      : '<div class="pac-na">Belum tersedia</div><div class="s-sub">Mulai kunjungan kedua</div>';
+    $('overview').innerHTML =
+      '<div class="ov-top"><div>' +
+        '<div class="name-row"><h2 class="name" id="ov-name">' + PATIENT.name + '</h2><span class="rm">' + PATIENT.id + '</span></div>' +
+        '<div class="demog">54 tahun · Laki-laki</div>' +
+        '<div class="dx">Lokasi ulkus: <b>Telapak kaki kanan (Plantar pedis dextra)</b></div>' +
+      '</div><dl class="ov-meta">' +
+        '<div><dt>Riwayat</dt><dd><b>' + n + ' kunjungan</b> tersimpan</dd></div>' +
+        '<div><dt>Kunjungan terakhir</dt><dd><b>' + last.date + '</b></dd></div>' +
+      '</dl></div>' +
+      '<div class="stats">' +
+        '<div class="stat"><div class="s-label">Baseline A₀</div><div class="s-val">' + fmtArea(base.area) + '</div><div class="s-sub">' + fmtMid(base.iso) + '</div></div>' +
+        '<div class="stat"><div class="s-label">Luas Saat Ini</div><div class="s-val">' + fmtArea(last.area) + '</div><div class="s-sub">' + fmtMid(last.iso) + '</div></div>' +
+        '<div class="stat"><div class="s-label">Total Perubahan (PAC)</div>' + pacBlock + '</div>' +
+      '</div>' +
+      '<div class="note"><b>Catatan observasi</b>' + noteText(V) + '</div>';
+  };
+
+  /* ================= Grafik PAC (SVG responsif) =================
+     SVG digambar ulang pada lebar kontainer yang sebenarnya (1 satuan viewBox = 1 px),
+     sehingga teks 12px tetap 12px di layar 360px. Label berlapis (staggered) mencegah tumpang tindih. */
+  let lastW = 0;
+  const stag = (xs, gap) => { const r = []; xs.forEach((x, i) => r.push(i && x - xs[i - 1] < gap ? 1 - r[i - 1] : 0)); return r; };
+
+  const drawChart = () => {
+    const wrap = $('chart'), W = Math.floor(wrap.clientWidth - 8);
+    if (W < 200) return;
+    lastW = W;
+    const V = view(), n = V.length, compact = W < 460;
+    if (n === 0) {
+      wrap.innerHTML = '<p style="margin:0;padding:12px 0;color:var(--text-2);font-size:14px">Belum ada data kunjungan tersimpan.</p>';
+      return;
+    }
+    const plotL = 48, xMin = plotL + 38, xMax = Math.max(xMin + 40, W - 40), maxDay = V[n - 1].day;
+    const xs = V.map(v => (n === 1 || maxDay === 0) ? (xMin + xMax) / 2 : xMin + v.day / maxDay * (xMax - xMin));
+    const topRows = stag(xs, 66), absRows = stag(xs, compact ? 60 : 96), xRows = stag(xs, 86);
+    const topExtra = topRows.some(Boolean) ? 18 : 0, absExtra = absRows.some(Boolean) ? 16 : 0, xExtra = xRows.some(Boolean) ? 34 : 0;
+    const plotTop = 46 + topExtra, plotH = compact ? 150 : 170, plotBottom = plotTop + plotH;
+    const vals = V.map(v => v.pac);
+    const yMin = Math.min(0, Math.floor(Math.min(...vals) / 10) * 10);
+    const yMax = Math.max(30, Math.ceil((Math.max(...vals) + 2) / 10) * 10);
+    const Y = v => plotBottom - (v - yMin) / (yMax - yMin) * plotH;
+    const xl1 = plotBottom + 52 + absExtra, xl2 = xl1 + 16, H = xl2 + 14 + xExtra;
+    const tick = t => t === 0 ? '0%' : (t > 0 ? '+' : '−') + Math.abs(t) + '%';
+
+    const desc = V.map(v => 'Kunjungan ' + v.n + ', ' + v.date + ': PAC ' + (v.n === 1 ? '0,0% (baseline)' : fmtPAC(v.pac)) + ', luas luka ' + fmtArea(v.area) + '.').join(' ') + ' Garis menanjak berarti area luka mengecil.';
+    let s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-labelledby="ch-t ch-d" focusable="false">' +
+      '<title id="ch-t">Lintasan PAC terhadap baseline A₀ pasien ' + PATIENT.id + '</title><desc id="ch-d">' + desc + '</desc>';
+    s += '<text class="axt" x="' + plotL + '" y="16">PAC terhadap A₀ (%)</text>';
+    for (let t = yMin; t <= yMax; t += 10) {
+      s += '<line x1="' + plotL + '" x2="' + (W - 6) + '" y1="' + Y(t) + '" y2="' + Y(t) + '" stroke="' + (t === 0 ? '#94A3B8' : '#E2E8F0') + '" stroke-width="' + (t === 0 ? 1.5 : 1) + '"/>' +
+           '<text class="tk" x="' + (plotL - 8) + '" y="' + (Y(t) + 4) + '" text-anchor="end">' + tick(t) + '</text>';
+    }
+    if (n > 1) s += '<polyline fill="none" stroke="#2A6F73" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" points="' + V.map((v, i) => xs[i].toFixed(1) + ',' + Y(v.pac).toFixed(1)).join(' ') + '"/>';
+    V.forEach((v, i) => {
+      const x = xs[i].toFixed(1), y = Y(v.pac);
+      s += '<circle cx="' + x + '" cy="' + y.toFixed(1) + '" r="6" fill="#fff" stroke="#0F2942" stroke-width="3"/>';
+      s += '<text class="vl" x="' + x + '" y="' + (y - 13 - topRows[i] * 18).toFixed(1) + '" text-anchor="middle">' + (v.n === 1 ? 'A₀ 0,0%' : fmtPAC(v.pac)) + '</text>';
+      s += '<text class="al" x="' + x + '" y="' + (y + 25 + absRows[i] * 16).toFixed(1) + '" text-anchor="middle">' + (compact ? '' : 'luas ') + fmtArea(v.area) + '</text>';
+      const sh = xRows[i] * 34;
+      s += '<text class="xl" x="' + x + '" y="' + (xl1 + sh) + '" text-anchor="middle">Kunjungan ' + v.n + '</text>' +
+           '<text class="xd" x="' + x + '" y="' + (xl2 + sh) + '" text-anchor="middle">' + v.short + '</text>';
+    });
+    wrap.innerHTML = s + '</svg>';
+  };
+  if ('ResizeObserver' in window) new ResizeObserver(() => { const w = Math.floor($('chart').clientWidth - 8); if (w > 0 && Math.abs(w - lastW) > 1) drawChart(); }).observe($('chart'));
+  else window.addEventListener('resize', drawChart);
+
+  /* ================= Ilustrasi foto luka (kanvas) ================= */
+  const BLOB = (() => {
+    const p = [], N = 72;
+    for (let i = 0; i < N; i++) {
+      const t = i / N * Math.PI * 2, r = 1 + .08 * Math.sin(3 * t + 1) + .05 * Math.sin(5 * t + 2) + .03 * Math.sin(7 * t);
+      const x = 1.4 * r * Math.cos(t), y = r * Math.sin(t), c = Math.cos(.3), s = Math.sin(.3);
+      p.push([x * c - y * s, x * s + y * c]);
+    }
+    return p;
+  })();
+  const BLOB_AREA = Math.abs(BLOB.reduce((s, q, i) => { const m = BLOB[(i + 1) % BLOB.length]; return s + q[0] * m[1] - m[0] * q[1]; }, 0) / 2);
+
+  /* pct = luas luka (% kanvas), mask = overlay hijau, crop = potong persegi (thumbnail) */
+  const drawScene = (cv, pct, mask, crop) => {
+    const SW = 1200, SH = 900, CX = 610, CY = 470, g = cv.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
+    if (crop) { const sc = cv.width / 900; g.setTransform(sc, 0, 0, sc, -150 * sc, 0); }
+    else g.setTransform(cv.width / SW, 0, 0, cv.height / SH, 0, 0);
+    const k = Math.sqrt(pct / 100 * SW * SH / BLOB_AREA);
+    const path = kk => { g.beginPath(); BLOB.forEach((q, i) => { const x = CX + q[0] * kk, y = CY + q[1] * kk; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); };
+    const bg = g.createLinearGradient(0, 0, SW, SH); bg.addColorStop(0, '#d9c8b8'); bg.addColorStop(.5, '#bda590'); bg.addColorStop(1, '#d6c3b2');
+    g.fillStyle = bg; g.fillRect(0, 0, SW, SH);
+    g.save(); g.translate(600, 450); g.rotate(-.21);
+    const sk = g.createLinearGradient(-460, -350, 460, 350); sk.addColorStop(0, '#dcbca5'); sk.addColorStop(.55, '#b68d76'); sk.addColorStop(1, '#d6b39d');
+    g.fillStyle = sk; g.beginPath(); g.ellipse(0, 0, 500, 380, 0, 0, Math.PI * 2); g.fill(); g.restore();
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 260; i++) { g.fillStyle = 'rgba(' + (120 + rnd() * 60 | 0) + ',80,60,' + (.03 + rnd() * .04) + ')'; g.beginPath(); g.arc(rnd() * SW, rnd() * SH, 6 + rnd() * 22, 0, 7); g.fill(); }
+    path(k * 1.28); g.fillStyle = 'rgba(150,80,70,.28)'; g.fill();
+    path(k); g.fillStyle = '#7e403b'; g.fill();
+    g.save(); path(k); g.clip();
+    for (let i = 0; i < 14; i++) { g.fillStyle = 'rgba(' + (150 + rnd() * 40 | 0) + ',70,62,' + (.25 + rnd() * .25) + ')'; g.beginPath(); g.arc(CX + (rnd() - .5) * k * 2.4, CY + (rnd() - .5) * k * 1.5, 12 + rnd() * 34, 0, 7); g.fill(); }
+    g.restore();
+    if (mask) { path(k); g.fillStyle = 'rgba(34,197,94,0.35)'; g.fill(); g.lineWidth = crop ? 10 : 4; g.lineJoin = 'round'; g.strokeStyle = '#16A34A'; g.stroke(); }
+  };
+
+  /* ================= Tabel ================= */
+  const rows = () => {
+    const V = view(), n = V.length;
+    $('rows').innerHTML = V.map((v, i) => {
+      const last = i === n - 1, prev = V[i - 1];
+      let trend;
+      if (v.n === 1) trend = '<div class="tags"><span class="tag neutral">Kunjungan awal (baseline)</span></div>';
+      else {
+        const dA = v.area - V[0].area;
+        const tags = [v.pac > 5 || dA < -1 ? '<span class="tag good">Tren Menurun (Area Luka Mengecil)</span>' : v.pac < -5 || dA > 1 ? '<span class="tag warn">Tren Meningkat (Area Luka Membesar)</span>' : '<span class="tag neutral">Tren Stabil (Perubahan Minimal)</span>'];
+        let d = '';
+        if (i >= 2) {
+          const dp = v.area - prev.area;
+          tags.push(dp > 0 ? '<span class="tag warn">Naik vs K' + prev.n + '</span>' : '<span class="tag good">Turun vs K' + prev.n + '</span>');
+          d += '<span class="delta">Luas ' + (dp > 0 ? 'naik ' : 'turun ') + pp(dp) + ' dibandingkan K' + prev.n + '.</span>';
+        }
+        const db = V[0].area - v.area;
+        d += '<span class="delta">Luas ' + (db >= 0 ? 'turun ' : 'naik ') + pp(db) + ' dari baseline.</span>';
+        trend = '<div class="tags">' + tags.join('') + '</div>' + d;
+      }
+      let act = '<a class="btn btn-secondary btn-sm" href="/kunjungan/VK-0012-0' + v.n + '" aria-label="Lihat hasil Kunjungan ' + v.n + '">Lihat Hasil</a>';
+      if (last) act += '<button class="icon-btn" type="button" data-del title="Hapus rekam Kunjungan ' + v.n + ' (LIFO)" aria-label="Hapus rekam Kunjungan ' + v.n + '">' + ICON.trash + '</button>';
+      return '<tr role="row"><td role="cell" data-label="Kunjungan"><span class="visit">Kunjungan ' + v.n + (v.n === 1 ? '<small>Baseline</small>' : '') + '</span></td>' +
+        '<td role="cell" data-label="Tanggal">' + v.date + '</td>' +
+        '<td role="cell" data-label="Foto Luka"><button class="thumb-btn" type="button" data-inspect="' + v.n + '" aria-label="Tinjau foto luka Kunjungan ' + v.n + (v.n === 1 ? ' (baseline)' : ', bandingkan dengan baseline') + '"><canvas class="thumb" width="88" height="88" data-n="' + v.n + '" aria-hidden="true"></canvas><span class="thumb-lbl">Tinjau</span></button></td>' +
+        '<td role="cell" data-label="Estimasi Luas"><span class="num">' + fmtArea(v.area) + '</span></td>' +
+        '<td role="cell" data-label="PAC (vs A₀)">' + (v.n === 1 ? '<span style="color:var(--text-2)">Titik Acuan (A₀)</span>' : '<span class="num">' + fmtPAC(v.pac) + '</span>') + '</td>' +
+        '<td role="cell" data-label="Tren &amp; Catatan">' + trend + '</td>' +
+        '<td role="cell" data-label="Aksi"><div class="acts">' + act + '</div></td></tr>';
+    }).join('');
+    document.querySelectorAll('canvas.thumb').forEach(c => drawScene(c, V.find(v => v.n == c.dataset.n).area, true, true));
+  };
+
+  const renderAll = () => { overview(); rows(); lastW = 0; drawChart(); };
+
+  /* ================= Modal (focus trap, Escape, fokus kembali) ================= */
+  let openId = null, opener = null;
+  const FOCUSABLE = 'button:not(:disabled),input:not(:disabled),select:not(:disabled),a[href]';
+  const openM = (id, from, initial) => {
+    opener = from; openId = id;
+    const m = $(id); m.hidden = false; document.body.style.overflow = 'hidden';
+    (m.querySelector(initial || '[data-close]')).focus();
+  };
+  const closeM = (restore = true) => {
+    if (!openId) return;
+    $(openId).hidden = true; openId = null; document.body.style.overflow = '';
+    if (restore && opener && document.contains(opener)) opener.focus();
+  };
+  document.querySelectorAll('.modal-back').forEach(m => {
+    m.addEventListener('mousedown', e => { if (e.target === m) closeM(); });
+    m.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeM()));
+    m.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.stopPropagation(); closeM(); }
+      if (e.key === 'Tab') {
+        const f = [...m.querySelectorAll(FOCUSABLE)], i = f.indexOf(document.activeElement);
+        if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+      }
+    });
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && openId) closeM(); });
+
+  let tt;
+  const toast = msg => {
+    $('toastBox').innerHTML = '<div class="toast" role="status">' + ICON.check + msg + '</div>';
+    clearTimeout(tt); tt = setTimeout(() => { $('toastBox').innerHTML = ''; }, 5200);
+  };
+  const announce = msg => { $('live').textContent = ''; setTimeout(() => { $('live').textContent = msg; }, 30); };
+
+  /* ================= Peninjauan visual luka ================= */
+  let insp = { n: 1, overlay: true, compare: false };
+  const inspectRender = () => {
+    const V = view(), v = V.find(x => x.n === insp.n), b = V[0], base = v.n === 1;
+    const cmp = insp.compare && !base;
+    $('mi-sub').textContent = 'Kunjungan ' + v.n + ' · ' + v.date + ' · ' + PATIENT.name + ' (' + PATIENT.id + ')';
+    document.querySelectorAll('[data-ov]').forEach(x => x.setAttribute('aria-pressed', String((x.dataset.ov === '1') === insp.overlay)));
+    document.querySelectorAll('[data-cmp]').forEach(x => x.setAttribute('aria-pressed', String((x.dataset.cmp === '1') === cmp)));
+    $('cmpOn').disabled = base;
+    $('cmpOn').title = base ? 'Kunjungan 1 adalah baseline, tidak ada pembanding' : '';
+    $('miGrid').classList.toggle('single', !cmp);
+    $('figB').hidden = !cmp;
+    drawScene($('miA'), v.area, insp.overlay, false);
+    $('capA').innerHTML = '<b>' + (base ? 'Baseline A₀ · ' : '') + 'Kunjungan ' + v.n + ' · ' + fmtMid(v.iso) + '</b>Luas ' + fmtArea(v.area) + (base ? '' : ' · PAC ' + fmtPAC(v.pac));
+    if (cmp) {
+      drawScene($('miB'), b.area, insp.overlay, false);
+      $('capB').innerHTML = '<b>Baseline A₀ · Kunjungan 1 · ' + fmtMid(b.iso) + '</b>Luas ' + fmtArea(b.area);
+    }
+    $('miDelta').textContent = base
+      ? 'Kunjungan 1 adalah baseline (A₀), sehingga tidak ada foto pembanding.'
+      : 'Luas ' + fmtArea(v.area) + ' vs baseline ' + fmtArea(b.area) + ': ' + (b.area >= v.area ? 'turun ' : 'naik ') + pp(b.area - v.area) + ' dari baseline (PAC ' + fmtPAC(v.pac) + ').';
+  };
+  document.querySelectorAll('[data-ov]').forEach(x => x.addEventListener('click', () => { insp.overlay = x.dataset.ov === '1'; inspectRender(); }));
+  document.querySelectorAll('[data-cmp]').forEach(x => x.addEventListener('click', () => { if (x.disabled) return; insp.compare = x.dataset.cmp === '1'; inspectRender(); }));
+
+  /* ================= Hapus kunjungan terakhir (LIFO) ================= */
+  const openVisitModal = from => {
+    const V = view(), v = V[V.length - 1], prev = V[V.length - 2];
+    $('mv-d').textContent = 'Anda akan menghapus data Kunjungan ' + v.n + ' (' + v.date + ') untuk pasien ' + PATIENT.name + ' (' + PATIENT.id + '). Data luas luka ' + fmtArea(v.area) + ' dan hasil segmentasinya akan dihapus dari rekam aktif.';
+    $('mv-log').textContent = prev
+      ? 'Sesuai aturan LIFO, rekam Kunjungan ' + prev.n + ' akan kembali menjadi data aktif terkini.'
+      : 'Sesuai aturan LIFO, penghapusan baseline (Kunjungan 1) akan mengosongkan riwayat kunjungan pasien ini.';
+    $('reason').value = ''; $('reason-err').hidden = true; $('reason').removeAttribute('aria-invalid');
+    openM('mVisit', from);
+  };
+  $('reason').addEventListener('change', () => { if ($('reason').value) { $('reason-err').hidden = true; $('reason').removeAttribute('aria-invalid'); } });
+  $('doVisit').addEventListener('click', () => {
+    const sel = $('reason');
+    if (!sel.value) {
+      $('reason-err').textContent = 'Pilih alasan penghapusan terlebih dahulu.'; $('reason-err').hidden = false;
+      sel.setAttribute('aria-invalid', 'true'); sel.focus(); return;
+    }
+    const V = view(), gone = V[V.length - 1], prev = V[V.length - 2];
+    raw.pop();
+    closeM(false); renderAll();
+    const nd = document.querySelector('[data-del]'); (nd || $('tblScroll')).focus();
+    const msg = prev
+      ? 'Kunjungan ' + gone.n + ' dihapus. Kunjungan ' + prev.n + ' kini menjadi data terkini.'
+      : 'Kunjungan ' + gone.n + ' (baseline) dihapus.';
+    toast(msg);
+    announce(msg);
+  });
+
+  /* ================= Hapus seluruh pasien (ketik ulang nomor RM) ================= */
+  const rmOK = () => $('confirmRM').value.trim().toUpperCase() === PATIENT.id;
+  $('bDelPatient').addEventListener('click', e => {
+    $('confirmRM').value = ''; $('doPatient').disabled = true;
+    $('confirm-hint').textContent = 'Tombol hapus aktif setelah nomor rekam medis diketik dengan benar.';
+    $('confirmRM').removeAttribute('aria-invalid');
+    $('mp-d').textContent = 'Tindakan ini akan menghapus identitas ' + PATIENT.name + ' (' + PATIENT.id + ') beserta seluruh ' + raw.length + ' riwayat kunjungan, hasil segmentasi masker, dan analisis longitudinal secara permanen.';
+    openM('mPatient', e.currentTarget);
+  });
+  $('confirmRM').addEventListener('input', () => {
+    const v = $('confirmRM').value.trim(), ok = rmOK();
+    $('doPatient').disabled = !ok;
+    if (ok) { $('confirm-hint').textContent = 'Nomor RM sesuai. Tombol hapus kini aktif.'; $('confirmRM').removeAttribute('aria-invalid'); }
+    else if (v) { $('confirm-hint').textContent = 'Nomor RM belum sesuai. Ketik ' + PATIENT.id + ' persis seperti tertera.'; $('confirmRM').setAttribute('aria-invalid', 'true'); }
+    else { $('confirm-hint').textContent = 'Tombol hapus aktif setelah nomor rekam medis diketik dengan benar.'; $('confirmRM').removeAttribute('aria-invalid'); }
+  });
+  $('doPatient').addEventListener('click', () => {
+    if (!rmOK()) return;
+    closeM(false);
+    $('app').hidden = true; $('done').hidden = false; $('done-t').focus();
+    toast('Rekam pasien ' + PATIENT.id + ' dihapus. Kembali ke daftar pasien.');
+    announce('Rekam pasien ' + PATIENT.id + ' dihapus. Pada sistem sebenarnya Anda dialihkan ke halaman Pemeriksaan.');
+  });
+
+  /* ================= Delegasi klik tabel, reset ================= */
+  $('rows').addEventListener('click', e => {
+    const del = e.target.closest('[data-del]'), ins = e.target.closest('[data-inspect]');
+    if (del) openVisitModal(del);
+    else if (ins) {
+      const n = Number(ins.dataset.inspect);
+      insp = { n, overlay: true, compare: n > 1 };
+      inspectRender(); openM('mInspect', ins);
+    }
+  });
+
+  const reset = () => { raw = SEED.map(v => ({ ...v })); $('done').hidden = true; $('app').hidden = false; renderAll(); };
+  $('reset').addEventListener('click', () => { reset(); toast('Data demo disetel ulang.'); announce('Data demo disetel ulang.'); });
+  $('reset2').addEventListener('click', () => { reset(); $('reset').focus(); });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>

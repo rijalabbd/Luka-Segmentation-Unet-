@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mockup Antarmuka Web - Sistem Pemantauan Ulkus Kusta (WoundAI)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Theme: Clinical Light Workstation (High Contrast WCAG AA Compliant) */
+      --bg-page: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --border-main: #cbd5e1;
+      --border-dark: #94a3b8;
+      --text-main: #0f172a;
+      --text-muted: #334155;
+      --text-light: #475569;
+      
+      --brand-primary: #0369a1;
+      --brand-hover: #075985;
+      
+      /* High-contrast accessible status colors (>= 4.5:1 on light backgrounds) */
+      --emerald-accent: #065f46;
+      --emerald-bg: #ecfdf5;
+      --emerald-border: #6ee7b7;
+      
+      --rose-accent: #9f1239;
+      --rose-bg: #fff1f2;
+      --rose-border: #fca5a5;
+
+      --amber-accent: #92400e;
+      --amber-bg: #fffbeb;
+      --amber-border: #fcd34d;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+      --radius: 8px;
+    }
+
+    [data-theme="dark"] {
+      --bg-page: #0b1120;
+      --bg-surface: #151f32;
+      --bg-subtle: #1e293b;
+      --border-main: #334155;
+      --border-dark: #475569;
+      --text-main: #f8fafc;
+      --text-muted: #cbd5e1;
+      --text-light: #94a3b8;
+      
+      --brand-primary: #0284c7;
+      --brand-hover: #0369a1;
+      
+      --emerald-accent: #34d399;
+      --emerald-bg: rgba(16, 185, 129, 0.15);
+      --emerald-border: rgba(52, 211, 153, 0.4);
+
+      --rose-accent: #fb7185;
+      --rose-bg: rgba(244, 63, 94, 0.15);
+      --rose-border: rgba(251, 113, 133, 0.4);
+
+      --amber-accent: #fbbf24;
+      --amber-bg: rgba(245, 158, 11, 0.15);
+      --amber-border: rgba(251, 191, 36, 0.4);
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.5;
+      padding-bottom: 60px;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    /* Top Showcase Toolbar for Thesis Screenshots */
+    .showcase-toolbar {
+      background: #0f172a;
+      color: #fff;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 2px solid #0284c7;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+    .showcase-title {
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .showcase-badge {
+      background: #0369a1;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .screen-switcher {
+      display: flex;
+      gap: 6px;
+      background: #1e293b;
+      padding: 4px;
+      border-radius: 8px;
+    }
+    .btn-screen {
+      background: transparent;
+      color: #cbd5e1;
+      border: none;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-screen:hover { color: #fff; }
+    .btn-screen.active {
+      background: #0369a1;
+      color: #ffffff;
+      font-weight: 700;
+    }
+    .btn-theme-toggle {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    /* Main Container */
+    .app-container {
+      max-width: 1240px;
+      margin: 24px auto;
+      padding: 0 20px;
+    }
+
+    /* Application Header */
+    .app-navbar {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-main);
+      border-radius: var(--radius);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      background: #0369a1;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 20px;
+    }
+    .brand-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+    .brand-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .model-chip {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-main);
+    }
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--emerald-accent);
+      border-radius: 50%;
+    }
+
+    /* Page Canvas */
+    .mockup-page {
+      display: none;
+      animation: fadeIn 0.2s ease-out;
+    }
+    .mockup-page.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Grid Layouts */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+    }
+    .grid-3col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    /* Cards - Clean Medical Elevation (No Side-Tab Slop Border) */
+    .panel-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-main);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-main);
+    }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Forms & Controls */
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .form-control {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-family: inherit;
+    }
+    .dropzone-area {
+      border: 2px dashed var(--border-dark);
+      border-radius: 8px;
+      padding: 24px 16px;
+      text-align: center;
+      background: var(--bg-subtle);
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .dropzone-area:hover {
+      border-color: var(--brand-primary);
+    }
+    .dropzone-icon {
+      color: var(--brand-primary);
+      margin-bottom: 8px;
+    }
+    .dropzone-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .dropzone-hint {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--brand-primary);
+      color: #ffffff;
+      border: none;
+      padding: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary:hover { background: var(--brand-hover); }
+
+    /* Visual Comparison Box */
+    .viewer-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .viewer-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .toggle-pill-group {
+      display: flex;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      border-radius: 6px;
+      padding: 2px;
+    }
+    .toggle-pill {
+      background: transparent;
+      border: none;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .toggle-pill.active {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      box-shadow: var(--shadow-sm);
+    }
+    .image-viewport {
+      background: #0f172a;
+      border-radius: 8px;
+      min-height: 380px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--border-main);
+    }
+    .canvas-legend {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #ffffff;
+      font-size: 11px;
+      border: 1px solid #334155;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-color { width: 10px; height: 10px; border-radius: 2px; }
+
+    /* Metric Cards - Clean Uniform Border (No Side Tab Slop) */
+    .metric-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-main);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .metric-card-primary {
+      background: var(--bg-surface);
+      border: 1px solid var(--emerald-border);
+    }
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .metric-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .metric-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .metric-delta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .delta-green { color: var(--emerald-accent); }
+    .metric-desc {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
+
+    /* Trend Banner - Full Uniform Border */
+    .trend-status-banner {
+      background: var(--emerald-bg);
+      border: 1px solid var(--emerald-border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .trend-info { display: flex; align-items: center; gap: 14px; }
+    .trend-badge {
+      background: var(--emerald-accent);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+    .trend-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--emerald-accent);
+    }
+    .trend-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Dual Narrative Tabs */
+    .narrative-tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border-main);
+      margin-bottom: 16px;
+    }
+    .narrative-tab-btn {
+      background: transparent;
+      border: none;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s;
+    }
+    .narrative-tab-btn.active {
+      color: var(--brand-primary);
+      border-bottom-color: var(--brand-primary);
+      font-weight: 700;
+    }
+    .narrative-box {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-main);
+      min-height: 110px;
+    }
+    
+    /* Disclaimer Banner - Fully bordered enclosed box (No Side-Tab Slop) */
+    .disclaimer-banner {
+      margin-top: 12px;
+      background: var(--amber-bg);
+      border: 1px solid var(--amber-border);
+      padding: 10px 14px;
+      font-size: 11px;
+      color: var(--amber-accent);
+      border-radius: 6px;
+      font-weight: 500;
+    }
+
+    /* History Table */
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .history-table th {
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      font-weight: 700;
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 2px solid var(--border-main);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .history-table td {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-main);
+      color: var(--text-main);
+    }
+    .history-table tr:hover { background: var(--bg-subtle); }
+    .badge-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      display: inline-block;
+    }
+    .badge-success { background: var(--emerald-bg); color: var(--emerald-accent); border: 1px solid var(--emerald-border); }
+    .badge-neutral { background: var(--bg-subtle); color: var(--text-muted); border: 1px solid var(--border-main); }
+
+    /* Chart Simulation */
+    .chart-box {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      border-radius: 8px;
+      padding: 20px;
+      position: relative;
+      margin-bottom: 20px;
+    }
+    .chart-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-main);
+    }
+
+    /* Caption tag for thesis screenshot */
+    .thesis-caption-tag {
+      background: #0f172a;
+      color: #94a3b8;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      margin-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid #334155;
+    }
+    .thesis-caption-tag span { color: #38bdf8; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Showcase Toolbar (Interactive Guide for Taking Proposal Screenshots) -->
+  <aside class="showcase-toolbar">
+    <div class="showcase-title">
+      <span class="showcase-badge">Prototype Mockup</span>
+      <strong>WoundAI: Monitoring Ulkus Kusta Berbasis Web</strong>
+    </div>
+
+    <div class="screen-switcher">
+      <button class="btn-screen active" onclick="switchScreen('screen1')">
+        <span>Gambar 3.6</span> Layar Unggah & Deteksi
+      </button>
+      <button class="btn-screen" onclick="switchScreen('screen2')">
+        <span>Gambar 3.7</span> Layar Hasil & Narasi Ganda
+      </button>
+      <button class="btn-screen" onclick="switchScreen('screen3')">
+        <span>Gambar 3.8</span> Layar Riwayat & Grafik PAC
+      </button>
+    </div>
+
+    <div>
+      <button class="btn-theme-toggle" onclick="toggleTheme()">🌓 Ganti Tema (Terang/Gelap)</button>
+    </div>
+  </aside>
+
+  <!-- App Wrapper -->
+  <div class="app-container">
+
+    <!-- Top App Navigation Bar -->
+    <header class="app-navbar">
+      <div class="brand-group">
+        <div class="brand-icon">+</div>
+        <div>
+          <h1 class="brand-title">WoundAI Portal</h1>
+          <p class="brand-desc">Sistem Pemantauan Longitudinal Ulkus Kusta & Analisis Laju PAC</p>
+        </div>
+      </div>
+      <div class="model-chip">
+        <span class="chip-dot"></span>
+        <span>Inferensi: <strong>ResNet-34 U-Net (Exp 2B)</strong></span>
+      </div>
+    </header>
+
+    <!-- SCREEN 1: LAYAR UNGGAH DAN ANALISIS (GAMBAR 3.6) -->
+    <section id="screen1" class="mockup-page active">
+      <div class="grid-2col">
+        
+        <!-- Left Panel: Input Data & Controls -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h2 class="panel-title">1. Pemilihan & Unggah Citra</h2>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="selectPatient">Pilih Pasien Rekam Medis:</label>
+            <select class="form-control" id="selectPatient">
+              <option>Patient_10 (Ulkus Plantar Pedis - 6 Kunjungan)</option>
+              <option>Patient_23 (Ulkus Tungkai Bawah - 4 Kunjungan)</option>
+              <option>Patient_25 (Ulkus Kronis Maleolus - 4 Kunjungan)</option>
+              <option>+ Tambah Pasien Baru...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="selectVisit">Pemeriksaan Kunjungan Ke-:</label>
+            <select class="form-control" id="selectVisit">
+              <option>Kunjungan Lanjutan T2 (28 Hari Pasca Baseline)</option>
+              <option>Kunjungan Lanjutan T3 (56 Hari Pasca Baseline)</option>
+              <option>Kunjungan Awal T1 (Baseline Acuan Baru)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Berkas Citra Ulkus (Non-Kontak):</label>
+            <div class="dropzone-area" onclick="switchScreen('screen2')">
+              <div class="dropzone-icon">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+              </div>
+              <div class="dropzone-text">P10T_2.jpg terunggah (640 × 853)</div>
+              <div class="dropzone-hint">Format JPEG/PNG otomatis diseragamkan ke 256 × 256 piksel</div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 20px;">
+            <button class="btn-primary" onclick="switchScreen('screen2')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              Jalankan Segmentasi & Analisis PAC
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Panel: Image Staging Preview -->
+        <div class="panel-card viewer-card">
+          <div class="panel-header">
+            <h2 class="panel-title">Pratinjau Citra Masukan Sebelum Segmentasi</h2>
+            <span style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono';">Ukuran: 640 × 853 px</span>
+          </div>
+
+          <div class="image-viewport">
+            <!-- Embedded SVG Representation of Ulcer Foot Photo -->
+            <svg viewBox="0 0 400 320" style="width: 100%; height: 320px;">
+              <rect width="400" height="320" fill="#1e293b"/>
+              <!-- Patient Heel/Ankle Outline -->
+              <path d="M120 20 Q160 80 180 160 Q210 260 320 280 L350 320 L100 320 Z" fill="#d4a373" opacity="0.85"/>
+              <path d="M130 30 Q170 90 190 170 Q220 270 330 290" stroke="#b07d62" stroke-width="4" fill="none"/>
+              <!-- Ulcer Bed -->
+              <path d="M200 140 Q230 130 250 160 Q260 200 230 220 Q190 230 180 190 Q175 160 200 140 Z" fill="#991b1b"/>
+              <path d="M210 155 Q235 150 240 175 Q245 195 225 205 Q200 210 195 185 Z" fill="#dc2626"/>
+            </svg>
+            <div class="canvas-legend">
+              <div class="legend-item"><span class="legend-color" style="background:#d4a373;"></span> Kulit Tungkai Pasien</div>
+              <div class="legend-item"><span class="legend-color" style="background:#dc2626;"></span> Ulkus Terbuka (Kunjungan T2)</div>
+            </div>
+          </div>
+
+          <p style="font-size: 12px; color: var(--text-light); margin-top: 12px;">
+            *Catatan: Sistem menerima citra klinis tanpa stiker kalibrasi fisik (pendekatan non-kontak berbasis rasio piksel kanvas 256 × 256).
+          </p>
+        </div>
+
+      </div>
+
+      <div class="thesis-caption-tag">
+        <div><strong>Buku Proyek Akhir:</strong> <span>Gambar 3.6. Desain antarmuka layar pemilihan pasien dan pengunggahan citra</span></div>
+        <div>Subbab 3.9</div>
+      </div>
+    </section>
+
+
+    <!-- SCREEN 2: LAYAR HASIL ANALISIS & NARASI GANDA (GAMBAR 3.7) -->
+    <section id="screen2" class="mockup-page">
+      
+      <!-- Trend Notification Banner -->
+      <div class="trend-status-banner">
+        <div class="trend-info">
+          <span class="trend-badge">TREN MENURUN</span>
+          <div>
+            <div class="trend-title">Area Permukaan Ulkus Terdeteksi Mengecil (Membaik)</div>
+            <div class="trend-sub">Persentase Perubahan Luas: <strong>PAC = +30,1%</strong> (Melampaui ambang batas klinis +5,0%)</div>
+          </div>
+        </div>
+        <div style="font-family: 'JetBrains Mono'; font-size: 12px; color: var(--emerald-accent); font-weight: 700;">
+          Inferensi: 18,4 ms
+        </div>
+      </div>
+
+      <!-- 3 Metrics KPI Cards -->
+      <div class="grid-3col">
+        <div class="metric-card">
+          <div class="metric-label">Luas Kunjungan Awal (Baseline A₀)</div>
+          <div class="metric-value-row">
+            <span class="metric-number">5,12%</span>
+            <span class="metric-desc">(3.355 piksel)</span>
+          </div>
+          <div class="metric-desc">Kunjungan T1 (28 September 2026)</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Luas Kunjungan Saat Ini (Aₜ)</div>
+          <div class="metric-value-row">
+            <span class="metric-number">3,58%</span>
+            <span class="metric-delta delta-green">▼ −1,54% (ΔA)</span>
+          </div>
+          <div class="metric-desc">Kunjungan T2 (26 Oktober 2026 - Hari ke-28)</div>
+        </div>
+
+        <div class="metric-card metric-card-primary">
+          <div class="metric-label">Percentage Area Change (PAC)</div>
+          <div class="metric-value-row">
+            <span class="metric-number" style="color: var(--emerald-accent);">+30,1%</span>
+            <span class="badge-pill badge-success">Membaik</span>
+          </div>
+          <div class="metric-desc">Rumus: ((A₀ − Aₜ) / A₀) × 100%</div>
+        </div>
+      </div>
+
+      <!-- Center Split: Segmentation Mask + Dual Narrative -->
+      <div class="grid-2col" style="grid-template-columns: 1fr 1fr;">
+        
+        <!-- Left: AI Segmentation Overlay Viewer -->
+        <div class="panel-card viewer-card">
+          <div class="viewer-toolbar">
+            <h3 class="panel-title" style="margin: 0; padding: 0; border: none;">Overlay Segmentasi ResNet-34 U-Net</h3>
+            <div class="toggle-pill-group">
+              <button class="toggle-pill active" id="btnShowOverlay" onclick="toggleOverlay(true)">Tampilkan Masker</button>
+              <button class="toggle-pill" id="btnHideOverlay" onclick="toggleOverlay(false)">Foto Asli</button>
+            </div>
+          </div>
+
+          <div class="image-viewport" id="viewportResult">
+            <svg viewBox="0 0 400 320" style="width: 100%; height: 320px;">
+              <rect width="400" height="320" fill="#1e293b"/>
+              <!-- Foot -->
+              <path d="M120 20 Q160 80 180 160 Q210 260 320 280 L350 320 L100 320 Z" fill="#d4a373" opacity="0.85"/>
+              <!-- Base Ulcer -->
+              <path d="M200 140 Q230 130 250 160 Q260 200 230 220 Q190 230 180 190 Q175 160 200 140 Z" fill="#991b1b"/>
+              <!-- AI Emerald Mask Overlay (T2 is smaller than T1) -->
+              <g id="svgOverlayGroup">
+                <path d="M205 150 Q225 145 240 165 Q245 195 225 210 Q195 215 190 190 Q185 165 205 150 Z" 
+                      fill="#059669" fill-opacity="0.65" stroke="#0284c7" stroke-width="3"/>
+              </g>
+            </svg>
+            <div class="canvas-legend">
+              <div class="legend-item"><span class="legend-color" style="background:#059669;"></span> Prediksi Ulkus AI (T2)</div>
+              <div class="legend-item"><span class="legend-color" style="background:#0284c7;"></span> Batas Kontur Luka</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Dual Narrative LLM Output -->
+        <div class="panel-card viewer-card">
+          <div class="panel-header" style="margin-bottom: 8px;">
+            <h3 class="panel-title">Narasi Klinis Berbasis Factual Grounding</h3>
+            <span class="badge-pill badge-neutral" style="font-size: 10px;">Model: gemini-2.0-flash</span>
+          </div>
+
+          <!-- Tabs: Medis vs Pasien -->
+          <div class="narrative-tabs">
+            <button class="narrative-tab-btn active" id="tabNarrativeDoctor" onclick="switchNarrative('doctor')">
+              Tab 1: Catatan Tenaga Medis
+            </button>
+            <button class="narrative-tab-btn" id="tabNarrativePatient" onclick="switchNarrative('patient')">
+              Tab 2: Penjelasan Pasien (Bahasa Awam)
+            </button>
+          </div>
+
+          <!-- Doctor Narrative View -->
+          <div id="narrativeDoctorView">
+            <div class="narrative-box">
+              <strong>Evaluasi Longitudinal (T1 → T2):</strong> Terdeteksi penurunan area luka dari <strong>5,12%</strong> menjadi <strong>3,58%</strong> dari luas kanvas (PAC: <strong>+30,1%</strong>, Delta Absolut: <strong>−1,54%</strong>). Tren menunjukkan reduksi area permukaan luka yang melampaui batas variasi foto. Evaluasi klinis lanjutan tetap diperlukan untuk konfirmasi status penyembuhan.
+            </div>
+            <div class="disclaimer-banner">
+              <strong>Peringatan Keamanan Medis:</strong> Seluruh metrik merupakan hasil estimasi sistem berbasis citra 2D non-kontak dan bukan pengganti pemeriksaan klinis langsung.
+            </div>
+          </div>
+
+          <!-- Patient Narrative View -->
+          <div id="narrativePatientView" style="display: none;">
+            <div class="narrative-box" style="background: var(--emerald-bg); border-color: var(--emerald-border);">
+              Halo Bapak/Ibu, berdasarkan hasil pemeriksaan foto hari ini, ukuran luka Anda <strong>terlihat mengecil sekitar 30%</strong> dibandingkan pemeriksaan pertama bulan lalu. Ini merupakan perkembangan yang sangat baik. Tetap jaga kebersihan luka, gunakan alas kaki pelindung saat berjalan, dan teruskan perawatan sesuai petunjuk perawat.
+            </div>
+            <div class="disclaimer-banner">
+              <strong>Catatan untuk Pasien:</strong> Penjelasan ini disusun otomatis untuk membantu Anda memahami kondisi luka, bukan vonis kesembuhan mutlak.
+            </div>
+          </div>
+
+          <div style="margin-top: 16px; display: flex; gap: 10px;">
+            <button class="btn-primary" style="flex: 1;" onclick="alert('Rekam medis kunjungan T2 berhasil disimpan ke basis data!')">
+              Simpan ke Rekam Medis Pasien
+            </button>
+            <button class="btn-primary" style="background: var(--bg-subtle); color: var(--text-main); border: 1px solid var(--border-main); flex: 1;" onclick="switchScreen('screen3')">
+              Lihat Riwayat & Grafik PAC →
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="thesis-caption-tag">
+        <div><strong>Buku Proyek Akhir:</strong> <span>Gambar 3.7. Desain antarmuka hasil segmentasi, metrik PAC, dan tab narasi evaluasi ganda</span></div>
+        <div>Subbab 3.9</div>
+      </div>
+    </section>
+
+
+    <!-- SCREEN 3: LAYAR RIWAYAT DAN GRAFIK PAC (GAMBAR 3.8) -->
+    <section id="screen3" class="mockup-page">
+      
+      <!-- Chart Panel -->
+      <div class="panel-card chart-box">
+        <div class="chart-title">
+          <span>Kurva Riwayat Laju Perkembangan Luka (Percentage Area Change / PAC) - Patient_10</span>
+          <span style="font-family: 'JetBrains Mono'; font-size: 11px; color: var(--emerald-accent);">Ambang Membaik: PAC &gt; +5,0%</span>
+        </div>
+
+        <!-- SVG Line Chart Mockup -->
+        <svg viewBox="0 0 900 180" style="width: 100%; height: 180px;">
+          <!-- Grid Lines -->
+          <line x1="50" y1="20" x2="860" y2="20" stroke="var(--border-main)" stroke-dasharray="4"/>
+          <line x1="50" y1="70" x2="860" y2="70" stroke="var(--border-main)" stroke-dasharray="4"/>
+          <line x1="50" y1="120" x2="860" y2="120" stroke="var(--border-main)" stroke-dasharray="4"/>
+          <!-- Zero Line (Baseline PAC = 0%) -->
+          <line x1="50" y1="120" x2="860" y2="120" stroke="#64748b" stroke-width="2"/>
+          <text x="15" y="124" fill="#475569" font-size="11" font-family="JetBrains Mono">0%</text>
+          <text x="5" y="74" fill="#475569" font-size="11" font-family="JetBrains Mono">+25%</text>
+          <text x="5" y="24" fill="#475569" font-size="11" font-family="JetBrains Mono">+50%</text>
+
+          <!-- Trajectory Line -->
+          <polyline points="100,120 250,60 400,45 550,55 700,30 820,25" 
+                    fill="none" stroke="#065f46" stroke-width="3" stroke-linecap="round"/>
+
+          <!-- Points -->
+          <circle cx="100" cy="120" r="5" fill="#0369a1"/>
+          <text x="85" y="145" fill="var(--text-muted)" font-size="11" font-weight="700">T1 (Awal)</text>
+          <text x="85" y="160" fill="var(--text-light)" font-size="10">0% PAC</text>
+
+          <circle cx="250" cy="60" r="6" fill="#065f46"/>
+          <text x="235" y="145" fill="var(--text-muted)" font-size="11" font-weight="700">T2 (M-4)</text>
+          <text x="235" y="160" fill="#065f46" font-size="10" font-weight="700">+30,1%</text>
+
+          <circle cx="400" cy="45" r="5" fill="#065f46"/>
+          <text x="385" y="145" fill="var(--text-muted)" font-size="11" font-weight="700">T3 (M-8)</text>
+          <text x="385" y="160" fill="#065f46" font-size="10" font-weight="700">+37,5%</text>
+
+          <circle cx="550" cy="55" r="5" fill="#92400e"/>
+          <text x="535" y="145" fill="var(--text-muted)" font-size="11" font-weight="700">T4 (M-12)</text>
+          <text x="535" y="160" fill="#92400e" font-size="10" font-weight="700">+32,6%</text>
+
+          <circle cx="700" cy="30" r="5" fill="#065f46"/>
+          <text x="685" y="145" fill="var(--text-muted)" font-size="11" font-weight="700">T5 (M-16)</text>
+          <text x="685" y="160" fill="#065f46" font-size="10" font-weight="700">+45,2%</text>
+
+          <circle cx="820" cy="25" r="5" fill="#065f46"/>
+          <text x="805" y="145" fill="var(--text-muted)" font-size="11" font-weight="700">T6 (M-20)</text>
+          <text x="805" y="160" fill="#065f46" font-size="10" font-weight="700">+48,9%</text>
+        </svg>
+      </div>
+
+      <!-- Chronological History Table -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <h3 class="panel-title">Tabel Riwayat Rekam Medis Longitudinal Pasien (Patient_10)</h3>
+          <span style="font-size: 12px; color: var(--text-muted);">Total 6 Kunjungan Tercatat</span>
+        </div>
+
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Waktu Kunjungan</th>
+              <th>Luas Relatif (Aₜ)</th>
+              <th>Perubahan Luas (ΔA)</th>
+              <th>Nilai PAC</th>
+              <th>Status Tren Klinis</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Kunjungan 1 (T1)</strong><br><small style="color:var(--text-light)">28 Sep 2026</small></td>
+              <td><span style="font-family:'JetBrains Mono'">5,12%</span></td>
+              <td><span style="color:var(--text-light)">0,00% (Acuan)</span></td>
+              <td><span style="font-family:'JetBrains Mono'">0,0%</span></td>
+              <td><span class="badge-pill badge-neutral">Baseline Acuan</span></td>
+              <td><button class="toggle-pill" onclick="switchScreen('screen2')">Buka Detail</button></td>
+            </tr>
+            <tr style="background: rgba(16, 185, 129, 0.05);">
+              <td><strong>Kunjungan 2 (T2)</strong><br><small style="color:var(--text-light)">26 Okt 2026</small></td>
+              <td><span style="font-family:'JetBrains Mono'">3,58%</span></td>
+              <td><span class="metric-delta delta-green">−1,54%</span></td>
+              <td><span style="font-family:'JetBrains Mono'; font-weight:700; color:var(--emerald-accent);">+30,1%</span></td>
+              <td><span class="badge-pill badge-success">Mengecil (Membaik)</span></td>
+              <td><button class="toggle-pill active" onclick="switchScreen('screen2')">Buka Detail</button></td>
+            </tr>
+            <tr>
+              <td><strong>Kunjungan 3 (T3)</strong><br><small style="color:var(--text-light)">23 Nov 2026</small></td>
+              <td><span style="font-family:'JetBrains Mono'">3,20%</span></td>
+              <td><span class="metric-delta delta-green">−1,92%</span></td>
+              <td><span style="font-family:'JetBrains Mono'; font-weight:700; color:var(--emerald-accent);">+37,5%</span></td>
+              <td><span class="badge-pill badge-success">Mengecil (Membaik)</span></td>
+              <td><button class="toggle-pill" onclick="switchScreen('screen2')">Buka Detail</button></td>
+            </tr>
+            <tr>
+              <td><strong>Kunjungan 4 (T4)</strong><br><small style="color:var(--text-light)">21 Des 2026</small></td>
+              <td><span style="font-family:'JetBrains Mono'">3,45%</span></td>
+              <td><span class="metric-delta" style="color:var(--amber-accent);">+0,25%</span></td>
+              <td><span style="font-family:'JetBrains Mono'; color:var(--emerald-accent);">+32,6%</span></td>
+              <td><span class="badge-pill" style="background:var(--amber-bg); color:var(--amber-accent); border:1px solid var(--amber-border);">Relatif Stabil</span></td>
+              <td><button class="toggle-pill" onclick="switchScreen('screen2')">Buka Detail</button></td>
+            </tr>
+            <tr>
+              <td><strong>Kunjungan 5 (T5)</strong><br><small style="color:var(--text-light)">18 Jan 2027</small></td>
+              <td><span style="font-family:'JetBrains Mono'">2,80%</span></td>
+              <td><span class="metric-delta delta-green">−2,32%</span></td>
+              <td><span style="font-family:'JetBrains Mono'; font-weight:700; color:var(--emerald-accent);">+45,2%</span></td>
+              <td><span class="badge-pill badge-success">Mengecil (Membaik)</span></td>
+              <td><button class="toggle-pill" onclick="switchScreen('screen2')">Buka Detail</button></td>
+            </tr>
+            <tr>
+              <td><strong>Kunjungan 6 (T6)</strong><br><small style="color:var(--text-light)">15 Feb 2027</small></td>
+              <td><span style="font-family:'JetBrains Mono'">2,62%</span></td>
+              <td><span class="metric-delta delta-green">−2,50%</span></td>
+              <td><span style="font-family:'JetBrains Mono'; font-weight:700; color:var(--emerald-accent);">+48,9%</span></td>
+              <td><span class="badge-pill badge-success">Mengecil (Membaik)</span></td>
+              <td><button class="toggle-pill" onclick="switchScreen('screen2')">Buka Detail</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="thesis-caption-tag">
+        <div><strong>Buku Proyek Akhir:</strong> <span>Gambar 3.8. Desain antarmuka riwayat longitudinal dan kurva tren PAC antarkunjungan</span></div>
+        <div>Subbab 3.9</div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    function switchScreen(screenId) {
+      document.querySelectorAll('.mockup-page').forEach(el => el.classList.remove('active'));
+      document.getElementById(screenId).classList.add('active');
+
+      const btns = document.querySelectorAll('.btn-screen');
+      btns.forEach(b => b.classList.remove('active'));
+      if(screenId === 'screen1') btns[0].classList.add('active');
+      if(screenId === 'screen2') btns[1].classList.add('active');
+      if(screenId === 'screen3') btns[2].classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme');
+      if (current === 'dark') {
+        document.documentElement.removeAttribute('data-theme');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    }
+
+    function toggleOverlay(show) {
+      const group = document.getElementById('svgOverlayGroup');
+      const btnShow = document.getElementById('btnShowOverlay');
+      const btnHide = document.getElementById('btnHideOverlay');
+      if (show) {
+        group.style.display = 'block';
+        btnShow.classList.add('active');
+        btnHide.classList.remove('active');
+      } else {
+        group.style.display = 'none';
+        btnShow.classList.remove('active');
+        btnHide.classList.add('active');
+      }
+    }
+
+    function switchNarrative(type) {
+      const docView = document.getElementById('narrativeDoctorView');
+      const patView = document.getElementById('narrativePatientView');
+      const btnDoc = document.getElementById('tabNarrativeDoctor');
+      const btnPat = document.getElementById('tabNarrativePatient');
+
+      if (type === 'doctor') {
+        docView.style.display = 'block';
+        patView.style.display = 'none';
+        btnDoc.classList.add('active');
+        btnPat.classList.remove('active');
+      } else {
+        docView.style.display = 'none';
+        patView.style.display = 'block';
+        btnDoc.classList.remove('active');
+        btnPat.classList.add('active');
+      }
+    }
+  </script>
+</body>
+</html>

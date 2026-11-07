@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WoundAI Mockups Navigation Hub</title>
+<style>
+  :root {
+    --bg: #0F172A;
+    --card-bg: #1E293B;
+    --teal: #2A6F73;
+    --teal-hover: #38BDF8;
+    --text: #F8FAFC;
+    --muted: #94A3B8;
+    --border: #334155;
+    --accent: #38BDF8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .container {
+    max-width: 960px;
+    width: 100%;
+  }
+  header {
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+  }
+  h1 { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  p.subtitle { color: var(--muted); font-size: 15px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+  }
+  .badge {
+    align-self: flex-start;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .badge.new {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ADE80;
+  }
+  .card h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  .card p { font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 16px; }
+  .card .meta { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; color: var(--teal-hover); }
+  footer {
+    margin-top: 40px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Suite Prototipe UI Dokumentasi Luka (H1 – H5 Final)</h1>
+    <p class="subtitle">Seluruh antarmuka web interaktif (H1 hingga H5) telah dirancang dan disempurnakan dengan standar klinis tertinggi. Klik kartu di bawah untuk membuka halaman di peramban.</p>
+  </header>
+  
+  <div class="grid">
+    <a href="h1_beranda.html" class="card">
+      <div>
+        <span class="badge">Halaman 1 (H1)</span>
+        <h2>H1 — Beranda & Pengenalan Sistem</h2>
+        <p>Landing page edukasi klinis, alur 3 langkah pemeriksaan, panduan foto standar, dan ilustrasi komparasi citra asli vs masker.</p>
+      </div>
+      <div class="meta">Route: / &bull; File: h1_beranda.html</div>
+    </a>
+
+    <a href="h2_pilih_pasien.html" class="card">
+      <div>
+        <span class="badge">Halaman 2 (H2)</span>
+        <h2>H2 — Pilih atau Registrasi Pasien</h2>
+        <p>Pencarian rekam medis (RM) dengan font mono tabular, tab pasien lama & registrasi pasien baru, validasi nomor RM, dan informed consent.</p>
+      </div>
+      <div class="meta">Route: /pemeriksaan &bull; File: h2_pilih_pasien.html</div>
+    </a>
+
+    <a href="h3_unggah_foto.html" class="card">
+      <div>
+        <span class="badge">Halaman 3 (H3)</span>
+        <h2>H3 — Unggah Foto dan Deteksi</h2>
+        <p>Alur unggah foto luka, sakelar Kunjungan 1 (Baseline) vs Lanjutan, thumbnail acuan kunjungan sebelumnya, dan simulasi inferensi segmentasi U-Net.</p>
+      </div>
+      <div class="meta">Route: /pemeriksaan/:patientId/unggah &bull; File: h3_unggah_foto.html</div>
+    </a>
+
+    <a href="h4_hasil_kunjungan.html" class="card">
+      <div>
+        <span class="badge">Halaman 4 (H4)</span>
+        <h2>H4 — Hasil Kunjungan & Pemantauan PAC</h2>
+        <p>Visualisasi segmentasi side-by-side, kartu metrik luas, perhitungan PAC (+21,1%), grafik tren 3 titik, tab narasi klinis/awam, verifikasi human-in-the-loop, serta alur draf vs final.</p>
+      </div>
+      <div class="meta">Route: /kunjungan/:visitId &bull; File: h4_hasil_kunjungan.html</div>
+    </a>
+
+    <a href="h5_riwayat_pasien.html" class="card" style="border-color: rgba(56, 189, 248, 0.4);">
+      <div>
+        <span class="badge new">Halaman 5 (H5) — Final</span>
+        <h2>H5 — Riwayat Pasien Longitudinal</h2>
+        <p>Pusat peninjauan riwayat pasien, grafik PAC responsif mobile (garis menanjak = membaik), thumbnail inspeksi luka interaktif (lightbox perbandingan K1 vs K3), tabel kronologis dengan semantik poin persentase (pp), jejak audit, modal hapus kunjungan dengan alasan wajib, dan modal hapus pasien dengan konfirmasi ketik "RM-0012".</p>
+      </div>
+      <div class="meta">Route: /pasien/:patientId &bull; File: h5_riwayat_pasien.html</div>
+    </a>
+  </div>
+
+  <footer>
+    Proyek Akhir D4 Komputer PENS &bull; Dokumentasi dan Pemantauan Luas Luka Kusta Berbasis Web
+  </footer>
+</div>
+</body>
+</html>

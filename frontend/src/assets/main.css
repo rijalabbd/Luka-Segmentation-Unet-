@@ -1,0 +1,75 @@
+:root {
+  /* Cohesive Clinical Palette (WCAG AA + 1.4.11 Non-Text Contrast Verified) */
+  --bg: #f8fafc;
+  --band: #f1f5f9;
+  --surface: #ffffff;
+
+  --navy: #0f2942;
+  --navy-hover: #163a5f;
+  --teal: #1f6368;
+  --teal-soft: #e6f3f3;
+
+  --green: #15803d;
+  --green-soft: #f0fdf4;
+  --green-border: #86efac;
+
+  --amber: #8a3f06;
+  --amber-soft: #fef3c7;
+
+  --error: #b91c1c;
+  --error-soft: #fef2f2;
+  --error-border: #fecaca;
+
+  /* Structural dividers vs interactive control boundaries (WCAG 1.4.11 >= 3.0:1) */
+  --border: #dce4ec;
+  --border-strong: #94a3b8;
+  --border-control: #64748b; /* 4.76:1 on #ffffff */
+
+  /* Typography colors (WCAG AA >= 4.5:1) */
+  --text: #0f172a; /* 17.06:1 on #f8fafc */
+  --text-2: #334155; /* 10.36:1 on #ffffff */
+  --text-muted: #475569; /* 7.58:1 on #ffffff */
+
+  --focus: #0b5fff;
+
+  /* Typography families & scale */
+  /* Inter self-hosted via @fontsource-variable/inter (imported in main.ts) */
+  --sans: 'Inter Variable', Inter, system-ui, sans-serif;
+  --serif: Georgia, 'Times New Roman', serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --fs-xs: 12px;
+  --fs-sm: 13.5px;
+  --fs-md: 15px;
+  --fs-lg: 16px;
+
+  /* Unified shape & motion tokens */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+  --dur: 180ms;
+  --dur-reveal: 420ms;
+  --dur-hero: 1000ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

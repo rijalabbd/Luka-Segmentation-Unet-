@@ -1,0 +1,36 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0 -- /usr/local/bin/python3.12
+cachedir: .pytest_cache
+rootdir: /app
+configfile: pyproject.toml
+testpaths: tests
+plugins: asyncio-1.4.1.post1, anyio-4.16.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 24 items
+
+tests/test_patients_api.py::test_01_health_check_connected_to_postgres PASSED [  4%]
+tests/test_patients_api.py::test_02_list_seeded_demo_patients_and_trend_badges PASSED [  8%]
+tests/test_patients_api.py::test_03_filter_patients_by_is_demo_flag PASSED [ 12%]
+tests/test_patients_api.py::test_04_search_patients_with_dot_and_space_normalization PASSED [ 16%]
+tests/test_patients_api.py::test_05_create_valid_patient PASSED          [ 20%]
+tests/test_patients_api.py::test_06_reject_duplicate_rm_case_insensitive_409 PASSED [ 25%]
+tests/test_patients_api.py::test_07_reject_missing_informed_consent_422 PASSED [ 29%]
+tests/test_patients_api.py::test_08_reject_invalid_rm_format_422 PASSED  [ 33%]
+tests/test_patients_api.py::test_09_reject_out_of_bounds_age_422 PASSED  [ 37%]
+tests/test_patients_api.py::test_10_pac_and_trend_evaluation_menurun_meningkat_stabil PASSED [ 41%]
+tests/test_patients_api.py::test_11_pac_zero_baseline_division_guard PASSED [ 45%]
+tests/test_patients_api.py::test_12_get_patient_by_rm_code_and_404 PASSED [ 50%]
+tests/test_visits_api.py::test_13_upload_draft_creates_files_and_replaces_previous_draft PASSED [ 54%]
+tests/test_visits_api.py::test_14_confirm_baseline_and_followup_plus_idempotency PASSED [ 58%]
+tests/test_visits_api.py::test_15_lifo_deletion_and_file_cleanup PASSED  [ 62%]
+tests/test_visits_api.py::test_16_database_unique_constraints_0003 PASSED [ 66%]
+tests/test_visits_api.py::test_17_upload_validation_rejects_non_image_oversized_and_backward_date PASSED [ 70%]
+tests/test_visits_api.py::test_18_exif_transpose_and_overlay_serving PASSED [ 75%]
+tests/test_visits_api.py::test_19_real_model_inference_and_manual_mask_verification PASSED [ 79%]
+tests/test_visits_api.py::test_20_distance_confirmed_required PASSED     [ 83%]
+tests/test_visits_api.py::test_21_wib_early_morning_timezone_tolerance PASSED [ 87%]
+tests/test_visits_api.py::test_22_pending_draft_query_and_discard PASSED [ 91%]
+tests/test_visits_api.py::test_23_exif_and_gps_stripped_from_stored_file PASSED [ 95%]
+tests/test_visits_api.py::test_24_storage_whitelist_and_path_traversal_rejected PASSED [100%]
+
+============================= 24 passed in 10.35s ==============================

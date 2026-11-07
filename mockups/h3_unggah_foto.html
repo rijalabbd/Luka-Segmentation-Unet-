@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Unggah Foto dan Deteksi — Dokumentasi Luka</title>
+<style>
+:root{
+  --bg:#F8FAFC; --surface:#FFFFFF;
+  --navy:#0F2942; --navy-hover:#163A5F;
+  --teal:#2A6F73; --teal-soft:#EAF4F4;
+  --border:#E2E8F0; --border-strong:#CBD5E1;
+  --text:#0F172A; --text-2:#475569; --text-muted:#5B6B80;
+  --error:#B91C1C; --ok:#166534;
+  --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --radius:6px; --dur:180ms;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,p{margin:0}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px;border-radius:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip-link{position:absolute;left:16px;top:-80px;z-index:100;background:var(--navy);color:#fff;padding:10px 16px;font-size:14px;font-weight:600;border-radius:var(--radius);transition:top var(--dur)}
+.skip-link:focus{top:10px}
+
+/* Top bar */
+.topbar{min-height:64px;background:var(--surface);border-bottom:1px solid var(--border)}
+.topbar-in{min-height:64px;max-width:1120px;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:32px;height:32px;border:1px solid var(--navy);border-radius:50%;display:grid;place-items:center;color:var(--navy);font-weight:600;font-size:18px;flex:none}
+.brand-name{display:block;font-size:16px;font-weight:650;color:var(--navy);line-height:1.2}
+.brand-sub{display:block;font-size:12px;color:var(--text-muted);line-height:1.2}
+.topright{display:flex;align-items:center;gap:20px}
+.sys{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.topnav{display:flex;height:64px;gap:4px}
+.topnav a{display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--text-2);position:relative;transition:color var(--dur)}
+.topnav a:hover{color:var(--navy)}
+.topnav a[aria-current="page"]{color:var(--navy);font-weight:650}
+.topnav a[aria-current="page"]::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;background:var(--teal)}
+
+main{max-width:1120px;margin:0 auto;padding:24px 24px 72px}
+.back{display:inline-flex;align-items:center;min-height:44px;font-size:14px;color:var(--teal);font-weight:600}
+.back:hover{text-decoration:underline}
+h1{font-size:26px;line-height:1.25;font-weight:650;letter-spacing:-.02em;color:var(--navy);margin:4px 0 18px}
+
+/* Patient card */
+.patient{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--teal);border-radius:8px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.p-label{font-size:12px;color:var(--text-muted);letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.p-line{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 12px}
+.p-rm{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:24px;font-weight:700;color:var(--navy);line-height:1.3}
+.p-name{font-size:15px;font-weight:600}
+.p-attrs{font-size:14px;color:var(--text-2)}
+.p-attrs span+span::before{content:"·";margin:0 8px;color:var(--border-strong)}
+.p-note{font-size:13px;color:var(--text-muted);max-width:260px}
+
+/* Demo switcher */
+.demo{margin:20px 0 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.demo-label{font-size:12px;font-weight:600;color:var(--text-muted);letter-spacing:.04em;text-transform:uppercase}
+.seg{display:inline-flex;background:#EEF2F6;border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;max-width:100%;flex-wrap:wrap}
+.seg button{font:inherit;font-size:13px;color:var(--text-2);background:none;border:0;border-radius:6px;padding:8px 14px;min-height:40px;cursor:pointer;transition:background-color var(--dur),color var(--dur)}
+.seg button:hover{color:var(--navy)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--navy);font-weight:650;box-shadow:0 1px 3px rgba(15,41,66,.12)}
+
+/* Layout */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:22px 24px}
+.status-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.badge{display:inline-block;font-size:13px;font-weight:650;color:var(--teal);background:var(--teal-soft);padding:6px 12px;border-radius:999px}
+label.lbl,.lbl{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+input[type="date"]{height:44px;padding:0 12px;font:inherit;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius);min-width:200px}
+input[type="date"]:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px var(--navy)}
+.field{margin-bottom:20px}
+.hint{font-size:13px;color:var(--text-muted);margin-top:6px}
+
+/* Acuan kunjungan sebelumnya */
+.ref{display:flex;gap:16px;align-items:center;padding:12px;margin-bottom:18px;background:var(--bg);border:1px solid var(--border);border-radius:8px}
+.ref[hidden]{display:none}
+.ref-thumb{position:relative;flex:none;width:132px;height:99px;padding:0;border:1px solid var(--border-strong);border-radius:6px;overflow:hidden;cursor:zoom-in;background:#fff}
+.ref-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.ref-thumb .zoom{position:absolute;right:4px;bottom:4px;background:rgba(15,41,66,.88);color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px}
+.ref h2{font-size:14px;font-weight:650;color:var(--navy);line-height:1.4}
+.ref h2 span{display:block;font-weight:500;color:var(--text-2)}
+.ref p{font-size:13px;color:var(--text-2);margin-top:6px}
+.ref .tiny{font-size:12px;color:var(--text-muted);margin-top:4px}
+
+/* Dropzone */
+.drop{min-height:240px;background:var(--bg);border:1.5px dashed #94A3B8;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:28px 20px;transition:border-color var(--dur),background-color var(--dur)}
+.drop.over{border-color:var(--teal);background:var(--teal-soft)}
+.drop svg{width:44px;height:44px;color:var(--teal)}
+.drop p{font-size:14px;color:var(--text-2);max-width:320px}
+.drop-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;padding:0 18px;font:inherit;font-size:14px;font-weight:600;border-radius:var(--radius);border:1px solid transparent;cursor:pointer;white-space:nowrap;transition:background-color var(--dur),border-color var(--dur),transform var(--dur)}
+.btn-primary{background:var(--navy);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--navy-hover);transform:translateY(-1px)}
+/* Tombol nonaktif: teks tetap terbaca (≈6:1) */
+.btn-primary:disabled{background:#E2E8F0;color:#475569;border-color:#CBD5E1;cursor:not-allowed}
+.btn-secondary{background:var(--surface);color:var(--navy);border-color:var(--border-strong)}
+.btn-secondary:hover{border-color:var(--navy);background:var(--bg)}
+.btn-ghost{background:none;color:var(--teal);padding:0 10px}
+.btn-ghost:hover{text-decoration:underline}
+.error{margin-top:10px;font-size:13px;color:var(--error);font-weight:500}
+.error[hidden]{display:none}
+
+/* Preview */
+.preview[hidden],.drop[hidden]{display:none}
+.frame{background:#0f172a0d;border:1px solid var(--border);border-radius:8px;display:flex;justify-content:center;padding:12px}
+.frame img{display:block;max-width:100%;max-height:420px;width:auto;height:auto;border-radius:4px}
+.fileinfo{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.fname{font-size:14px;font-weight:600;word-break:break-all}
+.fsize{font-size:13px;color:var(--text-muted)}
+.fcheck{font-size:13px;color:var(--ok);font-weight:600}
+
+/* Checkbox */
+.confirm{display:flex;gap:12px;align-items:flex-start;margin-top:22px;padding:14px 16px;background:var(--teal-soft);border:1px solid #BFDCDC;border-radius:8px}
+.confirm[hidden]{display:none}
+.confirm input{width:22px;height:22px;margin:1px 0 0;accent-color:var(--navy);flex:none;cursor:pointer}
+.confirm label{font-size:14px;line-height:1.5;cursor:pointer;margin:0;font-weight:500}
+
+/* Action */
+.action{margin-top:22px;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.reason{font-size:13px;color:var(--text-muted);max-width:360px}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Guidance */
+.guide h2{font-size:16px;font-weight:650;color:var(--navy);margin-bottom:4px}
+.guide .sub{font-size:13px;color:var(--text-muted);margin-bottom:14px}
+.guide ol{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.guide li{display:grid;grid-template-columns:28px 1fr;gap:12px}
+.num{width:28px;height:28px;border-radius:50%;background:var(--teal-soft);color:var(--teal);font-weight:700;font-size:13px;display:grid;place-items:center}
+.guide h3{font-size:14px;font-weight:650}
+.guide li p{font-size:13px;color:var(--text-2);margin-top:2px}
+.calib{margin-top:18px;padding-top:14px;border-top:1px solid var(--border);display:grid;grid-template-columns:18px 1fr;gap:8px;font-size:12.5px;line-height:1.5;color:var(--text-2)}
+.calib svg{width:18px;height:18px;color:var(--teal);margin-top:1px}
+
+/* Dialog */
+.modal-back{position:fixed;inset:0;background:rgba(15,23,42,.55);display:grid;place-items:center;padding:16px;z-index:50;animation:fade var(--dur) ease}
+.modal-back[hidden]{display:none}
+.modal{background:#fff;border-radius:10px;max-width:440px;width:100%;padding:26px 26px 22px;box-shadow:0 20px 50px rgba(15,23,42,.25)}
+.modal h2{font-size:18px;color:var(--navy);margin-bottom:8px}
+.modal p{font-size:14px;color:var(--text-2)}
+.modal .btns{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+.modal .small{font-size:12px;color:var(--text-muted);margin-top:12px}
+.modal.wide{max-width:760px;padding:18px}
+.modal.wide img{display:block;width:100%;height:auto;border-radius:6px;border:1px solid var(--border)}
+.modal.wide .cap{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.modal.wide .cap h2{margin:0;font-size:16px}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+@media(max-width:900px){
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .grid[data-mode="1"] .guide-wrap{order:-1}   /* baseline: panduan dibaca sebelum memotret */
+}
+@media(max-width:640px){
+  .topbar-in{padding:10px 16px}
+  .topright{width:100%;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .topnav{height:44px}
+  .topnav a[aria-current="page"]::after{bottom:0}
+  .brand-sub{display:none}
+  main{padding:16px 16px 56px}
+  h1{font-size:22px}
+  .card{padding:18px 16px}
+  .p-rm{font-size:22px}
+  .seg{width:100%}.seg button{flex:1 1 100%;text-align:left}
+  .action{flex-direction:column;align-items:stretch}
+  .action .btn{width:100%}
+  .drop-actions .btn{width:100%}
+  input[type="date"]{width:100%}
+}
+@media(max-width:480px){
+  .ref{flex-direction:column;align-items:stretch}
+  .ref-thumb{width:100%;height:auto;aspect-ratio:4/3}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Lewati ke konten utama</a>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/" aria-label="Dokumentasi Luka, ke Beranda">
+      <span class="brand-mark" aria-hidden="true">+</span>
+      <span><span class="brand-name">Dokumentasi Luka</span><span class="brand-sub">Pemantauan Berkala</span></span>
+    </a>
+    <div class="topright">
+      <div class="sys" role="status"><span class="dot" aria-hidden="true"></span>Server Lokal Terhubung · Data Terisolasi</div>
+      <nav class="topnav" aria-label="Navigasi utama">
+        <a href="/">Beranda</a>
+        <a href="/pemeriksaan" aria-current="page">Pemeriksaan</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<main id="main-content">
+  <a class="back" href="/pemeriksaan"><span aria-hidden="true">←&nbsp;</span>Kembali ke Pemilihan Pasien</a>
+  <h1>Unggah Foto dan Deteksi</h1>
+
+  <section class="patient" aria-label="Pasien yang diperiksa">
+    <div>
+      <div class="p-label">Pasien yang diperiksa</div>
+      <div class="p-line"><span class="p-rm">RM-0012</span><span class="p-name">Tn. S</span></div>
+      <div class="p-attrs"><span>54 tahun</span><span>Laki-laki</span><span>Telapak kaki kanan</span></div>
+    </div>
+    <p class="p-note">Pastikan nomor RM sesuai dengan pasien di hadapan Anda sebelum mengunggah foto.</p>
+  </section>
+
+  <div class="demo">
+    <span class="demo-label" id="demo-lbl">Mode demo</span>
+    <div class="seg" role="group" aria-labelledby="demo-lbl">
+      <button type="button" id="m1" aria-pressed="false">Kunjungan 1 (Penetapan Baseline A₀)</button>
+      <button type="button" id="m3" aria-pressed="true">Kunjungan ke-3 (Lanjutan, hari ini)</button>
+    </div>
+  </div>
+
+  <div class="grid" id="grid" data-mode="3">
+    <section class="card" aria-labelledby="t-form">
+      <h2 class="sr" id="t-form">Formulir pemeriksaan</h2>
+      <div class="status-row"><span class="badge" id="badge"></span></div>
+
+      <div class="field">
+        <label class="lbl" for="tgl">Tanggal Pemeriksaan</label>
+        <input type="date" id="tgl" aria-describedby="tgl-hint" />
+        <p class="hint" id="tgl-hint">Tidak dapat memilih tanggal setelah hari ini.</p>
+      </div>
+
+      <!-- Acuan foto kunjungan sebelumnya (hanya kunjungan lanjutan) -->
+      <section class="ref" id="ref" aria-labelledby="ref-t" hidden>
+        <button type="button" class="ref-thumb" id="ref-open" aria-label="Perbesar foto acuan kunjungan ke-2, 17 Okt 2026">
+          <img id="ref-img" alt="Foto luka acuan dari kunjungan ke-2 tanggal 17 Okt 2026 (ilustrasi sampel)" />
+          <span class="zoom" aria-hidden="true">Perbesar</span>
+        </button>
+        <div>
+          <h2 id="ref-t">Acuan Kunjungan Terakhir <span>(Kunjungan ke-2 · 17 Okt 2026)</span></h2>
+          <p>Samakan jarak dan sudut kamera dengan foto ini.</p>
+          <p class="tiny">Ilustrasi sampel prototipe, bukan data pasien.</p>
+        </div>
+      </section>
+
+      <div class="lbl" id="foto-lbl">Foto Luka</div>
+
+      <div class="drop" id="drop" role="group" aria-labelledby="foto-lbl">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="10" width="36" height="28" rx="4"/><circle cx="17" cy="20" r="3.5"/><path d="m6 33 10-9 8 7 7-6 11 9"/><path d="M36 4v8M32 8h8" /></svg>
+        <p>Seret foto ulkus ke area ini atau pilih dari perangkat</p>
+        <div class="drop-actions">
+          <button class="btn btn-secondary" type="button" id="pick">Pilih Berkas Foto</button>
+          <button class="btn btn-ghost" type="button" id="sample">Gunakan Foto Sampel</button>
+        </div>
+        <p class="hint" style="margin:0">Format gambar (JPG atau PNG), maksimal 10 MB.</p>
+      </div>
+      <input type="file" id="file" accept="image/jpeg,image/png" class="sr" tabindex="-1" aria-hidden="true" />
+      <p class="error" id="ferr" role="alert" hidden></p>
+
+      <div class="preview" id="preview" hidden>
+        <div class="frame"><img id="img" alt="Pratinjau foto luka yang akan diproses" /></div>
+        <div class="fileinfo">
+          <div><div class="fname" id="fname"></div><div class="fsize" id="fsize"></div></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="fcheck" aria-hidden="true">✓ Foto siap</span>
+            <button class="btn btn-secondary" type="button" id="replace">Ganti Foto</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="confirm" id="confirm">
+        <input type="checkbox" id="chk" />
+        <label for="chk" id="chk-lbl">Foto diambil dengan jarak dan sudut yang konsisten (tegak lurus 90° terhadap permukaan luka).</label>
+      </div>
+
+      <div class="action">
+        <p class="reason" id="reason" aria-live="polite"></p>
+        <button class="btn btn-primary" type="button" id="run" disabled aria-describedby="reason"><span id="run-txt">Jalankan Deteksi</span></button>
+      </div>
+      <p class="sr" id="live" role="status" aria-live="polite"></p>
+    </section>
+
+    <aside class="card guide guide-wrap" id="guide" aria-labelledby="t-guide">
+      <h2 id="t-guide">Panduan Pengambilan Foto</h2>
+      <p class="sub">Empat prinsip agar foto antarkunjungan dapat dibandingkan.</p>
+      <ol>
+        <li><span class="num" aria-hidden="true">1</span><div><h3>Jarak konsisten</h3><p>Gunakan jarak yang sama pada setiap kunjungan (misalnya dengan tali atau penggaris pengatur jarak) dan jangan memakai zoom digital.</p></div></li>
+        <li><span class="num" aria-hidden="true">2</span><div><h3>Kamera tegak lurus</h3><p>Posisikan kamera 90° terhadap permukaan luka.</p></div></li>
+        <li><span class="num" aria-hidden="true">3</span><div><h3>Pencahayaan cukup</h3><p>Hindari bayangan gelap dan pantulan cahaya.</p></div></li>
+        <li><span class="num" aria-hidden="true">4</span><div><h3>Tanpa filter</h3><p>Gunakan foto alami tanpa modifikasi warna.</p></div></li>
+      </ol>
+      <p class="calib">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1"/></svg>
+        <span><strong>Catatan:</strong> Pengukuran luka dihitung relatif terhadap luas citra (% kanvas) tanpa penanda kalibrasi fisik.</span>
+      </p>
+    </aside>
+  </div>
+</main>
+
+<!-- Dialog hasil -->
+<div class="modal-back" id="modal" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="m-t" aria-describedby="m-d">
+    <h2 id="m-t">Analisis selesai!</h2>
+    <p id="m-d">Foto siap ditinjau di Halaman Hasil.</p>
+    <p class="small">Prototipe: hasil ditampilkan di halaman berikutnya.</p>
+    <div class="btns">
+      <button class="btn btn-secondary" type="button" id="m-close">Tutup</button>
+      <a class="btn btn-primary" id="m-go" href="/kunjungan/VK-0012-03">Buka Hasil Kunjungan <span aria-hidden="true">→</span></a>
+    </div>
+  </div>
+</div>
+
+<!-- Dialog perbesar foto acuan -->
+<div class="modal-back" id="zoom" hidden>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="z-t">
+    <div class="cap">
+      <h2 id="z-t">Acuan Kunjungan ke-2 · 17 Okt 2026</h2>
+      <button class="btn btn-secondary" type="button" id="z-close">Tutup</button>
+    </div>
+    <img id="z-img" alt="Foto luka acuan dari kunjungan ke-2 (ilustrasi sampel), ukuran diperbesar" />
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const MAX = 10 * 1024 * 1024;
+  let mode = 3;               // 1 = baseline (A₀), 3 = kunjungan lanjutan ke-3
+  let hasPhoto = false, busy = false, lastFocus = null, objUrl = null;
+
+  /* ---------- Data demo RM-0012 (sinkron dengan daftar pasien) ----------
+     Kunjungan 1: 01 Okt 2026 (baseline) · Kunjungan 2: 17 Okt 2026 · Kunjungan 3: 31 Okt 2026 (hari ini) */
+  const VISIT = {
+    1: { date: '2026-10-01', id: 'VK-0012-01' },
+    3: { date: '2026-10-31', id: 'VK-0012-03' }
+  };
+
+  /* Tanggal: tidak boleh melewati hari ini (zona waktu lokal) */
+  const pad = n => String(n).padStart(2, '0');
+  const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  const todayISO = iso(new Date());
+  const clampDate = s => (s > todayISO ? todayISO : s);
+  $('tgl').max = todayISO;
+  $('tgl').value = clampDate(VISIT[mode].date);
+
+  const fmtSize = b => b < 1024 * 1024 ? Math.max(1, Math.round(b / 1024)) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+
+  /* ---------- Ilustrasi sampel (digambar di canvas; BUKAN data pasien) ---------- */
+  const drawWound = (w, h, s) => {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.scale(w / 1200, h / 900);
+    const bg = g.createLinearGradient(0, 0, 1200, 900); bg.addColorStop(0, '#d9c8b8'); bg.addColorStop(.5, '#bda590'); bg.addColorStop(1, '#d6c3b2');
+    g.fillStyle = bg; g.fillRect(0, 0, 1200, 900);
+    g.save(); g.translate(600, 450); g.rotate(-.21);
+    const sk = g.createLinearGradient(-380, -300, 380, 300); sk.addColorStop(0, '#dcbca5'); sk.addColorStop(.55, '#b68d76'); sk.addColorStop(1, '#d6b39d');
+    g.fillStyle = sk; g.beginPath(); g.ellipse(0, 0, 400, 310, 0, 0, Math.PI * 2); g.fill();
+    g.restore();
+    g.save(); g.translate(620, 460); g.rotate(.3); g.scale(s, s);
+    g.fillStyle = 'rgba(120,70,60,.28)'; g.beginPath(); g.ellipse(0, 0, 170, 120, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#7e403b'; g.beginPath(); g.ellipse(0, 0, 135, 90, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(160,80,70,.5)'; g.beginPath(); g.ellipse(-20, -10, 70, 40, 0, 0, Math.PI * 2); g.fill();
+    g.restore();
+    return c;
+  };
+  /* Foto acuan kunjungan ke-2: luka sedikit lebih besar dari sampel hari ini */
+  const refURL = drawWound(900, 675, 1.12).toDataURL('image/jpeg', .88);
+  $('ref-img').src = refURL;
+  $('z-img').src = refURL;
+
+  /* ---------- Sinkronisasi UI ---------- */
+  const sync = () => {
+    const b3 = mode === 3;
+    $('m1').setAttribute('aria-pressed', !b3);
+    $('m3').setAttribute('aria-pressed', b3);
+    $('grid').dataset.mode = mode;
+    $('badge').textContent = b3
+      ? 'Kunjungan ke-3 · Kunjungan terakhir: 17 Okt 2026'
+      : 'Kunjungan 1 — Penetapan Baseline A₀';
+    $('ref').hidden = !b3;
+    $('confirm').hidden = false;
+    $('chk-lbl').textContent = b3
+      ? 'Foto diambil dengan jarak dan sudut yang sama seperti foto acuan kunjungan sebelumnya.'
+      : 'Foto diambil dengan jarak dan sudut yang konsisten (tegak lurus 90° terhadap permukaan luka).';
+    $('drop').hidden = hasPhoto;
+    $('preview').hidden = !hasPhoto;
+
+    const v = $('tgl').value;
+    const dateOk = v !== '' && v <= todayISO;
+    const needChk = !$('chk').checked;
+    const ok = hasPhoto && dateOk && !needChk && !busy;
+    $('run').disabled = !ok;
+
+    let msg = '';
+    if (!hasPhoto) msg = b3
+      ? 'Unggah foto luka terlebih dahulu. Bandingkan dengan foto acuan di atas.'
+      : 'Unggah foto luka terlebih dahulu untuk menjalankan deteksi.';
+    else if (!dateOk) msg = v === '' ? 'Isi tanggal pemeriksaan.' : 'Tanggal pemeriksaan tidak boleh melebihi hari ini.';
+    else if (needChk) msg = 'Centang konfirmasi jarak dan sudut foto untuk melanjutkan.';
+    else if (!busy) msg = 'Foto siap diproses.';
+    $('reason').textContent = busy ? '' : msg;
+  };
+
+  /* Mode demo */
+  const setMode = m => {
+    if (busy || m === mode) return;
+    mode = m; $('chk').checked = false;
+    $('tgl').value = clampDate(VISIT[m].date);
+    sync();
+  };
+  $('m1').addEventListener('click', () => setMode(1));
+  $('m3').addEventListener('click', () => setMode(3));
+  $('chk').addEventListener('change', sync);
+  $('tgl').addEventListener('input', sync);
+
+  /* ---------- Foto ---------- */
+  const showErr = msg => { $('ferr').textContent = msg; $('ferr').hidden = !msg; };
+  const setPhoto = (src, name, size) => {
+    $('img').src = src; $('fname').textContent = name; $('fsize').textContent = fmtSize(size);
+    hasPhoto = true; showErr(''); sync();
+    $('live').textContent = 'Foto ' + name + ' berhasil dimuat.';
+    $('replace').focus();
+  };
+  const clearPhoto = () => {
+    hasPhoto = false; $('img').removeAttribute('src'); $('file').value = ''; $('chk').checked = false;
+    if (objUrl) { URL.revokeObjectURL(objUrl); objUrl = null; }
+    sync(); $('pick').focus();
+  };
+  const handleFile = f => {
+    if (!f) return;
+    if (!f.type.startsWith('image/')) return showErr('Berkas harus berupa gambar (JPG, PNG, atau WebP).');
+    if (f.size > MAX) return showErr('Ukuran berkas melebihi 10 MB. Pilih foto yang lebih kecil.');
+    const r = new FileReader();
+    r.onerror = () => showErr('Foto tidak dapat dibaca. Coba pilih berkas lain.');
+    r.onload = () => setPhoto(r.result, f.name, f.size);
+    r.readAsDataURL(f);
+  };
+  $('pick').addEventListener('click', () => $('file').click());
+  $('file').addEventListener('change', e => handleFile(e.target.files[0]));
+  $('replace').addEventListener('click', clearPhoto);
+
+  /* Drag & drop. Pencegahan di level window: foto yang dijatuhkan di luar
+     dropzone tidak lagi membuka berkas di tab ini (isian tidak hilang). */
+  ['dragover', 'drop'].forEach(ev => window.addEventListener(ev, e => {
+    e.preventDefault();
+    if (ev === 'dragover' && e.dataTransfer) e.dataTransfer.dropEffect = e.target.closest && e.target.closest('#drop') ? 'copy' : 'none';
+  }));
+  const drop = $('drop');
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => handleFile(e.dataTransfer.files[0]));
+
+  /* Foto sampel */
+  $('sample').addEventListener('click', () => {
+    const c = drawWound(1200, 900, mode === 3 ? 0.95 : 1.15);   // lanjutan: luka sedikit mengecil
+    c.toBlob(b => {
+      if (objUrl) URL.revokeObjectURL(objUrl);
+      objUrl = URL.createObjectURL(b);
+      setPhoto(objUrl, mode === 3 ? 'foto_kunjungan3.jpg' : 'foto_kunjungan1.jpg', b.size);
+    }, 'image/jpeg', .88);
+  });
+
+  /* ---------- Simulasi analisis ---------- */
+  const modal = $('modal');
+  const trap = (e, els) => {
+    if (e.key !== 'Tab') return;
+    const i = els.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); els[els.length - 1].focus(); }
+    else if (!e.shiftKey && i === els.length - 1) { e.preventDefault(); els[0].focus(); }
+  };
+
+  $('run').addEventListener('click', () => {
+    if ($('run').disabled) return;
+    busy = true; lastFocus = $('run');
+    $('run').disabled = true;
+    $('run').innerHTML = '<span class="spinner" aria-hidden="true"></span><span>Menganalisis area luka...</span>';
+    $('reason').textContent = 'Mohon tunggu, jangan tutup halaman ini.';
+    $('live').textContent = 'Menganalisis area luka.';
+    setTimeout(() => {
+      $('m-go').setAttribute('href', '/kunjungan/' + VISIT[mode].id);
+      modal.hidden = false; $('m-go').focus();
+      $('live').textContent = 'Analisis selesai. Foto siap ditinjau di Halaman Hasil.';
+    }, 1500);
+  });
+  const closeModal = () => {
+    modal.hidden = true; busy = false;
+    $('run').innerHTML = '<span id="run-txt">Jalankan Deteksi</span>';
+    sync(); if (lastFocus) lastFocus.focus();
+  };
+  $('m-close').addEventListener('click', closeModal);
+  modal.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    trap(e, [$('m-close'), $('m-go')]);
+  });
+
+  /* ---------- Perbesar foto acuan ---------- */
+  const zoom = $('zoom');
+  const openZoom = () => { zoom.hidden = false; $('z-close').focus(); };
+  const closeZoom = () => { zoom.hidden = true; $('ref-open').focus(); };
+  $('ref-open').addEventListener('click', openZoom);
+  $('z-close').addEventListener('click', closeZoom);
+  zoom.addEventListener('click', e => { if (e.target === zoom) closeZoom(); });
+  zoom.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeZoom();
+    if (e.key === 'Tab') { e.preventDefault(); $('z-close').focus(); }
+  });
+
+  sync();
+})();
+</script>
+</body>
+</html>

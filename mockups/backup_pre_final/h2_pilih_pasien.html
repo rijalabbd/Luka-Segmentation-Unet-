@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pilih Pasien — Dokumentasi Luka</title>
+<style>
+:root{
+  --bg:#F8FAFC; --surface:#FFFFFF;
+  --navy:#0F2942; --navy-hover:#163A5F;
+  --teal:#2A6F73; --teal-soft:#EAF4F4;
+  --border:#E2E8F0; --border-strong:#CBD5E1;
+  --text:#0F172A; --text-2:#475569; --text-muted:#64748B;
+  --error:#B91C1C;
+  --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --radius:6px; --dur:180ms;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,p{margin:0}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px;border-radius:3px}
+
+.skip-link{position:absolute;left:16px;top:-80px;z-index:100;background:var(--navy);color:#fff;padding:10px 16px;font-size:14px;font-weight:600;border-radius:var(--radius);transition:top var(--dur)}
+.skip-link:focus{top:10px}
+
+/* Top bar */
+.topbar{height:64px;background:var(--surface);border-bottom:1px solid var(--border)}
+.topbar-in{height:100%;max-width:1120px;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:32px;height:32px;border:1px solid var(--navy);border-radius:50%;display:grid;place-items:center;color:var(--navy);font-weight:600;font-size:18px;flex:none}
+.brand-name{display:block;font-size:16px;font-weight:650;color:var(--navy);letter-spacing:-.01em;line-height:1.2}
+.brand-sub{display:block;font-size:12px;color:var(--text-muted);line-height:1.2}
+.topnav{display:flex;height:100%;gap:8px}
+.topnav a{display:flex;align-items:center;padding:0 14px;font-size:14px;color:var(--text-2);position:relative;transition:color var(--dur)}
+.topnav a:hover{color:var(--navy)}
+.topnav a[aria-current="page"]{color:var(--navy);font-weight:650}
+.topnav a[aria-current="page"]::after{content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:2px;background:var(--teal)}
+
+/* Page */
+main{max-width:720px;margin:0 auto;padding:40px 24px 72px}
+.page-head h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:var(--navy)}
+.page-head p{margin-top:8px;color:var(--text-2);font-size:15px}
+
+/* Tabs */
+.tabs{display:flex;gap:28px;margin-top:28px;border-bottom:1px solid var(--border)}
+.tab{font:inherit;font-size:15px;color:var(--text-2);background:none;border:0;padding:12px 2px;margin-bottom:-1px;border-bottom:2px solid transparent;cursor:pointer;min-height:44px;transition:color var(--dur),border-color var(--dur)}
+.tab:hover{color:var(--navy)}
+.tab[aria-selected="true"]{color:var(--navy);font-weight:650;border-bottom-color:var(--teal)}
+.panel{padding-top:24px}
+.panel[hidden]{display:none}
+.panel.enter{animation:fade var(--dur) ease both}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Search */
+.search{position:relative}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--text-muted);pointer-events:none}
+.search input{width:100%;height:40px;padding:0 40px 0 38px;font:inherit;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius);transition:border-color var(--dur),box-shadow var(--dur)}
+.search input::placeholder{color:var(--text-muted)}
+.search input::-webkit-search-cancel-button{display:none}
+.clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:0;background:none;border-radius:var(--radius);color:var(--text-muted);cursor:pointer;display:none;place-items:center}
+.clear.show{display:grid}
+.clear:hover{background:var(--bg);color:var(--navy)}
+.clear svg{position:static;transform:none;width:16px;height:16px}
+.count{margin:12px 0 10px;font-size:13px;color:var(--text-muted)}
+
+/* Cards */
+.list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:20px;transition:border-color var(--dur),box-shadow var(--dur)}
+.card:hover{border-color:var(--border-strong);box-shadow:0 2px 10px rgba(15,41,66,.06)}
+.rm{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:18px;font-weight:700;color:var(--navy);letter-spacing:.01em}
+.attrs{margin-top:4px;font-size:14px;color:var(--text-2)}
+.attrs span+span::before{content:"·";margin:0 8px;color:var(--border-strong)}
+.history{margin-top:8px;font-size:13px;color:var(--text-muted)}
+.history strong{color:var(--text-2);font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:40px;padding:0 18px;background:var(--navy);color:#fff;font:inherit;font-size:14px;font-weight:600;border:0;border-radius:var(--radius);cursor:pointer;white-space:nowrap;transition:background-color var(--dur),transform var(--dur)}
+.btn:hover{background:var(--navy-hover);transform:translateY(-1px)}
+.empty{text-align:center;padding:40px 16px;background:var(--surface);border:1px dashed var(--border-strong);border-radius:8px;color:var(--text-2);font-size:14px}
+.empty[hidden]{display:none}
+
+/* Form */
+form{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:24px}
+.field+.field{margin-top:18px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.row .field+.field{margin-top:0}
+label{display:block;font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px}
+.opt{font-weight:400;color:var(--text-muted);font-size:13px}
+.req{color:var(--error)}
+input.control,select.control{width:100%;height:40px;padding:0 12px;font:inherit;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius);transition:border-color var(--dur),box-shadow var(--dur)}
+input.control:focus,select.control:focus,.search input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px var(--navy)}
+input.control:focus-visible,select.control:focus-visible,.search input:focus-visible{outline:none}
+.control[aria-invalid="true"]{border-color:var(--error)}
+.hint{margin-top:6px;font-size:13px;color:var(--text-muted)}
+.err{margin-top:6px;font-size:13px;color:var(--error);font-weight:500}
+.err[hidden]{display:none}
+.form-actions{margin-top:24px;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.form-actions .note{font-size:13px;color:var(--text-muted);max-width:340px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media(max-width:640px){
+  .topbar-in{padding:0 16px}
+  .brand-sub{display:none}
+  .topnav a{padding:0 10px}
+  .topnav a[aria-current="page"]::after{left:10px;right:10px}
+  main{padding:28px 16px 56px}
+  .page-head h1{font-size:24px}
+  .card{flex-direction:column;align-items:stretch;gap:16px}
+  .card .btn{width:100%}
+  .row{grid-template-columns:1fr}
+  .row .field+.field{margin-top:0}
+  form{padding:18px 16px}
+  .form-actions{flex-direction:column;align-items:stretch}
+  .form-actions .btn{width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Lewati ke konten utama</a>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/" aria-label="Dokumentasi Luka, ke Beranda">
+      <span class="brand-mark" aria-hidden="true">+</span>
+      <span><span class="brand-name">Dokumentasi Luka</span><span class="brand-sub">Pemantauan Berkala</span></span>
+    </a>
+    <nav class="topnav" aria-label="Navigasi utama">
+      <a href="/">Beranda</a>
+      <a href="/pemeriksaan" aria-current="page">Pemeriksaan</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main-content">
+  <div class="page-head">
+    <h1>Pilih Pasien</h1>
+    <p>Pilih pasien yang sudah terdaftar atau daftarkan pasien baru untuk memulai pemeriksaan.</p>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Jenis pasien">
+    <button class="tab" role="tab" id="tab-lama" aria-controls="panel-lama" aria-selected="true">Pasien Lama</button>
+    <button class="tab" role="tab" id="tab-baru" aria-controls="panel-baru" aria-selected="false" tabindex="-1">Pasien Baru</button>
+  </div>
+
+  <!-- TAB 1 -->
+  <section class="panel" id="panel-lama" role="tabpanel" aria-labelledby="tab-lama">
+    <div class="search">
+      <label class="sr" for="q">Cari pasien</label>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="6"/><path d="m14 14 4 4"/></svg>
+      <input id="q" type="search" placeholder="Cari kode RM atau nama pasien..." autocomplete="off" />
+      <button class="clear" id="clear" type="button" aria-label="Hapus pencarian">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <p class="count" id="count" role="status" aria-live="polite"></p>
+    <ul class="list" id="list"></ul>
+    <div class="empty" id="empty" hidden>Data pasien tidak ditemukan.</div>
+  </section>
+
+  <!-- TAB 2 -->
+  <section class="panel" id="panel-baru" role="tabpanel" aria-labelledby="tab-baru" hidden>
+    <form id="form" novalidate>
+      <div class="field">
+        <label for="rm">Nomor Rekam Medis <span class="req" aria-hidden="true">*</span><span class="sr">(wajib)</span></label>
+        <input class="control" id="rm" name="rm" type="text" placeholder="RM-XXXX" autocomplete="off" required aria-describedby="rm-err" style="font-family:var(--mono)" />
+        <p class="err" id="rm-err" hidden></p>
+      </div>
+      <div class="field">
+        <label for="nama">Nama Pasien <span class="opt">(opsional)</span></label>
+        <input class="control" id="nama" name="nama" type="text" autocomplete="off" aria-describedby="nama-hint" />
+        <p class="hint" id="nama-hint">Boleh dikosongkan untuk menjaga privasi pasien.</p>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="usia">Usia <span class="opt">(tahun)</span></label>
+          <input class="control" id="usia" name="usia" type="number" inputmode="numeric" min="0" max="120" aria-describedby="usia-err" />
+          <p class="err" id="usia-err" hidden></p>
+        </div>
+        <div class="field">
+          <label for="jk">Jenis Kelamin</label>
+          <select class="control" id="jk" name="jk">
+            <option value="">Pilih Jenis Kelamin</option>
+            <option>Laki-laki</option>
+            <option>Perempuan</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" style="margin-top:18px">
+        <label for="lokasi">Lokasi Ulkus</label>
+        <input class="control" id="lokasi" name="lokasi" type="text" list="lokasi-list" placeholder="Contoh: Telapak kaki kanan" autocomplete="off" />
+        <datalist id="lokasi-list">
+          <option value="Telapak kaki kanan"><option value="Telapak kaki kiri">
+          <option value="Punggung kaki kanan"><option value="Punggung kaki kiri">
+          <option value="Tungkai bawah kanan"><option value="Tungkai bawah kiri">
+        </datalist>
+      </div>
+      <div class="form-actions">
+        <p class="note">Setelah disimpan, Anda akan diarahkan ke halaman unggah foto.</p>
+        <button class="btn" type="submit">Simpan dan Lanjut <span aria-hidden="true">→</span></button>
+      </div>
+    </form>
+  </section>
+</main>
+
+<script>
+(() => {
+  /* Data dummy */
+  const patients = [
+    { id: 'RM-0012', nama: '', umur: 54, jk: 'Laki-laki',  lokasi: 'Telapak kaki kanan', n: 3, terakhir: '24 Okt 2026' },
+    { id: 'RM-0017', nama: '', umur: 42, jk: 'Perempuan',  lokasi: 'Tungkai bawah kiri', n: 2, terakhir: '17 Okt 2026' },
+    { id: 'RM-0023', nama: '', umur: 61, jk: 'Laki-laki',  lokasi: 'Punggung kaki kiri', n: 1, terakhir: '08 Okt 2026' }
+  ];
+  const $ = id => document.getElementById(id);
+  const list = $('list'), q = $('q'), clearBtn = $('clear'), empty = $('empty'), count = $('count');
+  const go = id => { window.location.href = '/pemeriksaan/' + encodeURIComponent(id) + '/unggah'; };
+
+  /* Render daftar */
+  const render = () => {
+    const term = q.value.trim().toLowerCase();
+    const hit = patients.filter(p => !term || p.id.toLowerCase().includes(term) || p.nama.toLowerCase().includes(term));
+    list.innerHTML = '';
+    hit.forEach(p => {
+      const li = document.createElement('li');
+      li.className = 'card';
+      li.innerHTML =
+        '<div><div class="rm">' + p.id + '</div>' +
+        '<div class="attrs"><span>' + p.umur + ' tahun</span><span>' + p.jk + '</span><span>' + p.lokasi + '</span></div>' +
+        '<div class="history"><strong>' + p.n + ' kunjungan</strong> · Terakhir: ' + p.terakhir + '</div></div>';
+      const a = document.createElement('a');
+      a.className = 'btn';
+      a.href = '/pemeriksaan/' + encodeURIComponent(p.id) + '/unggah';
+      a.setAttribute('aria-label', 'Pilih pasien ' + p.id);
+      a.innerHTML = 'Pilih Pasien <span aria-hidden="true">→</span>';
+      li.appendChild(a);
+      list.appendChild(li);
+    });
+    empty.hidden = hit.length > 0;
+    count.textContent = term ? hit.length + ' dari ' + patients.length + ' pasien' : patients.length + ' pasien terdaftar';
+    clearBtn.classList.toggle('show', q.value.length > 0);
+  };
+  q.addEventListener('input', render);
+  clearBtn.addEventListener('click', () => { q.value = ''; render(); q.focus(); });
+  q.addEventListener('keydown', e => { if (e.key === 'Escape' && q.value) { q.value = ''; render(); } });
+  render();
+
+  /* Tabs (klik + panah keyboard) */
+  const tabs = [...document.querySelectorAll('.tab')];
+  const show = tab => {
+    tabs.forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', on);
+      t.tabIndex = on ? 0 : -1;
+      const pn = $(t.getAttribute('aria-controls'));
+      pn.hidden = !on;
+      if (on) { pn.classList.remove('enter'); void pn.offsetWidth; pn.classList.add('enter'); }
+    });
+  };
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => show(t));
+    t.addEventListener('keydown', e => {
+      let n = null;
+      if (e.key === 'ArrowRight') n = tabs[(i + 1) % tabs.length];
+      if (e.key === 'ArrowLeft') n = tabs[(i - 1 + tabs.length) % tabs.length];
+      if (e.key === 'Home') n = tabs[0];
+      if (e.key === 'End') n = tabs[tabs.length - 1];
+      if (n) { e.preventDefault(); show(n); n.focus(); }
+    });
+  });
+
+  /* Form */
+  const rm = $('rm'), usia = $('usia');
+  const setErr = (input, box, msg) => {
+    box.textContent = msg; box.hidden = !msg;
+    input.setAttribute('aria-invalid', msg ? 'true' : 'false');
+  };
+  const validRM = () => {
+    const v = rm.value.trim();
+    if (!v) { setErr(rm, $('rm-err'), 'Nomor rekam medis wajib diisi.'); return false; }
+    if (!/^[A-Za-z0-9][A-Za-z0-9\-]{2,19}$/.test(v)) { setErr(rm, $('rm-err'), 'Gunakan huruf, angka, atau tanda hubung (3–20 karakter), contoh: RM-0031.'); return false; }
+    if (patients.some(p => p.id.toLowerCase() === v.toLowerCase())) { setErr(rm, $('rm-err'), 'Nomor RM ini sudah terdaftar. Pilih dari tab Pasien Lama.'); return false; }
+    setErr(rm, $('rm-err'), ''); return true;
+  };
+  const validUsia = () => {
+    if (usia.value === '') { setErr(usia, $('usia-err'), ''); return true; }
+    const n = Number(usia.value);
+    if (!Number.isInteger(n) || n < 0 || n > 120) { setErr(usia, $('usia-err'), 'Masukkan usia antara 0 dan 120 tahun.'); return false; }
+    setErr(usia, $('usia-err'), ''); return true;
+  };
+  rm.addEventListener('blur', validRM);
+  rm.addEventListener('input', () => { if (rm.getAttribute('aria-invalid') === 'true') validRM(); });
+  usia.addEventListener('input', validUsia);
+  $('form').addEventListener('submit', e => {
+    e.preventDefault();
+    const a = validRM(), b = validUsia();
+    if (!a) return rm.focus();
+    if (!b) return usia.focus();
+    go(rm.value.trim().toUpperCase());
+  });
+})();
+</script>
+</body>
+</html>

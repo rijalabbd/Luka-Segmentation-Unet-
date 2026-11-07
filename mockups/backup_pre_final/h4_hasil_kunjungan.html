@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hasil Pemeriksaan Luka — Dokumentasi Luka</title>
+<style>
+:root{
+  --bg:#F8FAFC; --surface:#FFFFFF;
+  --navy:#0F2942; --navy-hover:#163A5F;
+  --teal:#2A6F73; --teal-soft:#EAF4F4;
+  --border:#E2E8F0; --border-strong:#CBD5E1;
+  --text:#0F172A; --text-2:#475569; --muted:#5B6B80;
+  --green:#15803D; --green-bg:#DCFCE7; --green-bd:#86EFAC;
+  --amber:#B45309; --amber-bg:#FEF3C7; --amber-bd:#FCD34D;
+  --error:#B91C1C; --error-bg:#FEE2E2;
+  --sans:Inter,"Geist Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --radius:8px; --dur:180ms;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,p{margin:0}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px;border-radius:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip-link{position:absolute;left:16px;top:-80px;z-index:100;background:var(--navy);color:#fff;padding:10px 16px;font-size:14px;font-weight:600;border-radius:6px;transition:top var(--dur)}
+.skip-link:focus{top:10px}
+svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* Topbar */
+.topbar{min-height:64px;background:var(--surface);border-bottom:1px solid var(--border)}
+.topbar-in{min-height:64px;max-width:1360px;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:32px;height:32px;border:1px solid var(--navy);border-radius:50%;display:grid;place-items:center;color:var(--navy);font-weight:600;font-size:18px;flex:none}
+.brand-name{display:block;font-size:16px;font-weight:650;color:var(--navy);line-height:1.2}
+.brand-sub{display:block;font-size:12px;color:var(--muted);line-height:1.2}
+.topright{display:flex;align-items:center;gap:20px}
+.sys{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}
+.topnav{display:flex;height:64px;gap:4px}
+.topnav a{display:flex;align-items:center;padding:0 12px;font-size:14px;color:var(--text-2);position:relative;transition:color var(--dur)}
+.topnav a:hover{color:var(--navy)}
+.topnav a[aria-current="page"]{color:var(--navy);font-weight:650}
+.topnav a[aria-current="page"]::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;background:var(--teal)}
+
+main{max-width:1360px;margin:0 auto;padding:20px 24px 72px}
+.crumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;min-height:40px}
+.crumb a{display:inline-flex;align-items:center;gap:6px;color:var(--teal);font-weight:600;min-height:40px}
+.crumb a:hover{text-decoration:underline}
+.crumb span{color:var(--muted)}
+.title-row{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:4px 0 16px}
+h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:var(--navy)}
+.visit-meta{margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--text-2);font-size:14px}
+.chip{display:inline-flex;align-items:center;font-size:12px;font-weight:650;padding:3px 10px;border-radius:999px;border:1px solid}
+.chip.draft{color:var(--amber);background:var(--amber-bg);border-color:var(--amber-bd)}
+.chip.final{color:var(--green);background:var(--green-bg);border-color:var(--green-bd)}
+.chip.base{color:var(--navy);background:var(--teal-soft);border-color:var(--teal)}
+
+/* Patient */
+.patient{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--teal);border-radius:var(--radius);padding:12px 18px;display:flex;gap:10px 28px;align-items:center;flex-wrap:wrap}
+.p-main{font-size:15px;color:var(--text);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.rm{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;font-size:18px;color:var(--navy)}
+.p-main span+span::before{content:"·";margin-right:10px;color:var(--border-strong)}
+.p-loc{font-size:14px;color:var(--text-2)}
+.p-loc b{font-weight:600;color:var(--text)}
+
+/* Demo switcher */
+.demo{margin:16px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.demo-label{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.seg{display:inline-flex;background:#EEF2F6;border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;flex-wrap:wrap;max-width:100%}
+.seg button{font:inherit;font-size:13px;color:var(--text-2);background:none;border:0;border-radius:6px;padding:8px 14px;min-height:36px;cursor:pointer;transition:background-color var(--dur),color var(--dur)}
+.seg button:hover{color:var(--navy)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--navy);font-weight:650;box-shadow:0 1px 3px rgba(15,41,66,.12)}
+
+/* Banner */
+.banner{display:flex;gap:12px;align-items:flex-start;padding:14px 18px;border:1px solid;border-radius:var(--radius);font-size:14px;font-weight:500;line-height:1.55;animation:swap var(--dur) ease}
+.banner svg{width:20px;height:20px;margin-top:1px}
+.banner b{display:block;font-weight:700;margin-bottom:1px}
+.banner.draft{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber)}
+.banner.final{background:var(--green-bg);border-color:var(--green-bd);color:var(--green)}
+.banner.base{background:var(--teal-soft);border-color:var(--teal);color:var(--navy)}
+@keyframes swap{from{opacity:.2;transform:translateY(-3px)}to{opacity:1;transform:none}}
+
+/* Layout */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;margin-top:20px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+.viz{padding:18px 20px 16px}
+.viz-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.viz-head h2{font-size:16px;font-weight:650}
+.legend{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
+.sw{width:16px;height:12px;background:rgba(34,197,94,.35);border:2px solid #16A34A;border-radius:3px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.fig{margin:0}
+.fig-label{display:flex;justify-content:space-between;font-size:14px;font-weight:650;margin-bottom:8px;color:var(--navy)}
+.fig-label small{font-weight:500;color:var(--muted);font-size:12px}
+.fig canvas{display:block;width:100%;height:auto;aspect-ratio:4/3;border-radius:6px;border:1px solid var(--border);background:#e8ddd2}
+.viz-note{margin-top:12px;font-size:12px;color:var(--muted)}
+
+/* Metrics */
+.metrics{display:grid;gap:16px}
+.metric{padding:18px 20px}
+.m-label{font-size:13px;font-weight:600;color:var(--text-2)}
+.m-value{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:44px;line-height:1.15;font-weight:700;color:var(--navy);letter-spacing:-.02em;margin-top:6px}
+.m-sub{font-size:13px;color:var(--text-2);margin-top:4px}
+.trend{display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;font-weight:700;color:var(--green);background:var(--green-bg);border:1px solid var(--green-bd);padding:4px 10px;border-radius:999px}
+.m-note{font-size:13px;color:var(--text-2);margin-top:12px;line-height:1.6}
+.formula{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.6}
+.formula code{font-family:var(--mono);color:var(--text);font-size:12px}
+.pac-na{font-size:13px;color:var(--text-2);line-height:1.6}
+
+/* Tabs */
+.tabs-card{margin-top:24px}
+.tablist{display:flex;gap:28px;padding:0 20px;border-bottom:1px solid var(--border)}
+.tab{font:inherit;font-size:15px;color:var(--text-2);background:none;border:0;padding:14px 2px;margin-bottom:-1px;border-bottom:2px solid transparent;cursor:pointer;min-height:48px;transition:color var(--dur),border-color var(--dur)}
+.tab:hover{color:var(--navy)}
+.tab[aria-selected="true"]{color:var(--navy);font-weight:650;border-bottom-color:var(--teal)}
+.tabpanel{padding:20px 22px 22px;animation:swap var(--dur) ease}
+.tabpanel[hidden]{display:none}
+.tabpanel p{font-size:15px;line-height:1.75;color:var(--text);max-width:880px}
+.tabpanel p+p{margin-top:12px}
+.tabpanel .src{font-size:12px;color:var(--muted);margin-top:14px}
+.tabpanel ul{margin:12px 0 0;padding-left:20px;display:grid;gap:6px;max-width:880px;font-size:15px;line-height:1.65}
+
+/* Actions */
+.actions{margin-top:24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
+.actions .hint{font-size:13px;color:var(--text-2);max-width:480px}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:40px;padding:0 18px;font:inherit;font-size:14px;font-weight:600;border-radius:6px;border:1px solid transparent;cursor:pointer;white-space:nowrap;transition:background-color var(--dur),border-color var(--dur),transform var(--dur)}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--navy);color:#fff}
+.btn-primary:hover{background:var(--navy-hover)}
+.btn-secondary{background:var(--surface);color:var(--navy);border-color:var(--border-strong)}
+.btn-secondary:hover{border-color:var(--navy);background:var(--bg)}
+.btn-danger{background:var(--error);color:#fff}
+.btn-danger:hover{background:#991B1B}
+
+.disclaimer{margin-top:20px;background:#F1F5F9;border:1px solid var(--border-strong);color:#334155;border-radius:var(--radius);padding:12px 16px;font-size:13px;line-height:1.6;display:flex;gap:10px;align-items:flex-start}
+.discard{margin-top:20px;padding:36px 24px;text-align:center;background:var(--surface);border:1px dashed var(--border-strong);border-radius:var(--radius)}
+.discard h2{font-size:18px;color:var(--navy);margin-bottom:6px}
+.discard p{color:var(--text-2);font-size:14px;max-width:460px;margin:0 auto 18px}
+[hidden]{display:none!important}
+
+/* Modal & toast */
+.modal-back{position:fixed;inset:0;background:rgba(15,23,42,.5);display:grid;place-items:center;padding:16px;z-index:50;animation:fade var(--dur) ease}
+.modal{background:#fff;border-radius:10px;max-width:460px;width:100%;padding:24px 24px 20px;box-shadow:0 20px 50px rgba(15,23,42,.25)}
+.modal h2{font-size:18px;color:var(--navy);margin-bottom:8px}
+.modal p{font-size:14px;color:var(--text-2);line-height:1.6}
+.modal .btns{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,0);background:var(--navy);color:#fff;font-size:14px;font-weight:500;padding:12px 18px;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.25);display:flex;gap:10px;align-items:center;z-index:60;max-width:calc(100% - 32px);animation:toast-in var(--dur) ease}
+@keyframes toast-in{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+
+@media(max-width:1100px){.layout{grid-template-columns:minmax(0,1fr)}.metrics{grid-template-columns:1fr 1fr}.metrics.one{grid-template-columns:1fr}}
+@media(max-width:760px){
+  .topbar-in{padding:10px 16px}.topright{width:100%;justify-content:space-between;flex-wrap:wrap;gap:8px}.topnav{height:44px}.topnav a[aria-current="page"]::after{bottom:0}.brand-sub{display:none}
+  main{padding:12px 16px 56px}
+  h1{font-size:23px}
+  .pair{grid-template-columns:1fr}
+  .metrics{grid-template-columns:1fr}
+  .m-value{font-size:38px}
+  .tablist{gap:20px;padding:0 14px}
+  .tabpanel{padding:16px 14px}
+  .actions{flex-direction:column;align-items:stretch}.btn-row{flex-direction:column-reverse}.btn-row .btn{width:100%}
+  .seg{width:100%}.seg button{flex:1 1 100%;text-align:left}
+  .viz{padding:14px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Lewati ke konten utama</a>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/" aria-label="Dokumentasi Luka, ke Beranda">
+      <span class="brand-mark" aria-hidden="true">+</span>
+      <span><span class="brand-name">Dokumentasi Luka</span><span class="brand-sub">Pemantauan Berkala</span></span>
+    </a>
+    <div class="topright">
+      <div class="sys" role="status"><span class="dot" aria-hidden="true"></span>Server Lokal Terhubung · Data Terisolasi</div>
+      <nav class="topnav" aria-label="Navigasi utama">
+        <a href="/">Beranda</a>
+        <a href="/pemeriksaan" aria-current="page">Pemeriksaan</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<main id="main-content">
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/pemeriksaan/RM-0012/unggah"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Kembali ke Unggah Foto</a>
+    <span aria-hidden="true">/</span><span>RM-0012</span>
+  </nav>
+
+  <div class="title-row">
+    <div>
+      <h1>Hasil Pemeriksaan Luka</h1>
+      <div class="visit-meta"><span id="visitMeta"></span><span class="chip" id="chip"></span></div>
+    </div>
+  </div>
+
+  <section class="patient" aria-label="Informasi pasien">
+    <div class="p-main"><span class="rm">RM-0012</span><span>Tn. S</span><span>54 tahun</span><span>Laki-laki</span></div>
+    <div class="p-loc">Lokasi ulkus: <b>Telapak kaki kanan</b></div>
+  </section>
+
+  <div class="demo">
+    <span class="demo-label" id="demo-lbl">Mode demo</span>
+    <div class="seg" role="group" aria-labelledby="demo-lbl">
+      <button type="button" data-s="base" aria-pressed="false">Kunjungan 1 · Baseline A₀</button>
+      <button type="button" data-s="draft" aria-pressed="true">Kunjungan 3 · Draf</button>
+      <button type="button" data-s="final" aria-pressed="false">Kunjungan 3 · Final</button>
+    </div>
+  </div>
+
+  <div id="content">
+    <div id="bannerBox"></div>
+
+    <div class="layout">
+      <section class="panel viz" aria-labelledby="t-viz">
+        <div class="viz-head">
+          <h2 id="t-viz">Foto Asli dan Hasil Segmentasi</h2>
+          <div class="legend"><span class="sw" aria-hidden="true"></span>Area luka (mask segmentasi)</div>
+        </div>
+        <div class="pair">
+          <figure class="fig">
+            <div class="fig-label">Foto Asli <small>Sebelum segmentasi</small></div>
+            <canvas id="cOrig" width="1200" height="900" role="img" aria-label="Ilustrasi foto luka tanpa overlay"></canvas>
+          </figure>
+          <figure class="fig">
+            <div class="fig-label">Hasil Segmentasi <small>Foto yang sama dengan overlay</small></div>
+            <canvas id="cSeg" width="1200" height="900" role="img" aria-label="Ilustrasi foto luka yang sama dengan overlay mask hijau transparan pada area luka"></canvas>
+          </figure>
+        </div>
+        <p class="viz-note">Ilustrasi prototipe: bukan foto pasien sungguhan dan bukan hasil inferensi model. Mask digambar sebagai contoh visual.</p>
+      </section>
+
+      <div class="metrics" id="metrics">
+        <section class="panel metric" aria-labelledby="m1">
+          <div class="m-label" id="m1">Estimasi Luas Area Luka</div>
+          <div class="m-value" id="areaVal"></div>
+          <div class="m-sub">Persentase area luka pada citra</div>
+        </section>
+        <section class="panel metric" id="pacCard" aria-labelledby="m2"></section>
+      </div>
+    </div>
+
+    <section class="panel tabs-card" id="tabsCard" hidden>
+      <div class="tablist" role="tablist" aria-label="Narasi hasil">
+        <button class="tab" role="tab" id="tab-ringkasan" aria-controls="p-ringkasan" aria-selected="true">Ringkasan Pasien</button>
+        <button class="tab" role="tab" id="tab-catatan" aria-controls="p-catatan" aria-selected="false" tabindex="-1">Catatan Klinisi</button>
+      </div>
+      <div class="tabpanel" id="p-ringkasan" role="tabpanel" aria-labelledby="tab-ringkasan">
+        <p>Pada kunjungan ketiga, estimasi luas luka tercatat sebesar 8,10%. Nilai ini lebih kecil dibandingkan kondisi awal sebesar 10,26%, dengan PAC sebesar +21,0%. Dibandingkan kunjungan sebelumnya, luas luka mengalami sedikit peningkatan dari 7,65% menjadi 8,10%. Hasil ini menunjukkan bahwa luas luka masih lebih kecil dibandingkan kondisi baseline.</p>
+        <p class="src">Narasi statis untuk prototipe.</p>
+      </div>
+      <div class="tabpanel" id="p-catatan" role="tabpanel" aria-labelledby="tab-catatan" hidden>
+        <p>Ringkasan pengukuran luas luka pada citra (persentase terhadap seluruh citra):</p>
+        <ul>
+          <li>Baseline A₀ (01 Okt 2026): 10,26%.</li>
+          <li>Kunjungan 2 (17 Okt 2026): 7,65%, PAC +25,4% terhadap A₀.</li>
+          <li>Kunjungan 3 (31 Okt 2026): 8,10%, PAC +21,0% terhadap A₀.</li>
+        </ul>
+        <p>Dibandingkan kunjungan 2, luas luka pada kunjungan 3 naik 0,45 poin persentase. Dibandingkan A₀, luas luka lebih kecil 2,16 poin persentase. PAC dihitung terhadap A₀, bukan terhadap kunjungan sebelumnya. Nilai merupakan estimasi relatif pada citra dan bukan ukuran fisik (cm²).</p>
+        <p class="src">Narasi statis untuk prototipe.</p>
+      </div>
+    </section>
+
+    <div class="actions" id="actions"></div>
+
+    <div class="disclaimer">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="margin-top:3px"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+      <p>Hasil segmentasi dan pengukuran merupakan alat bantu dokumentasi serta pemantauan visual. Hasil tidak dimaksudkan sebagai pengganti penilaian klinis tenaga medis.</p>
+    </div>
+  </div>
+
+  <section class="discard" id="discarded" hidden>
+    <h2>Draf hasil dibuang</h2>
+    <p>Draf kunjungan ini tidak disimpan. Data pasien dan kunjungan lain tidak berubah.</p>
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn btn-secondary" type="button" id="restore">Pulihkan draf (demo)</button>
+      <a class="btn btn-primary" href="/pemeriksaan/RM-0012/unggah">Kembali ke Unggah Foto</a>
+    </div>
+  </section>
+</main>
+
+<div class="modal-back" id="mSave" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="ms-t" aria-describedby="ms-d">
+    <h2 id="ms-t">Konfirmasi dan simpan hasil?</h2>
+    <p id="ms-d">Hasil kunjungan ke-3 (31 Oktober 2026) akan dikonfirmasi dan disimpan sebagai rekam kunjungan final pasien RM-0012. Pastikan area segmentasi sudah Anda periksa.</p>
+    <div class="btns"><button class="btn btn-secondary" type="button" data-close>Batal</button><button class="btn btn-primary" type="button" id="doSave">Konfirmasi dan Simpan</button></div>
+  </div>
+</div>
+<div class="modal-back" id="mDiscard" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="md-t" aria-describedby="md-d">
+    <h2 id="md-t">Buang draf ini?</h2>
+    <p id="md-d">Draf hasil kunjungan ke-3 belum tersimpan dan akan dibuang. Data pasien dan kunjungan lain tidak terpengaruh.</p>
+    <div class="btns"><button class="btn btn-secondary" type="button" data-close>Batal</button><button class="btn btn-danger" type="button" id="doDiscard">Ya, Buang Draf</button></div>
+  </div>
+</div>
+<div id="toastBox" aria-live="polite"></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const ICON = {
+    info:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>',
+    check:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></svg>',
+    warn:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>',
+    down:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 9v8H9"/></svg>',
+    hist:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>'
+  };
+  const DATA = {
+    base :{visit:1, date:'01 Oktober 2026', area:10.26, kind:'base', chip:'Baseline'},
+    draft:{visit:3, date:'31 Oktober 2026', area:8.10,  kind:'draft', chip:'Draf — Belum Disimpan', pac:'+21,0%'},
+    final:{visit:3, date:'31 Oktober 2026', area:8.10,  kind:'final', chip:'Final — Tersimpan', pac:'+21,0%'}
+  };
+  const BANNERS = {
+    draft:['draft','Draf — Belum Disimpan','Hasil pemeriksaan masih berupa draf dan belum disimpan ke riwayat pasien. Periksa kembali hasil segmentasi sebelum melakukan konfirmasi.','warn'],
+    final:['final','Final — Terkonfirmasi dan Tersimpan','Hasil pemeriksaan telah dikonfirmasi dan tersimpan sebagai rekam kunjungan pasien.','check'],
+    base :['base','Baseline — Kunjungan Pertama','Kunjungan pertama digunakan sebagai baseline (A₀). Perhitungan PAC baru tersedia mulai kunjungan kedua.','info']
+  };
+  const fmt = n => n.toFixed(2).replace('.', ',') + '%';
+  let state = 'draft';
+
+  /* ---------- Ilustrasi foto + mask ---------- */
+  const W = 1200, H = 900, CX = 610, CY = 470;
+  const blob = () => {
+    const pts = [], N = 72;
+    for (let i = 0; i < N; i++) {
+      const t = i / N * Math.PI * 2;
+      const r = 1 + .08 * Math.sin(3 * t + 1) + .05 * Math.sin(5 * t + 2) + .03 * Math.sin(7 * t);
+      let x = 1.4 * r * Math.cos(t), y = r * Math.sin(t);
+      const a = .3, c = Math.cos(a), s = Math.sin(a);
+      pts.push([x * c - y * s, x * s + y * c]);
+    }
+    return pts;
+  };
+  const area = p => Math.abs(p.reduce((s, q, i) => { const n = p[(i + 1) % p.length]; return s + q[0] * n[1] - n[0] * q[1]; }, 0) / 2);
+  const path = (g, p, k) => { g.beginPath(); p.forEach((q, i) => { const x = CX + q[0] * k, y = CY + q[1] * k; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); };
+
+  const paint = (cv, pct, withMask) => {
+    const g = cv.getContext('2d');
+    const base = blob();
+    const k = Math.sqrt((pct / 100 * W * H) / area(base));   // mask = persentase kanvas yang diminta
+    let bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#d9c8b8'); bg.addColorStop(.5, '#bda590'); bg.addColorStop(1, '#d6c3b2');
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.save(); g.translate(600, 450); g.rotate(-.21);
+    let sk = g.createLinearGradient(-460, -350, 460, 350); sk.addColorStop(0, '#dcbca5'); sk.addColorStop(.55, '#b68d76'); sk.addColorStop(1, '#d6b39d');
+    g.fillStyle = sk; g.beginPath(); g.ellipse(0, 0, 500, 380, 0, 0, Math.PI * 2); g.fill(); g.restore();
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 260; i++) { g.fillStyle = 'rgba(' + (120 + rnd() * 60 | 0) + ',80,60,' + (.03 + rnd() * .04) + ')'; g.beginPath(); g.arc(rnd() * W, rnd() * H, 6 + rnd() * 22, 0, 7); g.fill(); }
+    path(g, base, k * 1.28); g.fillStyle = 'rgba(150,80,70,.28)'; g.fill();
+    path(g, base, k); g.fillStyle = '#7e403b'; g.fill();
+    g.save(); path(g, base, k); g.clip();
+    for (let i = 0; i < 14; i++) { g.fillStyle = 'rgba(' + (150 + rnd() * 40 | 0) + ',70,62,' + (.25 + rnd() * .25) + ')'; g.beginPath(); g.arc(CX + (rnd() - .5) * k * 2.4, CY + (rnd() - .5) * k * 1.5, 12 + rnd() * 34, 0, 7); g.fill(); }
+    g.restore();
+    if (withMask) {
+      path(g, base, k); g.fillStyle = 'rgba(34,197,94,0.35)'; g.fill();
+      g.lineWidth = 4; g.lineJoin = 'round'; g.strokeStyle = '#16A34A'; g.stroke();
+    }
+  };
+
+  /* ---------- Render state ---------- */
+  const render = () => {
+    const d = DATA[state], b = BANNERS[d.kind];
+    $('visitMeta').textContent = 'Kunjungan ke-' + d.visit + ' · ' + d.date;
+    const chip = $('chip'); chip.textContent = d.chip; chip.className = 'chip ' + (d.kind === 'base' ? 'base' : d.kind);
+    const box = $('bannerBox');
+    box.innerHTML = '<div class="banner ' + b[0] + '" role="status">' + ICON[b[3]].replace('class="i"', 'class="i" style="width:20px;height:20px"') + '<div><b>' + b[1] + '</b>' + b[2] + '</div></div>';
+    paint($('cOrig'), d.area, false); paint($('cSeg'), d.area, true);
+    $('areaVal').textContent = fmt(d.area).replace('.', ',');
+
+    const pac = $('pacCard'), mt = $('metrics');
+    if (d.kind === 'base') {
+      pac.hidden = true; mt.classList.add('one');
+      $('areaVal').parentElement.insertAdjacentHTML('beforeend', '');
+      if (!$('baseNote')) $('areaVal').parentElement.insertAdjacentHTML('beforeend', '<p class="m-note" id="baseNote">Hasil ini menjadi acuan baseline A₀. Nilai PAC baru dapat dihitung mulai kunjungan kedua.</p>');
+    } else {
+      const bn = $('baseNote'); if (bn) bn.remove();
+      pac.hidden = false; mt.classList.remove('one');
+      pac.innerHTML =
+        '<div class="m-label" id="m2">Percentage Area Change (PAC)</div>' +
+        '<div class="m-value">' + d.pac + '</div>' +
+        '<div class="m-sub">Perubahan luas luka dibandingkan baseline A₀</div>' +
+        '<span class="trend">' + ICON.down + 'Menurun / Membaik</span>' +
+        '<p class="m-note">Luas luka meningkat dari 7,65% pada kunjungan sebelumnya menjadi 8,10%. Namun, luas luka masih lebih kecil dibandingkan baseline A₀.</p>' +
+        '<div class="formula"><code>PAC = ((A₀ − Aₜ) / A₀) × 100%</code><br>PAC positif: luas luka lebih kecil dari baseline. PAC negatif: lebih besar.</div>';
+    }
+    $('tabsCard').hidden = d.kind === 'base';
+
+    const ac = $('actions');
+    if (d.kind === 'draft') {
+      ac.innerHTML = '<p class="hint">Periksa hasil segmentasi pada foto sebelum menyimpan. Setelah dikonfirmasi, hasil menjadi rekam kunjungan final.</p>' +
+        '<div class="btn-row"><button class="btn btn-secondary" type="button" id="bDiscard">Buang</button><button class="btn btn-primary" type="button" id="bSave">Konfirmasi dan Simpan</button></div>';
+      ac.hidden = false;
+      $('bSave').onclick = () => openModal('mSave', $('bSave'));
+      $('bDiscard').onclick = () => openModal('mDiscard', $('bDiscard'));
+    } else if (d.kind === 'final') {
+      ac.innerHTML = '<p class="hint">Hasil ini sudah dikonfirmasi dan tersimpan dalam riwayat pasien.</p><div class="btn-row"><a class="btn btn-primary" href="/pasien/RM-0012">' + ICON.hist + 'Lihat Riwayat Pasien</a></div>';
+      ac.hidden = false;
+    } else { ac.innerHTML = ''; ac.hidden = true; }
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x.dataset.s === state));
+    selectTab(document.querySelector('.tab'));
+  };
+
+  const setState = s => { state = s; $('content').hidden = false; $('discarded').hidden = true; render(); };
+  document.querySelectorAll('.seg button').forEach(x => x.addEventListener('click', () => setState(x.dataset.s)));
+
+  /* ---------- Tabs ---------- */
+  const tabs = [...document.querySelectorAll('.tab')];
+  function selectTab(t) {
+    tabs.forEach(x => { const on = x === t; x.setAttribute('aria-selected', on); x.tabIndex = on ? 0 : -1; $(x.getAttribute('aria-controls')).hidden = !on; });
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => selectTab(t));
+    t.addEventListener('keydown', e => {
+      let n = null;
+      if (e.key === 'ArrowRight') n = tabs[(i + 1) % 2]; if (e.key === 'ArrowLeft') n = tabs[(i + 1) % 2];
+      if (e.key === 'Home') n = tabs[0]; if (e.key === 'End') n = tabs[1];
+      if (n) { e.preventDefault(); selectTab(n); n.focus(); }
+    });
+  });
+
+  /* ---------- Modal ---------- */
+  let opener = null, openId = null;
+  function openModal(id, from) { opener = from; openId = id; const m = $(id); m.hidden = false; m.querySelector('[data-close]').focus(); }
+  function closeModal() { if (!openId) return; $(openId).hidden = true; openId = null; if (opener && document.contains(opener)) opener.focus(); }
+  document.querySelectorAll('.modal-back').forEach(m => {
+    m.addEventListener('click', e => { if (e.target === m) closeModal(); });
+    m.querySelector('[data-close]').addEventListener('click', closeModal);
+    m.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Tab') {
+        const f = [...m.querySelectorAll('button')], i = f.indexOf(document.activeElement);
+        if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+      }
+    });
+  });
+
+  /* ---------- Toast ---------- */
+  let tt;
+  const toast = msg => {
+    $('toastBox').innerHTML = '<div class="toast" role="status">' + ICON.check + msg + '</div>';
+    clearTimeout(tt); tt = setTimeout(() => $('toastBox').innerHTML = '', 4500);
+  };
+
+  /* ---------- Aksi ---------- */
+  $('doSave').addEventListener('click', () => {
+    openId && ($(openId).hidden = true); openId = null;
+    state = 'final'; render();
+    const link = document.querySelector('#actions a'); if (link) link.focus();
+    toast('Hasil kunjungan berhasil dikonfirmasi dan disimpan.');
+  });
+  $('doDiscard').addEventListener('click', () => {
+    openId && ($(openId).hidden = true); openId = null;
+    $('content').hidden = true; $('discarded').hidden = false; $('restore').focus();
+  });
+  $('restore').addEventListener('click', () => setState('draft'));
+
+  render();
+})();
+</script>
+</body>
+</html>

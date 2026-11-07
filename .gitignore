@@ -1,0 +1,55 @@
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+*.sqlite
+*.sqlite3
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+*.tsbuildinfo
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Agent & AI IDE Configurations
+AGENTS.md
+CLAUDE.md
+.cursorrules
+.agents/
+.cursor/
+design-system/
+
+# ML Checkpoints & Datasets
+*.pth
+*.pt
+*.onnx
+ml/data/raw/
+ml/data/processed/
+ml/checkpoints/
+ml/test_set/
+
+# Local Uploaded Storage
+backend/storage/uploads/*
+backend/storage/masks/*
+backend/storage/overlays/*
+!backend/storage/uploads/.gitkeep
+!backend/storage/masks/.gitkeep
+!backend/storage/overlays/.gitkeep
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

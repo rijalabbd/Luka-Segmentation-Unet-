@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hero Carousel — Alur Pemantauan Luka</title>
+<style>
+:root{
+  --ink:#172b3a;--ink-2:#3f505c;--ink-3:#53636e;--navy:#173b50;--teal:#2b6764;--teal-soft:#e7f0ed;
+  --green:#25704a;--paper:#f7f8f5;--line:#d3dcd7;--line-dark:#b9c6bf;--focus:#0b5fff;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --serif:Georgia,'Times New Roman',serif;
+  --fs-xs:12px;--fs-sm:13px;--fs-md:15px;
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --step-ms:4200ms;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);padding:48px 24px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:3px;border-radius:2px}
+
+.hero-art{position:relative;padding-bottom:26px;max-width:620px;margin:0 auto}
+.art-backdrop{position:absolute;inset:14px 0 26px 30px;background:#e6ede9;border-radius:48% 0 0 0}
+.record{position:relative;width:min(100%,570px);margin:0 auto;background:#fff;border:1px solid var(--line);box-shadow:0 18px 50px rgba(23,43,58,.09);padding:22px 24px 18px}
+.record-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.record-title{font-size:var(--fs-sm);font-weight:650}
+.record-caption{font-size:var(--fs-xs);color:var(--ink-3);margin-top:4px;line-height:1.45}
+.record-tag{font-size:var(--fs-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--teal);background:var(--teal-soft);padding:6px 9px;border-radius:2px;white-space:nowrap;font-weight:650}
+
+/* ===== Carousel ===== */
+.viewport{overflow:hidden;margin-top:6px}
+.track{display:flex;transition:transform .8s var(--ease)}
+.track.no-anim{transition:none}
+.slide{flex:0 0 100%;min-width:0;padding:16px 2px 8px;height:318px;display:flex;flex-direction:column}
+.slide-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.slide-num{font-family:var(--serif);font-size:24px;color:#4f7a6f;line-height:1}
+.slide-title{font-size:15px;font-weight:650;letter-spacing:-.01em}
+.slide-sub{font-size:var(--fs-xs);color:var(--ink-3);margin-left:auto;text-align:right}
+
+/* Gambar luka */
+.image-box{flex:1;min-height:0;position:relative;overflow:hidden;display:grid;place-items:center;background:linear-gradient(145deg,#d6c4b2,#b99e89 52%,#d9c6b6)}
+.skin-form{width:48%;height:78%;background:linear-gradient(135deg,#d6b59d,#b68d76 55%,#d4b19b);border-radius:44% 48% 40% 42%;transform:rotate(-12deg);box-shadow:inset -14px -10px 25px rgba(95,57,42,.14),inset 9px 9px 20px rgba(255,255,255,.24);position:relative}
+.wound{position:absolute;width:38%;height:26%;left:32%;top:39%;background:#7e403b;border-radius:42% 55% 38% 60%;transform:rotate(17deg);box-shadow:inset 0 0 0 5px rgba(91,38,36,.2),0 0 0 8px rgba(111,62,52,.12)}
+.mask-overlay{position:absolute;width:38%;height:26%;left:32%;top:39%;border-radius:42% 55% 38% 60%;transform:rotate(17deg);background:rgba(50,132,94,.5);border:2px solid #1f6a45;box-shadow:0 0 0 5px rgba(50,132,94,.14);clip-path:inset(0 100% 0 0)}
+.scan{position:absolute;top:0;bottom:0;left:0;width:2px;background:#1f6a45;box-shadow:0 0 14px 3px rgba(50,132,94,.45);opacity:0;z-index:2}
+.chip{position:absolute;bottom:10px;left:10px;background:rgba(255,255,255,.95);padding:5px 9px;font-size:var(--fs-xs);color:var(--ink);font-weight:600;opacity:0;transform:translateY(4px);transition:opacity .3s ease,transform .3s ease}
+.chip.green{color:#1f5a3c}
+.corner{position:absolute;width:16px;height:16px;border:2px solid rgba(23,59,80,.55)}
+.corner.tl{top:10px;left:10px;border-right:0;border-bottom:0}.corner.tr{top:10px;right:10px;border-left:0;border-bottom:0}
+.corner.bl{bottom:10px;left:10px;border-right:0;border-top:0}.corner.br{bottom:10px;right:10px;border-left:0;border-top:0}
+
+.slide.active .chip{opacity:1;transform:none;transition-delay:.5s}
+.slide.active .s-seg .mask-overlay{animation:mask-reveal 1.4s cubic-bezier(.22,.75,.25,1) .7s forwards}
+.slide.active .s-seg .scan{animation:scan-line 1.4s cubic-bezier(.45,.05,.25,1) .7s both}
+.slide.active .s-seg .chip{transition-delay:2.1s}
+@keyframes mask-reveal{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0)}}
+@keyframes scan-line{0%{left:0;opacity:0}10%,90%{opacity:1}100%{left:calc(100% - 2px);opacity:0}}
+
+/* Slide 3: PAC */
+.pac-wrap{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start}
+.stat{border:1px solid var(--line);padding:12px 14px;background:#fafbf9}
+.stat-label{font-size:var(--fs-xs);color:var(--ink-3)}
+.stat-value{font-family:var(--serif);font-size:26px;letter-spacing:-.03em;color:var(--navy);margin-top:2px}
+.bars{grid-column:1/-1;border:1px solid var(--line);padding:12px 14px;display:grid;gap:8px}
+.bar-row{display:grid;grid-template-columns:76px 1fr 44px;gap:10px;align-items:center;font-size:var(--fs-xs);color:var(--ink-3)}
+.bar{height:10px;background:#eef2ee;position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;width:0;background:#8aa59c;transition:width 1s var(--ease) .5s}
+.bar.now i{background:var(--green);transition-delay:.9s}
+.slide.active .bar i{width:var(--w)}
+.pac-result{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-left:3px solid var(--green);padding:12px 14px;opacity:0;transform:translateY(8px);transition:opacity .5s ease 1.6s,transform .5s var(--ease) 1.6s}
+.slide.active .pac-result{opacity:1;transform:none}
+.pac-big{font-family:var(--serif);font-size:30px;color:var(--green);letter-spacing:-.03em;line-height:1}
+.pac-sub{font-size:var(--fs-xs);color:var(--ink-3);margin-top:4px}
+.trend{font-size:var(--fs-xs);font-weight:700;color:#fff;background:var(--green);padding:6px 10px;border-radius:2px;white-space:nowrap}
+
+/* Slide 4: Narasi */
+.nar-wrap{flex:1;display:grid;gap:10px;align-content:start}
+.nar{border:1px solid var(--line);padding:12px 14px;opacity:0;transform:translateX(18px);transition:opacity .5s ease,transform .6s var(--ease)}
+.slide.active .nar{opacity:1;transform:none}
+.slide.active .nar:nth-child(1){transition-delay:.5s}
+.slide.active .nar:nth-child(2){transition-delay:1.1s}
+.nar-tag{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--teal);margin-bottom:6px}
+.nar p{margin:0;font-size:var(--fs-sm);line-height:1.6;color:var(--ink-2)}
+.nar-foot{font-size:var(--fs-xs);color:var(--ink-3)}
+
+/* ===== Stepper ===== */
+.stepper{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.st{background:none;border:0;padding:0;text-align:left;font:inherit;cursor:pointer;color:var(--ink-3)}
+.st-bar{display:block;height:3px;background:var(--line);position:relative;overflow:hidden}
+.st-bar::after{content:"";position:absolute;inset:0;background:var(--teal);transform:scaleX(0);transform-origin:left}
+.st.done .st-bar::after{transform:scaleX(1)}
+.st.on .st-bar::after{animation:fill var(--step-ms) linear forwards}
+.paused .st.on .st-bar::after{animation-play-state:paused}
+.manual .st.on .st-bar::after{animation:none;transform:scaleX(1)}
+@keyframes fill{to{transform:scaleX(1)}}
+.st-text{display:block;font-size:var(--fs-xs);margin-top:7px;line-height:1.3;padding:2px 0 6px;min-height:36px}
+.st.on{color:var(--navy);font-weight:650}
+
+.controls{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:12px;flex-wrap:wrap}
+.ctrl{display:flex;gap:8px}
+.cbtn{min-height:34px;min-width:34px;padding:0 10px;background:#fff;border:1px solid var(--line-dark);border-radius:4px;font:inherit;font-size:var(--fs-xs);font-weight:650;color:var(--navy);cursor:pointer}
+.cbtn:hover{background:var(--teal-soft)}
+.art-caption{font-size:var(--fs-xs);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+
+@media(max-width:600px){
+  .record{padding:16px 14px 14px}
+  .slide{height:340px}
+  .slide-sub{display:none}
+  .st-text{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){
+  .track{transition-duration:.01ms}
+  .mask-overlay{clip-path:inset(0)!important}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-delay:0s!important}
+}
+</style>
+</head>
+<body>
+
+<div class="hero-art">
+  <div class="art-backdrop" aria-hidden="true"></div>
+  <div class="record" id="carousel" role="group" aria-roledescription="carousel" aria-label="Alur pemantauan luka dalam empat langkah">
+    <div class="record-top">
+      <div>
+        <div class="record-title">Alur satu kunjungan</div>
+        <div class="record-caption">Dari foto luka sampai narasi perkembangan</div>
+      </div>
+      <span class="record-tag">Pratinjau visual</span>
+    </div>
+
+    <div class="viewport">
+      <div class="track" id="track">
+
+        <!-- 1 Foto -->
+        <section class="slide" aria-label="Langkah 1 dari 4">
+          <div class="slide-head"><span class="slide-num" aria-hidden="true">01</span><span class="slide-title">Foto luka</span><span class="slide-sub">Satu foto per kunjungan</span></div>
+          <div class="image-box" role="img" aria-label="Ilustrasi foto luka asli">
+            <div class="skin-form"><div class="wound"></div></div>
+            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <span class="chip">Foto asli · jarak &amp; sudut konsisten</span>
+          </div>
+        </section>
+
+        <!-- 2 Segmentasi -->
+        <section class="slide" aria-label="Langkah 2 dari 4">
+          <div class="slide-head"><span class="slide-num" aria-hidden="true">02</span><span class="slide-title">Segmentasi otomatis</span><span class="slide-sub">U-Net + ResNet-34</span></div>
+          <div class="image-box s-seg" role="img" aria-label="Ilustrasi area luka ditandai hijau oleh hasil segmentasi">
+            <div class="skin-form"><div class="wound"></div><div class="mask-overlay"></div></div>
+            <span class="scan"></span>
+            <span class="chip green">Area luka terdeteksi</span>
+          </div>
+        </section>
+
+        <!-- 3 Luas & PAC -->
+        <section class="slide" aria-label="Langkah 3 dari 4">
+          <div class="slide-head"><span class="slide-num" aria-hidden="true">03</span><span class="slide-title">Luas relatif dan PAC</span><span class="slide-sub">Dibanding kunjungan awal</span></div>
+          <div class="pac-wrap">
+            <div class="stat"><div class="stat-label">Kunjungan awal (A₀)</div><div class="stat-value">5,00%</div></div>
+            <div class="stat"><div class="stat-label">Kunjungan ini (Aₜ)</div><div class="stat-value">3,50%</div></div>
+            <div class="bars">
+              <div class="bar-row"><span>A₀</span><span class="bar" style="--w:100%"><i></i></span><span>5,00%</span></div>
+              <div class="bar-row"><span>Aₜ</span><span class="bar now" style="--w:70%"><i></i></span><span>3,50%</span></div>
+            </div>
+            <div class="pac-result">
+              <div><div class="pac-big">PAC +30,0%</div><div class="pac-sub">ΔA −1,50 poin persentase</div></div>
+              <span class="trend">Tren Menurun</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4 Narasi -->
+        <section class="slide" aria-label="Langkah 4 dari 4">
+          <div class="slide-head"><span class="slide-num" aria-hidden="true">04</span><span class="slide-title">Narasi otomatis</span><span class="slide-sub">Hanya dari angka terukur</span></div>
+          <div class="nar-wrap">
+            <div class="nar"><div class="nar-tag">Catatan klinis</div><p>Area luka terukur menurun dari 5,00% menjadi 3,50% (PAC +30,0%). Pemeriksaan klinis langsung tetap diperlukan.</p></div>
+            <div class="nar"><div class="nar-tag">Penjelasan untuk pasien</div><p>Area luka terdeteksi lebih kecil dari pemeriksaan sebelumnya. Tetap lanjutkan perawatan sesuai anjuran. Ini estimasi dari foto, bukan diagnosis.</p></div>
+          </div>
+        </section>
+
+        <!-- Klon slide 1 untuk loop mulus -->
+        <section class="slide" aria-hidden="true">
+          <div class="slide-head"><span class="slide-num">01</span><span class="slide-title">Foto luka</span><span class="slide-sub">Satu foto per kunjungan</span></div>
+          <div class="image-box">
+            <div class="skin-form"><div class="wound"></div></div>
+            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <span class="chip">Foto asli · jarak &amp; sudut konsisten</span>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="stepper" id="stepper" role="group" aria-label="Pilih langkah">
+      <button class="st" type="button" data-i="0"><span class="st-bar"></span><span class="st-text">1 · Foto luka</span></button>
+      <button class="st" type="button" data-i="1"><span class="st-bar"></span><span class="st-text">2 · Segmentasi</span></button>
+      <button class="st" type="button" data-i="2"><span class="st-bar"></span><span class="st-text">3 · Luas &amp; PAC</span></button>
+      <button class="st" type="button" data-i="3"><span class="st-bar"></span><span class="st-text">4 · Narasi</span></button>
+    </div>
+
+    <div class="controls">
+      <div class="ctrl">
+        <button class="cbtn" id="prev" type="button" aria-label="Langkah sebelumnya">←</button>
+        <button class="cbtn" id="toggle" type="button" aria-pressed="false">❚❚ Jeda</button>
+        <button class="cbtn" id="next" type="button" aria-label="Langkah berikutnya">→</button>
+      </div>
+      <span class="art-caption">Ilustrasi konseptual · bukan data pasien</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const N = 4;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const root = document.getElementById('carousel');
+  const track = document.getElementById('track');
+  const slides = [...track.children];
+  const steps = [...document.querySelectorAll('.st')];
+  const toggleBtn = document.getElementById('toggle');
+  const stepMs = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--step-ms')) || 4200;
+
+  let idx = 0, timer = null, userPaused = reduce, hoverPaused = false;
+
+  const paintSteps = () => {
+    const cur = idx % N;
+    steps.forEach((s, i) => {
+      s.classList.toggle('done', i < cur);
+      s.classList.remove('on');
+    });
+    void root.offsetWidth;                    // restart animasi progress bar
+    steps[cur].classList.add('on');
+    steps[cur].setAttribute('aria-current', 'step');
+    steps.forEach((s, i) => { if (i !== cur) s.removeAttribute('aria-current'); });
+    slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+  };
+
+  const go = (n, animate = true) => {
+    idx = n;
+    track.classList.toggle('no-anim', !animate);
+    track.style.transform = `translateX(${-idx * 100}%)`;
+    paintSteps();
+    schedule();
+  };
+
+  const next = () => {
+    if (idx === N - 1) {
+      // geser ke klon slide 1, lalu reset diam-diam ke slide 1 asli
+      idx = N;
+      track.classList.remove('no-anim');
+      track.style.transform = `translateX(${-idx * 100}%)`;
+      slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+      const done = () => {
+        track.removeEventListener('transitionend', done);
+        go(0, false);
+      };
+      if (reduce) done(); else track.addEventListener('transitionend', done);
+      return;
+    }
+    go(idx + 1);
+  };
+  const prev = () => go(idx === 0 ? N - 1 : idx - 1);
+
+  const running = () => !userPaused && !hoverPaused;
+  const schedule = () => {
+    clearTimeout(timer);
+    root.classList.toggle('paused', !running());
+    root.classList.toggle('manual', userPaused);
+    if (running()) timer = setTimeout(next, stepMs);
+  };
+
+  document.getElementById('next').onclick = () => { idx === N - 1 ? go(0) : go(idx + 1); };
+  document.getElementById('prev').onclick = prev;
+  steps.forEach(s => s.addEventListener('click', () => go(+s.dataset.i)));
+
+  const setToggle = () => {
+    toggleBtn.textContent = userPaused ? '▶ Putar' : '❚❚ Jeda';
+    toggleBtn.setAttribute('aria-pressed', userPaused);
+  };
+  toggleBtn.onclick = () => { userPaused = !userPaused; setToggle(); go(idx % N, false); };
+
+  // jeda saat hover / fokus keyboard
+  root.addEventListener('mouseenter', () => { hoverPaused = true; schedule(); });
+  root.addEventListener('mouseleave', () => { hoverPaused = false; go(idx % N, false); });
+  root.addEventListener('focusin', () => { hoverPaused = true; schedule(); });
+  root.addEventListener('focusout', () => { hoverPaused = false; go(idx % N, false); });
+
+  // jeda saat tab tidak terlihat
+  document.addEventListener('visibilitychange', () => {
+    hoverPaused = document.hidden; if (!hoverPaused) go(idx % N, false); else schedule();
+  });
+
+  setToggle();
+  go(0, false);
+})();
+</script>
+</body>
+</html>
+

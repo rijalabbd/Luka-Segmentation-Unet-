@@ -1,0 +1,71 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: woundai-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-woundai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-woundai_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-woundai_db}
+    ports:
+      - "${POSTGRES_PORT:-5435}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-woundai} -d ${POSTGRES_DB:-woundai_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: woundai-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-woundai}:${POSTGRES_PASSWORD:-woundai_secret}@db:5432/${POSTGRES_DB:-woundai_db}
+      STORAGE_DIR: /app/storage
+      MODEL_CHECKPOINT_PATH: /app/checkpoints/best_resnet34_unet_01norm.pth
+      MODEL_NORMALIZATION: zero_one
+      SEED_DEMO_ON_STARTUP: ${SEED_DEMO_ON_STARTUP:-false}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - uploads_data:/app/storage
+      - ./ml/checkpoints:/app/checkpoints:ro
+      - ./ml:/app/ml:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: woundai-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  uploads_data:
