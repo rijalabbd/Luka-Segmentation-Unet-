@@ -2,13 +2,13 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 
 from app.core.database import DBSession
 from app.models.patient import Patient
 from app.models.visit import Visit
-from app.schemas.visit import VisitResponse
+from app.schemas.visit import ConfirmVisitRequest, VisitResponse
 from app.services.narrative import NarrativeServiceFn, get_narrative_service
 from app.services.pac import evaluate_pac_and_trend
 from app.services.storage import delete_visit_files
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/visits", tags=["visits"])
 
 NarrativeDep = Annotated[NarrativeServiceFn, Depends(get_narrative_service)]
 
-# shortcut: in-memory lock dictionary per visit_id untuk mencegah panggilan ganda ke Gemini pada proses tunggal; gunakan pg_advisory_lock jika kelak berjalan multi-worker.
+# shortcut: kunci asyncio.Lock per visit_id di memori hanya berlaku untuk satu worker uvicorn (backend/Dockerfile menjalankan fastapi run tanpa --workers); gunakan pg_advisory_lock jika kelak berjalan multi-worker.
 _confirm_locks: dict[int, asyncio.Lock] = {}
 
 
@@ -59,7 +59,12 @@ async def confirm_visit(
     visit_id: int,
     db: DBSession,
     narrative_service: NarrativeDep,
+    payload: Annotated[ConfirmVisitRequest | None, Body()] = None,
+    confirm_zero_area: Annotated[bool, Query()] = False,
 ) -> VisitResponse:
+    confirmed_zero = bool(
+        confirm_zero_area or (payload is not None and payload.confirm_zero_area)
+    )
     lock = _get_visit_confirm_lock(visit_id)
     async with lock:
         # Transaksi 1 (singkat): kunci baris visit, periksa status & validitas A_t, lalu lepaskan transaksi
@@ -71,19 +76,9 @@ async def confirm_visit(
             await db.rollback()
             return resp
 
-        # Tolak konfirmasi jika masker luka kosong (A_t = 0 / n_wound_px = 0)
-        if visit.n_wound_px <= 0 or visit.area_pct <= 0.0:
-            await db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=(
-                    "Konfirmasi ditolak: tidak ada area luka yang terdeteksi pada citra "
-                    "(A_t = 0%). Silakan buang draf dan ambil foto ulang."
-                ),
-            )
-
         patient_id = visit.patient_id
         visit_area = visit.area_pct
+        is_zero_area = visit.n_wound_px <= 0 or visit.area_pct <= 0.0
 
         stmt = (
             select(Visit)
@@ -93,6 +88,30 @@ async def confirm_visit(
         final_visits = list((await db.execute(stmt)).scalars().all())
         is_baseline = len(final_visits) == 0
         baseline_area = final_visits[0].area_pct if final_visits else 0.0
+
+        # Aturan S1:
+        # - Baseline dengan n_wound_px = 0 (A_t = 0): selalu ditolak (422).
+        # - Kunjungan lanjutan dengan n_wound_px = 0 (A_t = 0): izinkan hanya jika confirm_zero_area=true.
+        if is_zero_area:
+            if is_baseline:
+                await db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        "Konfirmasi baseline ditolak: tidak ada area luka yang terdeteksi pada citra "
+                        "kunjungan awal (A_t = 0%). Silakan buang draf dan ambil foto ulang."
+                    ),
+                )
+            if not confirmed_zero:
+                await db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        "Konfirmasi ditolak: tidak ada area luka yang terdeteksi pada citra "
+                        "(A_t = 0%). Kirim confirm_zero_area=true jika Anda sudah memeriksa bahwa "
+                        "luka memang tidak terlihat pada foto ini, atau lakukan Foto Ulang."
+                    ),
+                )
 
         # Akhiri transaksi baca agar koneksi DB tidak ditahan selama pemanggilan Gemini (hingga 10 detik)
         await db.rollback()
@@ -133,9 +152,32 @@ async def confirm_visit(
 
         final_visits_locked = list((await db.execute(stmt)).scalars().all())
         next_index = len(final_visits_locked) + 1
+        locked_is_zero = visit_locked.n_wound_px <= 0 or visit_locked.area_pct <= 0.0
+
+        if locked_is_zero:
+            if next_index == 1:
+                await db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        "Konfirmasi baseline ditolak: tidak ada area luka yang terdeteksi pada citra "
+                        "kunjungan awal (A_t = 0%). Silakan buang draf dan ambil foto ulang."
+                    ),
+                )
+            if not confirmed_zero:
+                await db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        "Konfirmasi ditolak: tidak ada area luka yang terdeteksi pada citra "
+                        "(A_t = 0%). Kirim confirm_zero_area=true jika Anda sudah memeriksa bahwa "
+                        "luka memang tidak terlihat pada foto ini, atau lakukan Foto Ulang."
+                    ),
+                )
 
         visit_locked.status = "final"
         visit_locked.visit_index = next_index
+        visit_locked.confirm_zero_area = bool(locked_is_zero and confirmed_zero)
         visit_locked.confirmed_at = datetime.now(timezone.utc)
 
         if next_index == 1:

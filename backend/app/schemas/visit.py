@@ -4,6 +4,10 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 
+class ConfirmVisitRequest(BaseModel):
+    confirm_zero_area: bool = False
+
+
 class VisitResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -16,6 +20,7 @@ class VisitResponse(BaseModel):
     mask_path: str | None = None
     overlay_path: str | None = None
     distance_confirmed: bool = True
+    confirm_zero_area: bool = False
     n_wound_px: int
     area_pct: float
     delta_area: float | None = None

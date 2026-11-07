@@ -57,6 +57,9 @@ class Visit(Base):
     distance_confirmed: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False
     )
+    confirm_zero_area: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
 
     n_wound_px: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     area_pct: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)

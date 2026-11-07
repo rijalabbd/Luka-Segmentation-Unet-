@@ -1066,28 +1066,21 @@ async def test_32_baseline_visit_does_not_call_llm(
     assert b1["narrative_source"] is None
 
 
-async def test_33_at_zero_confirm_rejected_422(
+async def test_33_at_zero_confirm_rejected_or_confirmed_with_flag(
     visit_client: tuple[AsyncClient, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Kasus A_t = 0 (n_wound_px = 0):
-    1. Pada kunjungan awal (baseline), draf dengan A_t = 0.00% ditolak saat confirm (422)
-       agar A0 tidak pernah bernilai 0%.
+    Kasus A_t = 0 (n_wound_px = 0) sesuai S1 (IZINKAN DENGAN KONFIRMASI):
+    1. Pada kunjungan awal (baseline), draf dengan A_t = 0.00% selalu ditolak (422),
+       baik tanpa flag maupun dengan confirm_zero_area=true, agar A0 tidak pernah 0%.
     2. Pada kunjungan lanjutan setelah baseline valid (A0 = 5.00%), draf dengan A_t = 0.00%
-       ditolak saat confirm (422) agar tidak pernah tersimpan final dengan PAC +100% dan Tren Menurun.
+       tanpa confirm_zero_area=true ditolak (422) dengan pesan penjelas.
+    3. Pada kunjungan lanjutan dengan confirm_zero_area=true, konfirmasi diizinkan (200),
+       confirm_zero_area=True tersimpan, PAC = +100.00%, dan tren = Tren Menurun (Area Luka Mengecil).
     """
     ac, _ = visit_client
-    monkeypatch.setattr(settings, "gemini_api_key", "fake-test-key-at0")
-
-    call_count = 0
-
-    async def _should_not_be_called(**_kwargs: object) -> dict[str, object]:
-        nonlocal call_count
-        call_count += 1
-        raise AssertionError("Gemini tidak boleh dipanggil jika A_t = 0!")
-
-    monkeypatch.setattr(narrative_module, "request_gemini_api", _should_not_be_called)
+    monkeypatch.setattr(settings, "gemini_api_key", "")
 
     # 1. Coba konfirmasi draf baseline dengan n_wound_px = 0 (A_t = 0%)
     _override_segmentation_px(0)
@@ -1100,11 +1093,20 @@ async def test_33_at_zero_confirm_rejected_422(
     zero_base_id = r_zero_base.json()["id"]
     assert r_zero_base.json()["n_wound_px"] == 0
     assert r_zero_base.json()["area_pct"] == 0.0
+    assert r_zero_base.json()["confirm_zero_area"] is False
 
+    # Baseline A_t=0 tanpa flag -> 422
     c_zero_base = await ac.post(f"/api/v1/visits/{zero_base_id}/confirm")
     assert c_zero_base.status_code == 422
     assert "A_t = 0%" in c_zero_base.json()["detail"]
-    assert call_count == 0
+
+    # Baseline A_t=0 meskipun mengirim confirm_zero_area=true -> tetap ditolak 422
+    c_zero_base_flag = await ac.post(
+        f"/api/v1/visits/{zero_base_id}/confirm",
+        json={"confirm_zero_area": True},
+    )
+    assert c_zero_base_flag.status_code == 422
+    assert "baseline" in c_zero_base_flag.json()["detail"].lower()
 
     # Pastikan statusnya tetap draft dan belum ada kunjungan final
     get_zero_base = await ac.get(f"/api/v1/visits/{zero_base_id}")
@@ -1123,15 +1125,37 @@ async def test_33_at_zero_confirm_rejected_422(
     assert r_zero_followup.status_code == 201
     zero_followup_id = r_zero_followup.json()["id"]
 
-    c_zero_followup = await ac.post(f"/api/v1/visits/{zero_followup_id}/confirm")
-    assert c_zero_followup.status_code == 422
-    assert "A_t = 0%" in c_zero_followup.json()["detail"]
-    assert call_count == 0
+    # Kunjungan lanjutan A_t=0 tanpa flag -> 422
+    c_zero_followup_no_flag = await ac.post(f"/api/v1/visits/{zero_followup_id}/confirm")
+    assert c_zero_followup_no_flag.status_code == 422
+    assert "confirm_zero_area=true" in c_zero_followup_no_flag.json()["detail"]
 
-    # Pastikan kunjungan ke-2 tidak tersimpan sebagai final
-    final_list = (await ac.get("/api/v1/patients/Patient_10/visits")).json()
-    assert len(final_list) == 1
-    assert final_list[0]["visit_index"] == 1
+    # Pastikan belum tersimpan final
+    final_list_before = (await ac.get("/api/v1/patients/Patient_10/visits")).json()
+    assert len(final_list_before) == 1
+
+    # 3. Kunjungan lanjutan A_t=0 dengan confirm_zero_area=true -> 200 OK & tersimpan
+    c_zero_followup_ok = await ac.post(
+        f"/api/v1/visits/{zero_followup_id}/confirm",
+        json={"confirm_zero_area": True},
+    )
+    assert c_zero_followup_ok.status_code == 200
+    body = c_zero_followup_ok.json()
+    assert body["status"] == "final"
+    assert body["visit_index"] == 2
+    assert body["n_wound_px"] == 0
+    assert body["area_pct"] == 0.0
+    assert body["delta_area"] == -5.0
+    assert body["pac"] == 100.0
+    assert body["trend_status"] == "Tren Menurun (Area Luka Mengecil)"
+    assert body["confirm_zero_area"] is True
+    assert body["narrative_source"] == "template_fallback"
+    assert "+100.00%" in body["clinician_notes"]
+    assert "100.00%" in body["patient_narrative"]
+
+    # Verifikasi dari GET /visits/{id} bahwa confirm_zero_area=True tersimpan di database
+    persisted = (await ac.get(f"/api/v1/visits/{zero_followup_id}")).json()
+    assert persisted["confirm_zero_area"] is True
 
 
 async def test_34_a0_zero_baseline_does_not_call_llm_and_shows_notice(
