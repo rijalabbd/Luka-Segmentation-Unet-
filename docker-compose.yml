@@ -25,6 +25,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-woundai}:${POSTGRES_PASSWORD:-woundai_secret}@db:5432/${POSTGRES_DB:-woundai_db}
+      TEST_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-woundai}:${POSTGRES_PASSWORD:-woundai_secret}@db:5432/${POSTGRES_TEST_DB:-woundai_test}
       STORAGE_DIR: /app/storage
       MODEL_CHECKPOINT_PATH: /app/checkpoints/best_resnet34_unet_01norm.pth
       MODEL_NORMALIZATION: zero_one

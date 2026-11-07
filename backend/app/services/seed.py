@@ -6,11 +6,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.patient import Patient, Visit
 
 
-async def seed_demo_patients(session: AsyncSession) -> None:
-    existing = await session.execute(
-        select(Patient.rm_code).where(Patient.is_demo.is_(True)).limit(1)
+BASE_DEMO_RM_CODES = ("RM-0012", "RM-0017", "RM-0023")
+
+
+async def seed_demo_patients(session: AsyncSession, reset: bool = False) -> None:
+    if reset:
+        await session.execute(delete(Patient).where(Patient.rm_code.in_(BASE_DEMO_RM_CODES)))
+        await session.commit()
+
+    existing_rows = await session.execute(
+        select(Patient.rm_code).where(Patient.rm_code.in_(BASE_DEMO_RM_CODES))
     )
-    if existing.scalar_one_or_none() is not None:
+    existing_codes = set(existing_rows.scalars().all())
+    if len(existing_codes) == len(BASE_DEMO_RM_CODES):
         return
 
     now = datetime.now(timezone.utc)
@@ -108,8 +116,10 @@ async def seed_demo_patients(session: AsyncSession) -> None:
         ],
     )
 
-    session.add_all([p1, p2, p3])
-    await session.commit()
+    to_add = [p for p in (p1, p2, p3) if p.rm_code not in existing_codes]
+    if to_add:
+        session.add_all(to_add)
+        await session.commit()
 
 
 async def clear_demo_patients(session: AsyncSession) -> int:

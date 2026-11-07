@@ -1,10 +1,10 @@
 """
-Skrip seeding data uji H3 (Bagian 10 PRD):
-- Membuat pasien demo RM-0010 (is_demo=True) dengan 2 kunjungan final berisi citra asli
-  dari ml/test_set/Images/Patient_10/ (P10T_1.jpg dan P10T_2.jpg) lewat endpoint aplikasi
-  (POST /api/v1/patients -> POST /api/v1/patients/{id}/visits -> POST /api/v1/visits/{id}/confirm).
-- Menyiapkan pasien demo RM-0024 (is_demo=True, 0 kunjungan final -> untuk uji Kunjungan 1 / baseline),
-  serta memastikan pasien demo RM-0012 (kunjungan tanpa citra) dan RM-0023 (1 kunjungan) tersedia.
+Skrip reset dan seeding data demo lengkap (Langkah 0d & Bagian 10 PRD):
+- Memastikan seluruh pasien demo dasar (RM-0012, RM-0017, RM-0023) dan pasien demo H3
+  (RM-0010 dengan 2 kunjungan bercitra, RM-0016 dengan 1 kunjungan bercitra, RM-0024 dengan 0 kunjungan)
+  tersedia secara konsisten.
+- Membersihkan seluruh berkas yatim di storage (uploads, masks, overlays) yang tidak memiliki
+  baris di tabel visits.
 - Dapat dibersihkan kembali dengan argumen `--clear`.
 """
 import argparse
@@ -12,11 +12,18 @@ import asyncio
 from pathlib import Path
 
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
 from app.main import app
+from app.models.visit import Visit, derive_overlay_rel_path
 from app.services.segmentation import get_loaded_model, load_segmentation_model
-from app.services.seed import seed_demo_patients
+from app.services.seed import BASE_DEMO_RM_CODES, seed_demo_patients
+from app.services.storage import ALLOWED_STORAGE_SUBDIRS, get_storage_root
+
+H3_DEMO_RM_CODES = ("RM-0010", "RM-0016", "RM-0024")
+ALL_DEMO_RM_CODES = BASE_DEMO_RM_CODES + H3_DEMO_RM_CODES
 
 
 def _find_test_image(rel_path: str) -> Path:
@@ -31,6 +38,34 @@ def _find_test_image(rel_path: str) -> Path:
     raise FileNotFoundError(f"Citra uji tidak ditemukan: {rel_path}")
 
 
+async def cleanup_orphan_storage_files(session: AsyncSession) -> list[str]:
+    rows = (await session.execute(select(Visit.image_path, Visit.mask_path))).all()
+    referenced: set[str] = set()
+    for img_rel, mask_rel in rows:
+        if img_rel:
+            referenced.add(img_rel.replace("\\", "/"))
+        if mask_rel:
+            referenced.add(mask_rel.replace("\\", "/"))
+            overlay_rel = derive_overlay_rel_path(mask_rel)
+            if overlay_rel:
+                referenced.add(overlay_rel.replace("\\", "/"))
+
+    root = get_storage_root()
+    removed: list[str] = []
+    for subdir in ALLOWED_STORAGE_SUBDIRS:
+        folder = root / subdir
+        if not folder.is_dir():
+            continue
+        for item in sorted(folder.iterdir()):
+            if not item.is_file() or item.name == ".gitkeep":
+                continue
+            rel = f"{subdir}/{item.name}"
+            if rel not in referenced:
+                item.unlink()
+                removed.append(rel)
+    return removed
+
+
 async def seed_h3_test_data(clear: bool = False) -> None:
     if get_loaded_model() is None:
         load_segmentation_model()
@@ -38,20 +73,28 @@ async def seed_h3_test_data(clear: bool = False) -> None:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://localhost:8000") as client:
         if clear:
-            for pid in ("RM-0010", "RM-0016", "RM-0024"):
+            for pid in ALL_DEMO_RM_CODES:
                 res = await client.delete(f"/api/v1/patients/{pid}")
                 if res.status_code == 200:
                     print(f"[CLEAR] Pasien {pid} beserta berkas citranya dihapus.")
                 else:
                     print(f"[CLEAR] Pasien {pid} tidak ada (HTTP {res.status_code}).")
+            async with AsyncSessionLocal() as session:
+                orphans = await cleanup_orphan_storage_files(session)
+            print(f"[ORPHAN-CLEANUP] {len(orphans)} berkas yatim dihapus dari storage.")
             return
 
-        async with AsyncSessionLocal() as session:
-            await seed_demo_patients(session)
-
-        # Bersihkan RM-0010, RM-0016, dan RM-0024 terlebih dahulu agar idempoten saat dijalankan ulang
-        for pid in ("RM-0010", "RM-0016", "RM-0024"):
+        # Bersihkan H3 demo terlebih dahulu agar idempoten saat dijalankan ulang
+        for pid in H3_DEMO_RM_CODES:
             await client.delete(f"/api/v1/patients/{pid}")
+
+        # 0. Reset dan buat pasien demo dasar (RM-0012, RM-0017, RM-0023)
+        async with AsyncSessionLocal() as session:
+            await seed_demo_patients(session, reset=True)
+        print(
+            "[SEED] Pasien demo dasar dibuat: "
+            "RM-0012 (3 kunjungan), RM-0017 (2 kunjungan), RM-0023 (1 kunjungan)."
+        )
 
         # 1. Buat RM-0024 (Pasien Kunjungan 1 / Baseline - belum ada kunjungan final)
         r_baseline = await client.post(
@@ -97,7 +140,7 @@ async def seed_h3_test_data(clear: bool = False) -> None:
             f"A_t={r_c16.json()['area_pct']}%, image={r_c16.json()['image_path']}"
         )
 
-        # 2. Buat RM-0010 (Pasien 2 Kunjungan Final dengan Citra dari ml/test_set)
+        # 3. Buat RM-0010 (Pasien 2 Kunjungan Final dengan Citra dari ml/test_set)
         r_pat = await client.post(
             "/api/v1/patients",
             json={
@@ -139,13 +182,17 @@ async def seed_h3_test_data(clear: bool = False) -> None:
                 f"dikonfirmasi: A_t={conf_data['area_pct']}%, image={conf_data['image_path']}"
             )
 
+        async with AsyncSessionLocal() as session:
+            orphans = await cleanup_orphan_storage_files(session)
+        print(f"[ORPHAN-CLEANUP] {len(orphans)} berkas yatim dihapus dari storage.")
+
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Seed atau bersihkan data uji H3.")
+    parser = argparse.ArgumentParser(description="Reset atau bersihkan seluruh data demo.")
     parser.add_argument(
         "--clear",
         action="store_true",
-        help="Hapus pasien demo H3 (RM-0010 dan RM-0024) beserta seluruh berkas citranya.",
+        help="Hapus seluruh pasien demo beserta berkas citra dan berkas yatim di storage.",
     )
     args = parser.parse_args()
     asyncio.run(seed_h3_test_data(clear=args.clear))
@@ -153,4 +200,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
