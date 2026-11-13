@@ -6,6 +6,7 @@ import {
   checkServerHealth,
   createDraftVisit,
   deleteVisit,
+  fetchDemoSamplePhoto,
   fetchPatient,
   fetchPatientVisits,
   resolveStorageUrl,
@@ -45,6 +46,7 @@ const previewUrl = ref('')
 const fileError = ref('')
 const isDragging = ref(false)
 const isConfirmed = ref(false)
+const isLoadingSample = ref(false)
 const isSubmitting = ref(false)
 const liveAnnouncement = ref('')
 const isZoomOpen = ref(false)
@@ -285,51 +287,23 @@ function onDropzoneDrop(e: DragEvent) {
   handleSelectedFile(file)
 }
 
-function generateSamplePhoto() {
-  const canvas = document.createElement('canvas')
-  canvas.width = 512
-  canvas.height = 512
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
-  const bg = ctx.createLinearGradient(0, 0, 512, 512)
-  bg.addColorStop(0, '#d9c8b8')
-  bg.addColorStop(0.5, '#bda590')
-  bg.addColorStop(1, '#d6c3b2')
-  ctx.fillStyle = bg
-  ctx.fillRect(0, 0, 512, 512)
-
-  ctx.save()
-  ctx.translate(256, 256)
-  ctx.rotate(-0.18)
-  ctx.fillStyle = '#cfa993'
-  ctx.beginPath()
-  ctx.ellipse(0, 0, 190, 145, 0, 0, Math.PI * 2)
-  ctx.fill()
-
-  const scale = isFollowUp.value ? 0.85 : 1.05
-  ctx.scale(scale, scale)
-  ctx.fillStyle = 'rgba(120, 70, 60, 0.28)'
-  ctx.beginPath()
-  ctx.ellipse(0, 0, 78, 54, 0, 0, Math.PI * 2)
-  ctx.fill()
-
-  ctx.fillStyle = '#7e403b'
-  ctx.beginPath()
-  ctx.ellipse(0, 0, 62, 42, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.restore()
-
-  canvas.toBlob(
-    (blob) => {
-      if (!blob) return
-      const sampleName = `foto_kunjungan_${nextVisitNumber.value}.jpg`
-      const sampleFile = new File([blob], sampleName, { type: 'image/jpeg' })
-      handleSelectedFile(sampleFile)
-    },
-    'image/jpeg',
-    0.9,
-  )
+async function loadDemoSamplePhoto() {
+  if (!patient.value?.is_demo || isLoadingSample.value) return
+  isLoadingSample.value = true
+  fileError.value = ''
+  submitError.value = ''
+  try {
+    const sampleFile = await fetchDemoSamplePhoto(patientId.value)
+    handleSelectedFile(sampleFile)
+  } catch (err) {
+    if (err instanceof ApiError) {
+      fileError.value = err.message
+    } else {
+      fileError.value = 'Gagal memuat foto sampel dari server backend.'
+    }
+  } finally {
+    isLoadingSample.value = false
+  }
 }
 
 async function handleDiscardDraft() {
@@ -873,9 +847,10 @@ onBeforeUnmount(() => {
                   id="sample"
                   class="btn btn-ghost"
                   type="button"
-                  @click.stop="generateSamplePhoto"
+                  :disabled="isLoadingSample"
+                  @click.stop="loadDemoSamplePhoto"
                 >
-                  Gunakan Foto Sampel (Mode demo)
+                  {{ isLoadingSample ? 'Memuat Foto Sampel...' : 'Gunakan Foto Sampel (Mode demo)' }}
                 </button>
               </div>
               <p class="hint" style="margin: 0">Format gambar (JPG atau PNG), maksimal 10 MB.</p>

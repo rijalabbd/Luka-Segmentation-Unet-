@@ -179,3 +179,31 @@ export async function createDraftVisit(
 
   return (await res.json()) as VisitRecord
 }
+
+export async function fetchDemoSamplePhoto(patientId: string): Promise<File> {
+  let res: Response
+  try {
+    res = await fetch(
+      `${API_BASE}/patients/${encodeURIComponent(patientId)}/sample-photo`,
+      {
+        headers: { Accept: 'image/jpeg' },
+      },
+    )
+  } catch {
+    throw new ApiError(
+      0,
+      'Tidak dapat terhubung ke server backend lokal untuk mengambil foto sampel demo.',
+    )
+  }
+
+  if (!res.ok) {
+    throw new ApiError(
+      res.status,
+      await readErrorDetail(res, `Gagal memuat foto sampel demo (HTTP ${res.status}).`),
+    )
+  }
+
+  const blob = await res.blob()
+  const filename = res.headers.get('X-Sample-Filename')?.trim() || 'foto_sampel_demo.jpg'
+  return new File([blob], filename, { type: blob.type || 'image/jpeg' })
+}
