@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   ApiError,
@@ -12,8 +12,9 @@ import {
   resolveStorageUrl,
 } from '@/api/patients'
 import type { PatientSummary, VisitRecord } from '@/types/patient'
+import GhostOverlay from '@/components/GhostOverlay.vue'
 import ReferencePanel from '@/components/ReferencePanel.vue'
-import { formatDateID, formatFileSize, getTodayISO } from '@/utils/formatters'
+import { formatDateID, getTodayISO } from '@/utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -50,7 +51,7 @@ const showRefContour = ref(false)
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const pickBtnRef = ref<HTMLButtonElement | null>(null)
-const replaceBtnRef = ref<HTMLButtonElement | null>(null)
+const ghostOverlayRef = ref<InstanceType<typeof GhostOverlay> | null>(null)
 
 const nextVisitNumber = computed(() => finalVisits.value.length + 1)
 const isFollowUp = computed(() => nextVisitNumber.value >= 2)
@@ -198,6 +199,9 @@ function handleSelectedFile(file: File | null | undefined) {
   selectedFile.value = file
   fileError.value = ''
   liveAnnouncement.value = `Foto ${file.name} berhasil dimuat.`
+  nextTick(() => {
+    ghostOverlayRef.value?.focusReplace()
+  })
 }
 
 function openFilePicker() {
@@ -616,34 +620,21 @@ onBeforeUnmount(() => {
 
             <p v-if="fileError" id="ferr" class="error" role="alert">{{ fileError }}</p>
 
-            <div v-if="selectedFile" id="preview" class="preview">
-              <div class="frame">
-                <img
-                  id="img"
-                  :src="previewUrl"
-                  alt="Pratinjau foto luka yang akan diproses"
-                />
-              </div>
-              <div class="fileinfo">
-                <div>
-                  <div id="fname" class="fname">{{ selectedFile.name }}</div>
-                  <div id="fsize" class="fsize">{{ formatFileSize(selectedFile.size) }}</div>
-                </div>
-                <div class="fileinfo-actions">
-                  <span class="fcheck" aria-hidden="true">✓ Foto siap</span>
-                  <button
-                    id="replace"
-                    ref="replaceBtnRef"
-                    class="btn btn-secondary"
-                    type="button"
-                    :disabled="isSubmitting"
-                    @click="clearPhoto"
-                  >
-                    Ganti Foto
-                  </button>
-                </div>
-              </div>
-            </div>
+            <GhostOverlay
+              v-if="selectedFile"
+              ref="ghostOverlayRef"
+              :file="selectedFile"
+              :preview-url="previewUrl"
+              :is-follow-up="isFollowUp"
+              :next-visit-number="nextVisitNumber"
+              :visit-date="visitDate"
+              :ref-image-url="activeRefDisplayUrl"
+              :ref-label="activeRefTab === 'latest' && hasDistinctLatestRef ? 'Kunjungan Terakhir' : 'Baseline A₀'"
+              :ref-visit-date="activeRefVisit?.visit_date ?? ''"
+              :is-submitting="isSubmitting"
+              @replace="clearPhoto"
+              @announce="liveAnnouncement = $event"
+            />
 
             <div id="confirm" class="confirm">
               <input
