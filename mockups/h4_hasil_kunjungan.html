@@ -13,7 +13,7 @@
   --text:#0F172A; --text-2:#475569; --muted:#5B6B80;
   --green:#15803D; --green-bg:#DCFCE7; --green-bd:#86EFAC;
   --amber:#B45309; --amber-bg:#FEF3C7; --amber-bd:#FCD34D;
-  --error:#B91C1C; --error-bg:#FEE2E2;
+  --error:#B91C1C; --error-bg:#FEE2E2; --error-bd:#FCA5A5;
   --sans:Inter,"Geist Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --radius:8px; --dur:180ms;
@@ -30,7 +30,7 @@ h1,h2,h3,p{margin:0}
 svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
 [hidden]{display:none!important}
 
-/* Topbar (lebar 1120px, sama dengan H2/H3) */
+/* Topbar */
 .topbar{min-height:64px;background:var(--surface);border-bottom:1px solid var(--border)}
 .topbar-in{min-height:64px;max-width:1120px;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px}
@@ -99,22 +99,65 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
 .fig canvas{display:block;width:100%;height:auto;aspect-ratio:4/3;border-radius:6px;border:1px solid var(--border);background:#e8ddd2}
 .viz-note{margin-top:12px;font-size:12px;color:var(--muted)}
 
+/* Kalibrasi penggaris */
+.calbox{margin-top:16px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.calbox summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 18px;min-height:52px;font-size:15px;font-weight:650;color:var(--navy);border-radius:var(--radius)}
+.calbox summary::-webkit-details-marker{display:none}
+.calbox summary::before{content:"▸";margin-right:8px;color:var(--teal);transition:transform var(--dur);display:inline-block}
+.calbox[open] summary::before{transform:rotate(90deg)}
+.calbox summary .sum-l{display:flex;align-items:center}
+.cal-chip{font-size:12px;font-weight:650;padding:3px 10px;border-radius:999px;border:1px solid var(--border-strong);color:var(--text-2);background:var(--bg)}
+.cal-chip.on{color:var(--green);background:var(--green-bg);border-color:var(--green-bd)}
+.cal-in{padding:4px 18px 18px;border-top:1px solid var(--border)}
+.cal-in ol{margin:14px 0 12px;padding-left:20px;display:grid;gap:4px;font-size:13.5px;color:var(--text-2)}
+.cal-cv-wrap{position:relative}
+#cCal{display:block;width:100%;height:auto;aspect-ratio:4/3;border-radius:6px;border:1px solid var(--border-strong);background:#e8ddd2;cursor:crosshair;touch-action:none}
+.cal-pts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:13px;color:var(--text-2)}
+.cal-pts .btn{min-height:40px;padding:0 14px}
+.cal-pts .btn[aria-pressed="true"]{background:var(--teal-soft);border-color:var(--teal);color:var(--navy)}
+.cal-form{display:grid;grid-template-columns:minmax(0,200px) 1fr;gap:12px 20px;margin-top:14px;align-items:start}
+.cal-form label{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+.cal-form input[type="number"]{height:44px;width:100%;padding:0 12px;font:inherit;font-size:14px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface);color:var(--text)}
+.cal-form input[type="number"]:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px var(--navy)}
+.cal-out{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.cal-out div{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px}
+.cal-out dt{font-size:12px;color:var(--muted)}
+.cal-out dd{margin:2px 0 0;font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;color:var(--navy)}
+.cal-err{margin-top:8px;font-size:13px;color:var(--error);font-weight:500}
+.cal-act{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.cal-limit{margin-top:14px;padding:10px 12px;font-size:12.5px;line-height:1.55;color:var(--text-2);background:#F1F5F9;border:1px solid var(--border-strong);border-radius:6px}
+.cal-demo{font-size:12.5px;color:var(--muted);margin-top:8px}
+
 /* Metrics */
 .metrics{display:grid;gap:16px}
 .metric{padding:18px 20px}
+.m-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
 .m-label{font-size:13px;font-weight:600;color:var(--text-2)}
+.modebadge{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid;white-space:nowrap}
+.modebadge.cal{color:var(--green);background:var(--green-bg);border-color:var(--green-bd)}
+.modebadge.rel{color:var(--navy);background:var(--teal-soft);border-color:#BFDCDC}
 .m-value{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:44px;line-height:1.15;font-weight:700;color:var(--navy);letter-spacing:-.02em;margin-top:6px}
 .m-sub{font-size:13px;color:var(--text-2);margin-top:4px}
 .trend{display:inline-flex;align-items:flex-start;gap:6px;margin-top:12px;font-size:13px;font-weight:700;line-height:1.4;color:var(--green);background:var(--green-bg);border:1px solid var(--green-bd);padding:6px 12px;border-radius:12px}
+.trend.flat{color:var(--amber);background:var(--amber-bg);border-color:var(--amber-bd)}
+.trend.up{color:var(--error);background:var(--error-bg);border-color:var(--error-bd)}
 .trend svg{margin-top:2px}
-.fluct{display:grid;grid-template-columns:16px 1fr;gap:8px;margin-top:12px;padding:10px 12px;font-size:13px;line-height:1.55;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:8px}
-.fluct svg{margin-top:3px}
-.fluct b{display:block;font-weight:700}
-.fluct .minor{display:block;margin-top:4px;font-size:12px;color:#7C4A0B}
+.warn{display:grid;grid-template-columns:16px 1fr;gap:8px;margin-top:12px;padding:10px 12px;font-size:13px;line-height:1.55;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:8px}
+.warn.strong{border-width:2px;border-color:var(--amber)}
+.warn svg{margin-top:3px}
+.warn b{display:block;font-weight:700}
+.warn .minor{display:block;margin-top:4px;font-size:12px;color:#7C4A0B}
 .m-note{font-size:13px;color:var(--text-2);margin-top:12px;line-height:1.6}
 .m-limit{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
 .formula{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.6}
 .formula code{font-family:var(--mono);color:var(--text);font-size:12px}
+.det{margin-top:12px;font-size:12.5px;color:var(--text-2)}
+.det summary{cursor:pointer;font-weight:650;color:var(--teal);min-height:32px;display:flex;align-items:center}
+.det table{width:100%;border-collapse:collapse;margin-top:6px}
+.det th,.det td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--border);font-weight:500}
+.det th{color:var(--muted);font-size:12px}
+.det td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--navy);font-weight:700}
+.det p{margin-top:8px;line-height:1.5}
 
 /* Grafik tren PAC */
 .chart{padding:16px 18px 14px}
@@ -141,6 +184,7 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
 .chart-leg span{display:inline-flex;align-items:center;gap:6px}
 .chart-leg i{display:inline-block;width:22px;height:0;border-top:2.5px solid var(--teal)}
 .chart-leg i.d{border-top-style:dashed}
+.chart-note{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.5}
 
 /* Tabs */
 .tabs-card{margin-top:24px}
@@ -151,13 +195,14 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
 .tabpanel{padding:20px 22px 22px;animation:swap var(--dur) ease}
 .tabpanel p{font-size:15px;line-height:1.75;color:var(--text);max-width:880px}
 .tabpanel p+p{margin-top:12px}
-.tabpanel ul{margin:12px 0 0;padding-left:20px;display:grid;gap:6px;max-width:880px;font-size:15px;line-height:1.65}
 .source{margin-top:18px;padding-top:14px;border-top:1px solid var(--border);display:grid;grid-template-columns:16px 1fr;gap:4px 8px;max-width:880px}
 .source svg{margin-top:2px;color:var(--teal)}
 .source p{font-size:12.5px!important;line-height:1.6!important;color:var(--text-2)!important;max-width:none}
 .source p+p{margin-top:0!important;grid-column:2}
 .source b{color:var(--text);font-weight:650}
 .source .proto{color:var(--muted)!important}
+.narr-wait{margin-top:24px;padding:16px 20px;font-size:14px;color:var(--text-2)}
+.narr-wait b{color:var(--navy)}
 
 /* Actions */
 .actions{margin-top:24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)}
@@ -166,10 +211,11 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
 .btn-row{display:flex;gap:10px;flex-wrap:wrap}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;padding:0 18px;font:inherit;font-size:14px;font-weight:600;border-radius:6px;border:1px solid transparent;cursor:pointer;white-space:nowrap;transition:background-color var(--dur),border-color var(--dur),transform var(--dur)}
 .btn:active{transform:translateY(1px)}
+.btn:disabled{background:#E2E8F0;color:#475569;border-color:#CBD5E1;cursor:not-allowed}
 .btn-primary{background:var(--navy);color:#fff}
-.btn-primary:hover{background:var(--navy-hover)}
+.btn-primary:hover:not(:disabled){background:var(--navy-hover)}
 .btn-secondary{background:var(--surface);color:var(--navy);border-color:var(--border-strong)}
-.btn-secondary:hover{border-color:var(--navy);background:var(--bg)}
+.btn-secondary:hover:not(:disabled){border-color:var(--navy);background:var(--bg)}
 .btn-danger{background:var(--error);color:#fff}
 .btn-danger:hover{background:#991B1B}
 
@@ -208,6 +254,8 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
   .actions{flex-direction:column;align-items:stretch}.actions.sticky{position:static;box-shadow:none}.btn-row{flex-direction:column-reverse}.btn-row .btn{width:100%}
   .seg{width:100%}.seg button{flex:1 1 100%;text-align:left}
   .viz{padding:14px}
+  .cal-form{grid-template-columns:1fr}
+  .cal-out{grid-template-columns:1fr}
   .modal .btns{flex-direction:column-reverse}.modal .btns .btn{width:100%}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
@@ -253,9 +301,13 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
   <div class="demo">
     <span class="demo-label" id="demo-lbl">Mode demo</span>
     <div class="seg" role="group" aria-labelledby="demo-lbl">
-      <button type="button" data-s="base" aria-pressed="false">Kunjungan 1 · Baseline A₀</button>
-      <button type="button" data-s="draft" aria-pressed="true">Kunjungan 3 · Draf</button>
-      <button type="button" data-s="final" aria-pressed="false">Kunjungan 3 · Final</button>
+      <button type="button" data-s="base" aria-pressed="false">K1 · Baseline A₀</button>
+      <button type="button" data-s="draft" aria-pressed="true">K3 · Draf (relatif)</button>
+      <button type="button" data-s="draftcal" aria-pressed="false">K3 · Draf (foto berpenggaris)</button>
+      <button type="button" data-s="final" aria-pressed="false">K3 · Final (relatif)</button>
+      <button type="button" data-s="finalwarn" aria-pressed="false">K3 · Final (PAC 5–10%)</button>
+      <button type="button" data-s="finalbig" aria-pressed="false">K3 · Final (PAC besar, relatif)</button>
+      <button type="button" data-s="finalcal" aria-pressed="false">K3 · Final (terkalibrasi)</button>
     </div>
   </div>
 
@@ -263,30 +315,80 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
     <div id="bannerBox"></div>
 
     <div class="layout">
-      <section class="panel viz" aria-labelledby="t-viz">
-        <div class="viz-head">
-          <h2 id="t-viz">Foto Asli dan Hasil Segmentasi</h2>
-          <div class="legend"><span class="sw" aria-hidden="true"></span>Area luka (masker segmentasi)</div>
-        </div>
-        <div class="pair">
-          <figure class="fig">
-            <div class="fig-label">Foto Asli <small>Sebelum segmentasi</small></div>
-            <canvas id="cOrig" width="1200" height="900" role="img" aria-label="Ilustrasi foto luka tanpa overlay"></canvas>
-          </figure>
-          <figure class="fig">
-            <div class="fig-label">Hasil Segmentasi <small>Foto yang sama dengan overlay</small></div>
-            <canvas id="cSeg" width="1200" height="900" role="img" aria-label="Ilustrasi foto luka yang sama dengan overlay masker hijau transparan pada area luka"></canvas>
-          </figure>
-        </div>
-        <p class="viz-note">Ilustrasi prototipe: bukan foto pasien sungguhan dan bukan hasil inferensi model. Masker digambar sebagai contoh visual.</p>
-      </section>
+      <div>
+        <section class="panel viz" aria-labelledby="t-viz">
+          <div class="viz-head">
+            <h2 id="t-viz">Foto Asli dan Hasil Segmentasi</h2>
+            <div class="legend"><span class="sw" aria-hidden="true"></span>Area luka (masker segmentasi)</div>
+          </div>
+          <div class="pair">
+            <figure class="fig">
+              <div class="fig-label">Foto Asli <small>Sebelum segmentasi</small></div>
+              <canvas id="cOrig" width="1200" height="900" role="img" aria-label="Ilustrasi foto luka tanpa overlay"></canvas>
+            </figure>
+            <figure class="fig">
+              <div class="fig-label">Hasil Segmentasi <small>Foto yang sama dengan overlay</small></div>
+              <canvas id="cSeg" width="1200" height="900" role="img" aria-label="Ilustrasi foto luka yang sama dengan overlay masker hijau transparan pada area luka"></canvas>
+            </figure>
+          </div>
+          <p class="viz-note">Ilustrasi prototipe: bukan foto pasien sungguhan dan bukan hasil inferensi model. Masker digambar sebagai contoh visual.</p>
+        </section>
+
+        <!-- Kalibrasi penggaris dua titik (hanya pada draf) -->
+        <details class="calbox" id="calbox" hidden>
+          <summary>
+            <span class="sum-l">Kalibrasi Penggaris (Opsional)</span>
+            <span class="cal-chip" id="calChip">Belum diterapkan</span>
+          </summary>
+          <div class="cal-in">
+            <ol>
+              <li>Klik dua titik pada garis skala penggaris, sebaiknya garis angka yang jelas (misalnya 1 ke 3 cm), bukan tepi stiker (angka 0).</li>
+              <li>Isi panjang fisik antara kedua titik, lalu pilih Terapkan Kalibrasi.</li>
+              <li>Penggaris harus dekat dan sebidang dengan permukaan luka.</li>
+            </ol>
+            <div class="cal-cv-wrap">
+              <canvas id="cCal" width="1200" height="900" tabindex="0" role="img" aria-label="Foto asli untuk kalibrasi. Klik dua titik pada garis skala penggaris. Setelah titik ditempatkan, gunakan tombol panah untuk menggeser titik aktif, Shift untuk langkah 10 piksel."></canvas>
+            </div>
+            <div class="cal-pts">
+              <span id="calStatus" aria-live="polite">Belum ada titik. Klik foto untuk menempatkan titik 1.</span>
+            </div>
+            <div class="cal-pts" role="group" aria-label="Pilih titik aktif untuk digeser dengan keyboard">
+              <button class="btn btn-secondary" type="button" id="pt1" aria-pressed="true">Titik 1 aktif</button>
+              <button class="btn btn-secondary" type="button" id="pt2" aria-pressed="false">Titik 2 aktif</button>
+              <button class="btn btn-ghost" type="button" id="calDemoFill" hidden style="background:none;border:0;color:var(--teal);font-weight:600;cursor:pointer">Isi titik contoh (demo)</button>
+            </div>
+            <p class="cal-demo" id="calDemoNote" hidden>Foto draf ini tidak memuat penggaris. Pilih state "Draf (foto berpenggaris)" untuk contoh kalibrasi.</p>
+            <div class="cal-form">
+              <div>
+                <label for="calLen">Panjang fisik segmen (cm)</label>
+                <input type="number" id="calLen" min="0.1" max="50" step="0.1" value="2" inputmode="decimal" />
+              </div>
+              <dl class="cal-out" aria-live="polite">
+                <div><dt>Jarak titik (Δpx)</dt><dd id="oDpx">–</dd></div>
+                <div><dt>Skala s</dt><dd id="oScale">–</dd></div>
+                <div><dt>Estimasi luas</dt><dd id="oArea">–</dd></div>
+              </dl>
+            </div>
+            <p class="cal-err" id="calErr" role="alert" hidden></p>
+            <div class="cal-act">
+              <button class="btn btn-primary" type="button" id="calApply" disabled>Terapkan Kalibrasi</button>
+              <button class="btn btn-secondary" type="button" id="calReset">Ulangi Titik</button>
+              <button class="btn btn-secondary" type="button" id="calClear" hidden>Hapus Kalibrasi</button>
+            </div>
+            <p class="cal-limit">Kalibrasi mengoreksi perbedaan jarak kamera pada bidang penggaris. Kalibrasi tidak mengoreksi perbedaan sudut pandang 3D atau lengkungan permukaan anatomi, sehingga kamera tegak lurus 90° tetap diperlukan.</p>
+          </div>
+        </details>
+      </div>
 
       <div class="metrics" id="metrics">
         <section class="panel metric" aria-labelledby="m1">
-          <div class="m-label" id="m1">Estimasi Luas Area Luka</div>
+          <div class="m-head">
+            <div class="m-label" id="m1">Estimasi Luas Area Luka</div>
+            <span class="modebadge" id="modeBadge"></span>
+          </div>
           <div class="m-value" id="areaVal"></div>
-          <div class="m-sub">Persentase area luka pada citra</div>
-          <p class="m-limit">Estimasi relatif terhadap luas citra (% kanvas), tanpa penanda kalibrasi fisik. Bukan ukuran dalam cm².</p>
+          <div class="m-sub" id="areaSub"></div>
+          <p class="m-limit" id="areaLimit"></p>
           <p class="m-note" id="baseNote" hidden>Hasil ini menjadi acuan baseline A₀. Nilai PAC dan grafik tren baru tersedia mulai kunjungan kedua.</p>
         </section>
 
@@ -300,41 +402,22 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
             <div class="tip" id="tip" role="tooltip" hidden></div>
           </div>
           <div class="chart-leg" id="chartLeg"></div>
+          <p class="chart-note" id="chartNote" hidden>Titik berbasis cm² dihitung terhadap A₀ terkalibrasi dan tidak dibandingkan langsung dengan titik berbasis luas relatif.</p>
         </section>
       </div>
     </div>
+
+    <section class="panel narr-wait" id="narrWait" hidden>
+      <b>Narasi belum dibuat.</b> Catatan klinis dan ringkasan pasien disusun setelah hasil dikonfirmasi dan disimpan.
+    </section>
 
     <section class="panel tabs-card" id="tabsCard" hidden>
       <div class="tablist" role="tablist" aria-label="Narasi hasil">
         <button class="tab" role="tab" id="tab-ringkasan" aria-controls="p-ringkasan" aria-selected="true">Ringkasan Pasien</button>
         <button class="tab" role="tab" id="tab-catatan" aria-controls="p-catatan" aria-selected="false" tabindex="-1">Catatan Klinisi</button>
       </div>
-
-      <div class="tabpanel" id="p-ringkasan" role="tabpanel" aria-labelledby="tab-ringkasan">
-        <p>Pada kunjungan ketiga, estimasi luas luka tercatat sebesar 8,10% dari luas citra. Nilai ini lebih kecil dibandingkan kondisi awal (baseline A₀) sebesar 10,26%, dengan PAC sebesar +21,1%. Dibandingkan kunjungan sebelumnya, luas luka naik 0,45 poin persentase, dari 7,65% menjadi 8,10%. Kenaikan sekecil ini dapat dipengaruhi variasi jarak dan sudut pengambilan foto, sehingga perlu dipantau pada kunjungan berikutnya.</p>
-        <div class="source">
-          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3Z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></svg>
-          <p><b>Sumber:</b> llm (Google Gemini API · temperature: 0.3 · Factual Grounding)</p>
-          <p>Narasi dibuat otomatis sebagai asisten dokumentasi visual, bukan penilaian klinis. Periksa kembali sebelum dijadikan catatan resmi.</p>
-          <p class="proto">Prototipe: teks pada halaman ini adalah contoh statis.</p>
-        </div>
-      </div>
-
-      <div class="tabpanel" id="p-catatan" role="tabpanel" aria-labelledby="tab-catatan" hidden>
-        <p>Ringkasan pengukuran luas luka pada citra (persentase terhadap seluruh citra):</p>
-        <ul>
-          <li>Baseline A₀ (01 Okt 2026): 10,26%.</li>
-          <li>Kunjungan 2 (17 Okt 2026): 7,65%, PAC +25,4% terhadap A₀.</li>
-          <li>Kunjungan 3 (31 Okt 2026): 8,10%, PAC +21,1% terhadap A₀.</li>
-        </ul>
-        <p>Dibandingkan kunjungan 2, luas luka pada kunjungan 3 naik 0,45 poin persentase. Dibandingkan A₀, luas luka lebih kecil 2,16 poin persentase. PAC dihitung terhadap A₀, bukan terhadap kunjungan sebelumnya. Nilai merupakan estimasi relatif pada citra dan bukan ukuran fisik (cm²).</p>
-        <div class="source">
-          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3Z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></svg>
-          <p><b>Sumber:</b> llm (Google Gemini API · temperature: 0.3 · Factual Grounding)</p>
-          <p>Narasi dibuat otomatis sebagai asisten dokumentasi visual, bukan penilaian klinis. Periksa kembali sebelum dijadikan catatan resmi.</p>
-          <p class="proto">Prototipe: teks pada halaman ini adalah contoh statis.</p>
-        </div>
-      </div>
+      <div class="tabpanel" id="p-ringkasan" role="tabpanel" aria-labelledby="tab-ringkasan"></div>
+      <div class="tabpanel" id="p-catatan" role="tabpanel" aria-labelledby="tab-catatan" hidden></div>
     </section>
 
     <div class="actions" id="actions"></div>
@@ -351,7 +434,7 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
 <div class="modal-back" id="mSave" data-initial="chkMask" hidden>
   <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="ms-t" aria-describedby="ms-d">
     <h2 id="ms-t">Konfirmasi dan simpan hasil?</h2>
-    <p id="ms-d">Hasil kunjungan ke-3 (31 Oktober 2026) akan dikonfirmasi dan disimpan sebagai rekam kunjungan final pasien RM-0012. Setelah disimpan, hasil menjadi bagian dari riwayat pasien.</p>
+    <p id="ms-d"></p>
     <div class="check" id="chkBox">
       <input type="checkbox" id="chkMask" aria-describedby="chkErr" />
       <label for="chkMask">Saya telah memeriksa kesesuaian batas masker segmentasi dengan luka fisik.</label>
@@ -368,7 +451,7 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
 <div class="modal-back" id="mDiscard" hidden>
   <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="md-t" aria-describedby="md-d">
     <h2 id="md-t">Foto ulang / buang draf?</h2>
-    <p id="md-d">Draf hasil kunjungan ke-3 belum tersimpan dan akan dibuang. Pilih ini jika batas masker segmentasi tidak sesuai dengan luka fisik. Anda akan diarahkan kembali ke halaman Unggah Foto untuk mengambil foto ulang. Data pasien dan kunjungan lain tidak terpengaruh.</p>
+    <p id="md-d">Draf hasil kunjungan ke-3 belum tersimpan dan akan dibuang, termasuk kalibrasi penggaris yang sudah diterapkan pada draf ini. Pilih ini jika batas masker segmentasi tidak sesuai dengan luka fisik. Anda akan diarahkan kembali ke halaman Unggah Foto untuk mengambil foto ulang. Data pasien dan kunjungan lain tidak terpengaruh.</p>
     <div class="btns">
       <button class="btn btn-secondary" type="button" data-close>Batal</button>
       <a class="btn btn-danger" id="doDiscard" href="/pemeriksaan/RM-0012/unggah">Buang Draf dan Foto Ulang</a>
@@ -386,38 +469,95 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
     warn:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>',
     down:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 9v8H9"/></svg>',
     up:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>',
+    flat:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h14M5 15h14"/></svg>',
     hist:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>'
   };
 
-  /* ---------- Data RM-0012 (sinkron dengan H2/H3) ---------- */
-  const VISITS = [
-    { k: 1, date: '01 Okt 2026', area: 10.26 },   // baseline A₀
-    { k: 2, date: '17 Okt 2026', area: 7.65 },
-    { k: 3, date: '31 Okt 2026', area: 8.10 }
-  ];
-  const A0 = VISITS[0].area;
-  /* PAC dihitung dari nilai tak terbulatkan, dibulatkan sekali di tampilan: 21,05% → +21,1% */
-  const pacOf = a => (A0 - a) / A0 * 100;
-  const sgn = (v, dec) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(dec).replace('.', ',');
-  const pct2 = n => n.toFixed(2).replace('.', ',') + '%';
-  const PAC3 = pacOf(VISITS[2].area);                       // 21,0526…
-  const PAC3_TXT = sgn(PAC3, 1) + '%';                      // "+21,1%"
-  const DIFF = VISITS[2].area - VISITS[1].area;             // +0,45 poin persentase
+  /* ---------- Format angka (koma desimal) ---------- */
+  const fmt = (n, d = 2) => n.toFixed(d).replace('.', ',');
+  const sgn = (v, d) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d).replace('.', ',');
 
-  const STATES = {
-    base :{ visit:1, date:'01 Oktober 2026', area:VISITS[0].area, kind:'base',  chip:'Baseline' },
-    draft:{ visit:3, date:'31 Oktober 2026', area:VISITS[2].area, kind:'draft', chip:'Draf — Belum Disimpan' },
-    final:{ visit:3, date:'31 Oktober 2026', area:VISITS[2].area, kind:'final', chip:'Final — Tersimpan' }
+  /* ---------- Konstanta (sinkron dengan PRD v3) ---------- */
+  const W = 1200, H = 900, DIAG = Math.hypot(W, H);   // dimensi "citra asli" demo
+  const PAC_WARN_MIN = 5, PAC_WARN_MAX = null;         // D1: semua |PAC| ≥ 5%, teks kuat di atas 10%
+  const PAC_DISTANCE_SPLIT = 10;
+  const PREV_REL = 7.65;                               // luas relatif kunjungan 2 (17 Okt 2026)
+  const VISIT_AXIS = [
+    { k: 1, date: '01 Okt 2026', short: '01 Okt' },
+    { k: 2, date: '17 Okt 2026', short: '17 Okt' },
+    { k: 3, date: '31 Okt 2026', short: '31 Okt' }
+  ];
+
+  /* ---------- Data demo RM-0012 ---------- */
+  const CFG = {
+    base:     { kind:'base',  visit:1, date:'01 Oktober 2026', rel:10.26, a0Rel:10.26, a0Cm2:null,  cal:null, photo:'plain', chip:'Baseline' },
+    draft:    { kind:'draft', visit:3, date:'31 Oktober 2026', rel:8.10,  a0Rel:10.26, a0Cm2:null,  cal:null, photo:'plain', chip:'Draf — Belum Disimpan' },
+    draftcal: { kind:'draft', visit:3, date:'31 Oktober 2026', rel:6.57,  a0Rel:10.26, a0Cm2:12.40, cal:null, photo:'ruler', chip:'Draf — Belum Disimpan' },
+    final:    { kind:'final', visit:3, date:'31 Oktober 2026', rel:8.10,  a0Rel:10.26, a0Cm2:null,  cal:null, photo:'plain', chip:'Final — Tersimpan' },
+    finalwarn:{ kind:'final', visit:3, date:'31 Oktober 2026', rel:9.54,  a0Rel:10.26, a0Cm2:null,  cal:null, photo:'plain', chip:'Final — Tersimpan' },
+    finalbig: { kind:'final', visit:3, date:'31 Oktober 2026', rel:6.57,  a0Rel:10.26, a0Cm2:null,  cal:null, photo:'plain', chip:'Final — Tersimpan' },
+    finalcal: { kind:'final', visit:3, date:'31 Oktober 2026', rel:6.57,  a0Rel:10.26, a0Cm2:12.40, cal:{ cm2:12.40, L:2 }, photo:'ruler', chip:'Final — Tersimpan' }
   };
   const BANNERS = {
-    draft:['draft','Draf — Belum Disimpan','Hasil pemeriksaan masih berupa draf dan belum disimpan ke riwayat pasien. Periksa kembali batas masker segmentasi sebelum melakukan konfirmasi. Jika masker tidak sesuai dengan luka, pilih Foto Ulang.','warn'],
+    draft:['draft','Draf — Belum Disimpan','Hasil pemeriksaan masih berupa draf dan belum disimpan ke riwayat pasien. Periksa kembali batas masker segmentasi. Jika foto memuat penggaris sebidang luka, kalibrasi opsional tersedia di bawah foto. Jika masker tidak sesuai dengan luka, pilih Foto Ulang.','warn'],
     final:['final','Final — Terkonfirmasi dan Tersimpan','Hasil pemeriksaan telah dikonfirmasi dan tersimpan sebagai rekam kunjungan pasien.','check'],
     base :['base','Baseline — Kunjungan Pertama','Kunjungan pertama digunakan sebagai baseline (A₀). Perhitungan PAC baru tersedia mulai kunjungan kedua.','info']
   };
-  let state = 'draft', firstRender = true;
+  let state = 'draft', cur = null, firstRender = true;
 
-  /* ---------- Ilustrasi foto + masker ---------- */
-  const W = 1200, H = 900, CX = 610, CY = 470;
+  /* ---------- Perhitungan (cermin logika backend PRD v3) ---------- */
+  const classify = (pac, deltaRel, basis) => {
+    if (basis === 'calibrated') {                 // D2: PAC cm² saja
+      if (pac > 5) return 'down';
+      if (pac < -5) return 'up';
+      return 'flat';
+    }
+    if (pac > 5 || deltaRel < -1) return 'down';
+    if (pac < -5 || deltaRel > 1) return 'up';
+    return 'flat';
+  };
+  const TREND_TXT = { down:'Tren Menurun (Area Luka Mengecil)', flat:'Tren Stabil (Perubahan Minimal)', up:'Tren Meningkat (Area Luka Membesar)' };
+
+  const calc = c => {
+    const r = {};
+    r.hasCal = !!c.cal;
+    r.pacRel = (c.a0Rel - c.rel) / c.a0Rel * 100;
+    r.deltaRel = c.rel - c.a0Rel;
+    r.basis = (r.hasCal && c.a0Cm2 != null) ? 'calibrated' : 'relative';
+    if (r.basis === 'calibrated') {
+      r.pac = (c.a0Cm2 - c.cal.cm2) / c.a0Cm2 * 100;
+      r.delta = c.cal.cm2 - c.a0Cm2;
+      r.u = ' cm²'; r.du = 'cm²'; r.a0Val = c.a0Cm2; r.atVal = c.cal.cm2;
+    } else {
+      r.pac = r.pacRel; r.delta = r.deltaRel;
+      r.u = '%'; r.du = 'poin persentase'; r.a0Val = c.a0Rel; r.atVal = c.rel;
+    }
+    r.trend = classify(r.pac, r.deltaRel, r.basis);
+    r.warnings = [];
+    if (r.hasCal && c.a0Cm2 == null) r.warnings.push('MIXED_BASIS');
+    if (r.basis === 'relative') {
+      const a = Math.abs(r.pac);
+      if (a >= PAC_WARN_MIN && (PAC_WARN_MAX == null || a <= PAC_WARN_MAX)) {
+        r.warnings.push(a > PAC_DISTANCE_SPLIT ? 'DISTANCE_LARGE' : 'DISTANCE_SENSITIVE');
+      }
+    }
+    if (c.a0Rel < 1) r.warnings.push('LOW_BASELINE');
+    return r;
+  };
+
+  const WARN_TXT = {
+    DISTANCE_SENSITIVE:['Perhatikan variasi jarak pemotretan','Perubahan sekecil ini dapat dipengaruhi variasi jarak pemotretan (±1 cm). Jika foto memuat penggaris, gunakan kalibrasi. Konfirmasi dengan pemeriksaan klinis langsung.',false],
+    DISTANCE_LARGE:['Perubahan besar pada foto tanpa kalibrasi','Pada foto tanpa kalibrasi, selisih jarak pemotretan dapat menimbulkan perubahan luas semu yang besar (misalnya selisih 5 cm pada jarak 20 cm setara sekitar 36%). Periksa kembali jarak foto dengan overlay, atau gunakan kalibrasi jika ada penggaris.',true],
+    LOW_BASELINE:['Luas awal sangat kecil','Luas awal kurang dari 1% dari citra, sehingga PAC sangat sensitif terhadap selisih kecil jumlah piksel.',false],
+    MIXED_BASIS:['PAC memakai luas relatif','PAC dihitung dengan luas relatif karena kunjungan awal tidak terkalibrasi.',false]
+  };
+  const warnHTML = code => {
+    const w = WARN_TXT[code];
+    return '<div class="warn' + (w[2] ? ' strong' : '') + '" data-code="' + code + '">' + ICON.warn + '<div><b>' + w[0] + '</b>' + w[1] + '</div></div>';
+  };
+
+  /* ---------- Ilustrasi foto + masker (+ penggaris) ---------- */
+  const CX = 610, CY = 470, RULER_PX_PER_CM = 75.65, RULER_X0 = 150, RULER_Y = 760;
   const blob = () => {
     const pts = [], N = 72;
     for (let i = 0; i < N; i++) {
@@ -431,11 +571,23 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
   };
   const area = p => Math.abs(p.reduce((s, q, i) => { const n = p[(i + 1) % p.length]; return s + q[0] * n[1] - n[0] * q[1]; }, 0) / 2);
   const path = (g, p, k) => { g.beginPath(); p.forEach((q, i) => { const x = CX + q[0] * k, y = CY + q[1] * k; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); };
-
-  const paint = (cv, pct, withMask) => {
+  const drawRuler = g => {
+    g.save();
+    g.fillStyle = '#F3E9B7'; g.strokeStyle = '#8A7A2E'; g.lineWidth = 2;
+    g.fillRect(130, 735, 800, 70); g.strokeRect(130, 735, 800, 70);
+    g.fillStyle = '#3b3412'; g.font = 'bold 22px sans-serif'; g.textAlign = 'center';
+    for (let i = 0; i <= 10; i++) {
+      const x = RULER_X0 + RULER_PX_PER_CM * i;
+      g.beginPath(); g.moveTo(x, 735); g.lineTo(x, 765); g.stroke();
+      g.fillText(String(i), x, 795);
+      if (i < 10) { const xm = x + RULER_PX_PER_CM / 2; g.beginPath(); g.moveTo(xm, 735); g.lineTo(xm, 752); g.stroke(); }
+    }
+    g.restore();
+  };
+  const paint = (cv, pct, withMask, withRuler) => {
     const g = cv.getContext('2d');
     const base = blob();
-    const k = Math.sqrt((pct / 100 * W * H) / area(base));   // luas masker = persentase kanvas
+    const k = Math.sqrt((pct / 100 * W * H) / area(base));
     const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#d9c8b8'); bg.addColorStop(.5, '#bda590'); bg.addColorStop(1, '#d6c3b2');
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
     g.save(); g.translate(600, 450); g.rotate(-.21);
@@ -448,60 +600,74 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
     g.save(); path(g, base, k); g.clip();
     for (let i = 0; i < 14; i++) { g.fillStyle = 'rgba(' + (150 + rnd() * 40 | 0) + ',70,62,' + (.25 + rnd() * .25) + ')'; g.beginPath(); g.arc(CX + (rnd() - .5) * k * 2.4, CY + (rnd() - .5) * k * 1.5, 12 + rnd() * 34, 0, 7); g.fill(); }
     g.restore();
+    if (withRuler) drawRuler(g);
     if (withMask) {
       path(g, base, k); g.fillStyle = 'rgba(34,197,94,0.35)'; g.fill();
       g.lineWidth = 4; g.lineJoin = 'round'; g.strokeStyle = '#16A34A'; g.stroke();
     }
   };
 
-  /* ---------- Grafik tren PAC (SVG, 3 titik) ---------- */
-  const VB = { w: 320, h: 214, l: 40, r: 24, t: 30, b: 54, ymax: 30 };
-  const px = i => VB.l + i * (VB.w - VB.l - VB.r) / 2;
-  const py = v => VB.t + (1 - v / VB.ymax) * (VB.h - VB.t - VB.b);
+  /* ---------- Grafik tren PAC (SVG, rentang sumbu dinamis) ---------- */
+  const VB = { w: 320, h: 214, l: 44, r: 24, t: 30, b: 54 };
+  const renderChart = (c, r) => {
+    const isFinal = c.kind === 'final';
+    const pacRel2 = (c.a0Rel - PREV_REL) / c.a0Rel * 100;
+    const pts = [
+      { k:1, v:VISIT_AXIS[0], pac:0, basis:'base', luas:fmt(c.a0Rel) + '%' },
+      { k:2, v:VISIT_AXIS[1], pac:pacRel2, basis:'relative', luas:fmt(PREV_REL) + '%' },
+      { k:3, v:VISIT_AXIS[2], pac:r.pac, basis:r.basis, luas:r.basis === 'calibrated' ? fmt(r.atVal) + ' cm²' : fmt(c.rel) + '%' }
+    ];
+    const vals = pts.map(p => p.pac);
+    let lo = Math.min(0, ...vals), hi = Math.max(10, ...vals);
+    const step = (hi - lo) > 60 ? 20 : 10;
+    lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+    const px = i => VB.l + i * (VB.w - VB.l - VB.r) / 2;
+    const py = v => VB.t + (1 - (v - lo) / (hi - lo)) * (VB.h - VB.t - VB.b);
+    pts.forEach((p, i) => { p.x = px(i); p.y = py(p.pac); });
 
-  const renderChart = isFinal => {
-    const pts = VISITS.map((v, i) => ({ i, x: px(i), y: py(i === 0 ? 0 : pacOf(v.area)), pac: i === 0 ? 0 : pacOf(v.area), v }));
-    let s = '<svg viewBox="0 0 ' + VB.w + ' ' + VB.h + '" role="group" aria-labelledby="t-chart" focusable="false">';
-    s += '<g class="grid">';
-    [0, 10, 20, 30].forEach(t => {
+    let s = '<svg viewBox="0 0 ' + VB.w + ' ' + VB.h + '" role="group" aria-labelledby="t-chart" focusable="false"><g class="grid">';
+    for (let t = lo; t <= hi; t += step) {
       s += '<line class="' + (t === 0 ? 'zero' : '') + '" x1="' + VB.l + '" x2="' + (VB.w - VB.r) + '" y1="' + py(t) + '" y2="' + py(t) + '"/>' +
-           '<text x="' + (VB.l - 8) + '" y="' + (py(t) + 3.5) + '" text-anchor="end">' + t + '%</text>';
-    });
+           '<text x="' + (VB.l - 8) + '" y="' + (py(t) + 3.5) + '" text-anchor="end">' + (t < 0 ? '−' : '') + Math.abs(t) + '%</text>';
+    }
     s += '</g>';
     s += '<path class="line" d="M' + pts[0].x + ' ' + pts[0].y + ' L' + pts[1].x + ' ' + pts[1].y + '"/>';
     s += '<path class="line' + (isFinal ? '' : ' dash') + '" d="M' + pts[1].x + ' ' + pts[1].y + ' L' + pts[2].x + ' ' + pts[2].y + '"/>';
     pts.forEach(p => {
-      const draftPt = p.i === 2 && !isFinal;
-      const pacTxt = p.i === 0 ? '0% (baseline A₀)' : sgn(p.pac, 1) + '%';
-      const label = 'Kunjungan ' + p.v.k + ', ' + p.v.date + ': PAC ' + pacTxt + ', luas luka ' + pct2(p.v.area) + (draftPt ? ' (draf, belum disimpan)' : '');
-      const tip = '<b>Kunjungan ' + p.v.k + ' · ' + p.v.date + (draftPt ? ' (draf)' : '') + '</b>PAC ' + pacTxt + ' · luas luka ' + pct2(p.v.area);
+      const draftPt = p.k === 3 && !isFinal;
+      const cal = p.basis === 'calibrated';
+      const basisTxt = p.basis === 'base' ? 'baseline A₀' : cal ? 'basis cm²' : 'basis luas relatif (%)';
+      const pacTxt = p.k === 1 ? '0% (baseline A₀)' : sgn(p.pac, 1) + '%';
+      const label = 'Kunjungan ' + p.k + ', ' + p.v.date + ': PAC ' + pacTxt + ', ' + basisTxt + ', luas luka ' + p.luas + (draftPt ? ' (draf, belum disimpan)' : '');
+      const tip = '<b>Kunjungan ' + p.k + ' · ' + p.v.date + (draftPt ? ' (draf)' : '') + '</b>PAC ' + pacTxt + ' · luas ' + p.luas + '<br>' + basisTxt;
+      const marker = cal
+        ? '<rect class="dotc' + (draftPt ? ' hollow' : '') + '" x="' + (p.x - 5) + '" y="' + (p.y - 5) + '" width="10" height="10" transform="rotate(45 ' + p.x + ' ' + p.y + ')"/>'
+        : '<circle class="dotc' + (draftPt ? ' hollow' : '') + '" cx="' + p.x + '" cy="' + p.y + '" r="5"/>';
       s += '<g class="pt" tabindex="0" role="img" aria-label="' + label + '" data-x="' + p.x + '" data-y="' + p.y + '" data-tip="' + tip.replace(/"/g, '&quot;') + '">' +
-           '<circle class="hit" cx="' + p.x + '" cy="' + p.y + '" r="16"/>' +
-           '<circle class="ring" cx="' + p.x + '" cy="' + p.y + '" r="10"/>' +
-           '<circle class="dotc' + (draftPt ? ' hollow' : '') + '" cx="' + p.x + '" cy="' + p.y + '" r="5"/>' +
-           '<text class="val" x="' + p.x + '" y="' + (p.y - 12) + '" text-anchor="middle">' + (p.i === 0 ? 'A₀ · 0%' : sgn(p.pac, 1) + '%') + '</text>' +
-           '</g>';
-      const bx = p.x, by = VB.h - VB.b + 16;
-      s += '<text class="xl" x="' + bx + '" y="' + by + '" text-anchor="middle">Kunjungan ' + p.v.k + '</text>' +
-           '<text x="' + bx + '" y="' + (by + 13) + '" text-anchor="middle">' + p.v.date.slice(0, 6) + '</text>' +
-           '<text x="' + bx + '" y="' + (by + 26) + '" text-anchor="middle">luas ' + pct2(p.v.area) + '</text>';
+           '<circle class="hit" cx="' + p.x + '" cy="' + p.y + '" r="16"/><circle class="ring" cx="' + p.x + '" cy="' + p.y + '" r="10"/>' + marker +
+           '<text class="val" x="' + p.x + '" y="' + (p.y - 12) + '" text-anchor="middle">' + (p.k === 1 ? 'A₀ · 0%' : sgn(p.pac, 1) + '%') + '</text></g>';
+      const by = VB.h - VB.b + 16;
+      s += '<text class="xl" x="' + p.x + '" y="' + by + '" text-anchor="middle">Kunjungan ' + p.k + '</text>' +
+           '<text x="' + p.x + '" y="' + (by + 13) + '" text-anchor="middle">' + p.v.short + '</text>' +
+           '<text x="' + p.x + '" y="' + (by + 26) + '" text-anchor="middle">luas ' + p.luas + '</text>';
     });
     s += '</svg>';
     $('chartSvg').innerHTML = s;
-    $('chartLeg').innerHTML = '<span><i></i>Tersimpan</span>' + (isFinal ? '' : '<span><i class="d"></i>Draf, belum disimpan</span>');
+    $('chartLeg').innerHTML = '<span><i></i>Tersimpan</span>' + (isFinal ? '' : '<span><i class="d"></i>Draf, belum disimpan</span>') +
+      '<span>● Basis relatif</span>' + (r.basis === 'calibrated' ? '<span>◆ Basis cm²</span>' : '');
+    $('chartNote').hidden = r.basis !== 'calibrated';
     bindChart();
   };
-
   const bindChart = () => {
     const wrap = $('chartWrap'), tip = $('tip');
     const hide = () => { tip.hidden = true; };
     wrap.querySelectorAll('.pt').forEach(g => {
       const show = () => {
         tip.innerHTML = g.dataset.tip; tip.hidden = false;
-        const r = wrap.getBoundingClientRect(), k = r.width / VB.w;
+        const rr = wrap.getBoundingClientRect(), k = rr.width / VB.w;
         const tw = tip.offsetWidth, th = tip.offsetHeight;
         const cx = +g.dataset.x * k, cy = +g.dataset.y * k;
-        const left = Math.min(Math.max(cx, tw / 2 + 2), r.width - tw / 2 - 2);
+        const left = Math.min(Math.max(cx, tw / 2 + 2), rr.width - tw / 2 - 2);
         const above = cy - th - 18 >= 0;
         tip.style.left = left + 'px';
         tip.style.top = (above ? cy - th - 14 : cy + 16) + 'px';
@@ -513,49 +679,116 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
     });
   };
 
-  /* ---------- Render state ---------- */
+  /* ---------- Narasi (pola Tabel 3.5, satuan mengikuti basis) ---------- */
+  const narr = (c, r) => {
+    const a0 = fmt(r.a0Val) + r.u, at = fmt(r.atVal) + r.u;
+    const pacS = sgn(r.pac, 1) + '%', dS = sgn(r.delta, 2) + ' ' + r.du;
+    const absPac = Math.abs(r.pac).toFixed(1).replace('.', ',');
+    const luasFoto = r.basis === 'calibrated' ? at : fmt(r.atVal) + '% dari area foto';
+    const head = 'Evaluasi Longitudinal (T₁ → T₃): ';
+    if (r.trend === 'down') return {
+      clin: head + 'Area luka terukur menurun dari ' + a0 + ' menjadi ' + at + ' (PAC: ' + pacS + ', ΔA: ' + dS + '). Hasil pengukuran menunjukkan penurunan luas permukaan luka. Pemeriksaan klinis langsung tetap diperlukan karena hasil merupakan estimasi berdasarkan foto.',
+      pat: 'Berdasarkan hasil pengukuran sistem, area luka pada pemeriksaan ini terdeteksi lebih kecil dibandingkan pemeriksaan awal (berkurang sekitar ' + absPac + '%). Tetap lanjutkan perawatan sesuai anjuran perawat atau dokter. Hasil ini merupakan estimasi berdasarkan foto, bukan diagnosis medis.'
+    };
+    if (r.trend === 'up') return {
+      clin: head + 'Area luka terukur meningkat dari ' + a0 + ' menjadi ' + at + ' (PAC: ' + pacS + ', ΔA: ' + dS + '). Hasil pengukuran menunjukkan perluasan luas permukaan luka. Pemeriksaan klinis langsung diperlukan untuk menentukan tindakan selanjutnya.',
+      pat: 'Berdasarkan hasil pengukuran sistem, area luka pada pemeriksaan ini terdeteksi lebih besar dibandingkan pemeriksaan awal (bertambah sekitar ' + absPac + '%). Segera konsultasikan hasil ini kepada perawat atau dokter untuk pemeriksaan lebih lanjut. Hasil ini merupakan estimasi berdasarkan foto, bukan diagnosis medis.'
+    };
+    return {
+      clin: head + 'Tidak terdeteksi perubahan berarti pada luas luka (' + a0 + ' → ' + at + ', ΔA: ' + dS + ', PAC: ' + pacS + '). Hasil pengukuran menunjukkan luas luka relatif stabil. Pemeriksaan klinis langsung tetap diperlukan.',
+      pat: 'Berdasarkan hasil pengukuran sistem, area luka relatif tidak berubah dibandingkan pemeriksaan awal, dengan luas sekitar ' + luasFoto + '. Tetap konsultasikan kondisi luka kepada perawat atau dokter. Hasil ini merupakan estimasi berdasarkan foto, bukan diagnosis medis.'
+    };
+  };
+  const SOURCE_HTML = '<div class="source"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3Z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></svg>' +
+    '<p><b>Sumber:</b> llm (Google Gemini API · temperature: 0.3 · Factual Grounding)</p>' +
+    '<p>Narasi dibuat otomatis sebagai asisten dokumentasi visual, bukan penilaian klinis. Periksa kembali sebelum dijadikan catatan resmi.</p>' +
+    '<p class="proto">Prototipe: teks pada halaman ini disusun otomatis oleh mockup dari angka pada state yang dipilih.</p></div>';
+
+  /* ---------- Render ---------- */
   const render = () => {
-    const d = STATES[state], b = BANNERS[d.kind];
-    $('visitMeta').textContent = 'Kunjungan ke-' + d.visit + ' · ' + d.date;
-    const chip = $('chip'); chip.textContent = d.chip; chip.className = 'chip ' + d.kind;
+    const c = cur, r = calc(c), b = BANNERS[c.kind];
+    const isBase = c.kind === 'base', isDraft = c.kind === 'draft';
+
+    $('visitMeta').textContent = 'Kunjungan ke-' + c.visit + ' · ' + c.date;
+    const chip = $('chip'); chip.textContent = c.chip; chip.className = 'chip ' + c.kind;
     $('bannerBox').innerHTML = '<div class="banner ' + b[0] + '">' + ICON[b[3]].replace('class="i"', 'class="i" style="width:20px;height:20px"') + '<div><b>' + b[1] + '</b>' + b[2] + '</div></div>';
     if (!firstRender) $('live').textContent = b[1] + '. ' + b[2];
 
-    paint($('cOrig'), d.area, false); paint($('cSeg'), d.area, true);
-    $('areaVal').textContent = pct2(d.area);
+    const ruler = c.photo === 'ruler';
+    paint($('cOrig'), c.rel, false, ruler); paint($('cSeg'), c.rel, true, ruler);
+    $('cOrig').setAttribute('aria-label', ruler ? 'Ilustrasi foto luka dengan penggaris sentimeter di bawah luka, tanpa overlay' : 'Ilustrasi foto luka tanpa overlay');
+    $('cSeg').setAttribute('aria-label', 'Ilustrasi foto luka yang sama dengan overlay masker hijau transparan pada area luka');
 
-    const isBase = d.kind === 'base';
+    /* Kartu luas */
+    const cal = r.hasCal;
+    $('modeBadge').textContent = cal ? 'Terkalibrasi · cm²' : 'Basis Relatif · %';
+    $('modeBadge').className = 'modebadge ' + (cal ? 'cal' : 'rel');
+    $('areaVal').textContent = cal ? fmt(c.cal.cm2) + ' cm²' : fmt(c.rel) + '%';
+    $('areaSub').textContent = cal ? 'setara ' + fmt(c.rel) + '% dari luas citra' : 'Persentase area luka pada citra';
+    $('areaLimit').textContent = cal
+      ? 'Luas dihitung dari kalibrasi penggaris dua titik pada bidang penggaris. Tidak mengoreksi perbedaan sudut pandang.'
+      : 'Estimasi relatif terhadap luas citra (% kanvas), tanpa penanda kalibrasi fisik. Bukan ukuran dalam cm².';
     $('metrics').classList.toggle('one', isBase);
     $('baseNote').hidden = !isBase;
     $('pacCard').hidden = isBase;
     $('chartCard').hidden = isBase;
-    $('tabsCard').hidden = isBase;
 
     if (!isBase) {
-      const up = DIFF > 0;
-      $('pacCard').innerHTML =
-        '<div class="m-label" id="m2">Perubahan Persentase Area (PAC)</div>' +
-        '<div class="m-value">' + PAC3_TXT + '</div>' +
-        '<div class="m-sub">Status vs Baseline A₀ (luas awal ' + pct2(A0) + ')</div>' +
-        '<span class="trend">' + ICON.down + '<span>' + PAC3_TXT + ' · Tren Menurun (Area Luka Mengecil)</span></span>' +
-        '<div class="fluct">' + (up ? ICON.up : ICON.down) +
-          '<div><b>Fluktuasi vs Kunjungan 2</b>' + (up ? 'Meningkat ' : 'Menurun ') + sgn(DIFF, 2) + ' poin persentase dari kunjungan sebelumnya (' +
-          VISITS[1].area.toFixed(2).replace('.', ',') + '% → ' + VISITS[2].area.toFixed(2).replace('.', ',') + '%), namun secara kumulatif masih ' +
-          Math.abs(PAC3).toFixed(1).replace('.', ',') + '% di bawah kondisi awal.' +
-          '<span class="minor">Perubahan sekecil ini dapat dipengaruhi variasi jarak dan sudut pengambilan foto.</span></div></div>' +
-        '<div class="formula"><code>PAC = ((A₀ − Aₜ) / A₀) × 100%</code><br>PAC positif: luas luka lebih kecil dari baseline. PAC negatif: lebih besar.</div>';
-      renderChart(d.kind === 'final');
+      const a0txt = r.basis === 'calibrated' ? fmt(c.a0Cm2) + ' cm²' : fmt(c.a0Rel) + '%';
+      const t = r.trend;
+      const tIcon = t === 'down' ? ICON.down : t === 'up' ? ICON.up : ICON.flat;
+      let h = '<div class="m-head"><div class="m-label" id="m2">' + (isDraft ? 'Pratinjau PAC (belum disimpan)' : 'Perubahan Persentase Area (PAC)') + '</div>' +
+        '<span class="modebadge ' + (r.basis === 'calibrated' ? 'cal' : 'rel') + '">Basis ' + (r.basis === 'calibrated' ? 'cm²' : 'luas relatif') + '</span></div>' +
+        '<div class="m-value">' + sgn(r.pac, 1) + '%</div>' +
+        '<div class="m-sub">Status vs Baseline A₀ (luas awal ' + a0txt + ')</div>' +
+        '<span class="trend ' + t + '">' + tIcon + '<span>' + sgn(r.pac, 1) + '% · ' + TREND_TXT[t] + '</span></span>';
+      r.warnings.forEach(w => { h += warnHTML(w); });
+
+      if (r.basis === 'relative' && c.visit === 3) {
+        const diff = c.rel - PREV_REL, up = diff > 0;
+        const cum = r.pac > 0 ? 'masih ' + Math.abs(r.pac).toFixed(1).replace('.', ',') + '% di bawah kondisi awal'
+                              : 'sudah ' + Math.abs(r.pac).toFixed(1).replace('.', ',') + '% di atas kondisi awal';
+        h += '<div class="warn" style="color:var(--amber)">' + (up ? ICON.up : ICON.down) +
+          '<div><b>Fluktuasi vs Kunjungan 2</b>' + (up ? 'Meningkat ' : 'Menurun ') + sgn(diff, 2) + ' poin persentase dari kunjungan sebelumnya (' +
+          fmt(PREV_REL) + '% → ' + fmt(c.rel) + '%), namun secara kumulatif ' + cum + '.' +
+          (Math.abs(diff) < 1 ? '<span class="minor">Perubahan sekecil ini dapat dipengaruhi variasi jarak dan sudut pengambilan foto.</span>' : '') + '</div></div>';
+      }
+      if (r.basis === 'calibrated') {
+        const sc0 = Math.sqrt(c.a0Cm2 / (c.a0Rel / 100 * W * H));
+        const sct = Math.sqrt(c.cal.cm2 / (c.rel / 100 * W * H));
+        h += '<details class="det"><summary>Rincian perhitungan</summary><table><thead><tr><th></th><th>A₀</th><th>Aₜ</th><th>PAC</th></tr></thead><tbody>' +
+          '<tr><td>Luas cm²</td><td class="n">' + fmt(c.a0Cm2) + '</td><td class="n">' + fmt(c.cal.cm2) + '</td><td class="n">' + sgn(r.pac, 1) + '%</td></tr>' +
+          '<tr><td>Luas relatif</td><td class="n">' + fmt(c.a0Rel) + '%</td><td class="n">' + fmt(c.rel) + '%</td><td class="n">' + sgn(r.pacRel, 1) + '%</td></tr></tbody></table>' +
+          '<p>Skala s₀ = ' + sc0.toFixed(5).replace('.', ',') + ' cm/px, sₜ = ' + sct.toFixed(5).replace('.', ',') + ' cm/px, rasio sₜ/s₀ ≈ ' + fmt(sct / sc0) + '. PAC relatif ditampilkan sebagai pembanding: tanpa kalibrasi, selisih jarak kamera akan terbaca sebagai perubahan luas.</p></details>';
+      }
+      h += '<div class="formula"><code>PAC = ((A₀ − Aₜ) / A₀) × 100%</code><br>PAC positif: luas luka lebih kecil dari baseline. PAC negatif: lebih besar.</div>';
+      $('pacCard').innerHTML = h;
+      renderChart(c, r);
     }
 
+    /* Narasi */
+    $('narrWait').hidden = !isDraft;
+    $('tabsCard').hidden = c.kind !== 'final';
+    if (c.kind === 'final') {
+      const n = narr(c, r);
+      $('p-ringkasan').innerHTML = '<p>' + n.pat + '</p>' + SOURCE_HTML;
+      $('p-catatan').innerHTML = '<p>' + n.clin + '</p>' + SOURCE_HTML;
+    }
+
+    /* Kalibrasi (hanya draf) */
+    $('calbox').hidden = !isDraft;
+    if (isDraft) syncCalPanel();
+
+    /* Aksi */
     const ac = $('actions');
-    ac.classList.toggle('sticky', d.kind === 'draft');
-    if (d.kind === 'draft') {
+    ac.classList.toggle('sticky', isDraft);
+    if (isDraft) {
       ac.hidden = false;
       ac.innerHTML = '<p class="hint">Periksa batas masker segmentasi pada foto. Jika sesuai, konfirmasi dan simpan. Jika masker salah, ambil foto ulang.</p>' +
         '<div class="btn-row"><button class="btn btn-secondary" type="button" id="bDiscard">Foto Ulang / Buang Draf</button><button class="btn btn-primary" type="button" id="bSave">Konfirmasi dan Simpan</button></div>';
       $('bSave').onclick = () => openModal('mSave', $('bSave'));
       $('bDiscard').onclick = () => openModal('mDiscard', $('bDiscard'));
-    } else if (d.kind === 'final') {
+    } else if (c.kind === 'final') {
       ac.hidden = false;
       ac.innerHTML = '<p class="hint">Hasil ini sudah dikonfirmasi dan tersimpan dalam riwayat pasien.</p><div class="btn-row"><a class="btn btn-primary" href="/pasien/RM-0012">' + ICON.hist + 'Lihat Riwayat Pasien</a></div>';
     } else { ac.innerHTML = ''; ac.hidden = true; }
@@ -563,7 +796,13 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
     document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x.dataset.s === state));
     firstRender = false;
   };
-  const setState = s => { state = s; render(); };
+
+  const setState = s => {
+    state = s; cur = JSON.parse(JSON.stringify(CFG[s]));
+    pts = [null, null]; activeP = 0; $('calLen').value = '2'; calErr('');
+    $('calbox').open = (s === 'draftcal');
+    render();
+  };
   document.querySelectorAll('.seg button').forEach(x => x.addEventListener('click', () => setState(x.dataset.s)));
 
   /* ---------- Tabs ---------- */
@@ -584,13 +823,107 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
     });
   });
 
+  /* ---------- Kalibrasi dua titik ---------- */
+  let pts = [null, null], activeP = 0, dragging = -1;
+  const cv = $('cCal');
+  const calErr = m => { $('calErr').textContent = m; $('calErr').hidden = !m; };
+  const calcCal = () => {
+    if (!pts[0] || !pts[1]) return null;
+    const dpx = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+    const L = parseFloat($('calLen').value);
+    if (!(L > 0 && L <= 50)) return { err: 'Panjang fisik harus lebih dari 0 dan paling besar 50 cm.', dpx };
+    if (dpx < 0.02 * DIAG) return { err: 'Jarak dua titik terlalu dekat (minimal 2% diagonal citra, sekitar ' + Math.ceil(0.02 * DIAG) + ' px).', dpx };
+    const s = L / dpx;
+    return { dpx, L, s, cm2: cur.rel / 100 * W * H * s * s };
+  };
+  const drawCal = () => {
+    paint(cv, cur.rel, false, cur.photo === 'ruler');
+    const g = cv.getContext('2d');
+    if (pts[0] && pts[1]) {
+      g.save(); g.strokeStyle = '#0F2942'; g.lineWidth = 3; g.setLineDash([10, 6]);
+      g.beginPath(); g.moveTo(pts[0].x, pts[0].y); g.lineTo(pts[1].x, pts[1].y); g.stroke(); g.restore();
+    }
+    pts.forEach((p, i) => {
+      if (!p) return;
+      g.save(); g.fillStyle = i === activeP ? '#2A6F73' : '#0F2942'; g.strokeStyle = '#fff'; g.lineWidth = 3;
+      g.beginPath(); g.arc(p.x, p.y, 11, 0, 7); g.fill(); g.stroke();
+      g.fillStyle = '#fff'; g.font = 'bold 14px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), p.x, p.y + 1);
+      g.restore();
+    });
+  };
+  const syncCalPanel = () => {
+    const applied = !!cur.cal;
+    $('calChip').textContent = applied ? 'Diterapkan · ' + fmt(cur.cal.cm2) + ' cm²' : 'Belum diterapkan';
+    $('calChip').className = 'cal-chip' + (applied ? ' on' : '');
+    $('calClear').hidden = !applied;
+    $('calDemoFill').hidden = cur.photo !== 'ruler';
+    $('calDemoNote').hidden = cur.photo === 'ruler';
+    $('pt1').setAttribute('aria-pressed', activeP === 0); $('pt2').setAttribute('aria-pressed', activeP === 1);
+    $('pt1').textContent = activeP === 0 ? 'Titik 1 aktif' : 'Pilih titik 1';
+    $('pt2').textContent = activeP === 1 ? 'Titik 2 aktif' : 'Pilih titik 2';
+    const res = calcCal();
+    if (!res) { $('oDpx').textContent = '–'; $('oScale').textContent = '–'; $('oArea').textContent = '–'; $('calApply').disabled = true; calErr('');
+      $('calStatus').textContent = !pts[0] ? 'Belum ada titik. Klik foto untuk menempatkan titik 1.' : 'Titik 1 sudah ada. Klik foto untuk menempatkan titik 2.'; }
+    else if (res.err) { $('oDpx').textContent = fmt(res.dpx, 1) + ' px'; $('oScale').textContent = '–'; $('oArea').textContent = '–'; $('calApply').disabled = true; calErr(res.err);
+      $('calStatus').textContent = 'Dua titik sudah ada, tetapi belum valid.'; }
+    else { $('oDpx').textContent = fmt(res.dpx, 1) + ' px'; $('oScale').textContent = res.s.toFixed(5).replace('.', ',') + ' cm/px'; $('oArea').textContent = fmt(res.cm2) + ' cm²'; $('calApply').disabled = false; calErr('');
+      $('calStatus').textContent = 'Dua titik valid. Periksa panjang fisik lalu pilih Terapkan Kalibrasi.'; }
+    drawCal();
+  };
+  const toNat = e => {
+    const rc = cv.getBoundingClientRect();
+    return { x: Math.min(W, Math.max(0, (e.clientX - rc.left) * W / rc.width)), y: Math.min(H, Math.max(0, (e.clientY - rc.top) * H / rc.height)), k: W / rc.width };
+  };
+  cv.addEventListener('pointerdown', e => {
+    const n = toNat(e);
+    let idx = -1, best = 24 * n.k;
+    pts.forEach((p, i) => { if (p) { const d = Math.hypot(p.x - n.x, p.y - n.y); if (d < best) { best = d; idx = i; } } });
+    if (idx < 0) idx = !pts[0] ? 0 : !pts[1] ? 1 : activeP;
+    pts[idx] = { x: n.x, y: n.y }; activeP = idx; dragging = idx;
+    cv.setPointerCapture(e.pointerId); cv.focus(); syncCalPanel();
+  });
+  cv.addEventListener('pointermove', e => { if (dragging < 0) return; const n = toNat(e); pts[dragging] = { x: n.x, y: n.y }; syncCalPanel(); });
+  const endDrag = () => { dragging = -1; };
+  cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('keydown', e => {
+    if (e.key === '1') { activeP = 0; syncCalPanel(); return; }
+    if (e.key === '2') { activeP = 1; syncCalPanel(); return; }
+    const d = e.shiftKey ? 10 : 1, p = pts[activeP];
+    if (!p) return;
+    const mv = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] }[e.key];
+    if (!mv) return;
+    e.preventDefault();
+    p.x = Math.min(W, Math.max(0, p.x + mv[0])); p.y = Math.min(H, Math.max(0, p.y + mv[1]));
+    syncCalPanel();
+  });
+  $('pt1').addEventListener('click', () => { activeP = 0; syncCalPanel(); });
+  $('pt2').addEventListener('click', () => { activeP = 1; syncCalPanel(); });
+  $('calLen').addEventListener('input', syncCalPanel);
+  $('calReset').addEventListener('click', () => { pts = [null, null]; activeP = 0; syncCalPanel(); });
+  $('calDemoFill').addEventListener('click', () => {
+    pts = [{ x: RULER_X0 + RULER_PX_PER_CM * 1, y: RULER_Y }, { x: RULER_X0 + RULER_PX_PER_CM * 3, y: RULER_Y }];
+    $('calLen').value = '2'; activeP = 0; syncCalPanel();
+  });
+  $('calApply').addEventListener('click', () => {
+    const res = calcCal(); if (!res || res.err) return;
+    cur.cal = { cm2: res.cm2, L: res.L, scale: res.s };
+    render(); toast('Kalibrasi diterapkan pada draf ini.');
+  });
+  $('calClear').addEventListener('click', () => { cur.cal = null; render(); toast('Kalibrasi dihapus. Pengukuran kembali memakai luas relatif.'); });
+
   /* ---------- Modal ---------- */
   let opener = null, openId = null;
   const focusables = m => [...m.querySelectorAll('input,button,a[href]')].filter(x => !x.disabled);
   function openModal(id, from) {
     opener = from; openId = id;
     const m = $(id);
-    if (id === 'mSave') { $('chkMask').checked = false; setChkErr(''); }
+    if (id === 'mSave') {
+      $('chkMask').checked = false; setChkErr('');
+      const r = calc(cur);
+      $('ms-d').textContent = 'Hasil kunjungan ke-' + cur.visit + ' (' + cur.date + ') akan dikonfirmasi dan disimpan sebagai rekam kunjungan final pasien RM-0012 dengan pengukuran ' +
+        (cur.cal ? 'terkalibrasi (cm²)' : 'berbasis luas relatif (%)') + (r.basis === 'relative' && cur.cal ? ', PAC memakai luas relatif karena kunjungan awal tidak terkalibrasi' : '') +
+        '. Setelah disimpan, hasil dan kalibrasi tidak dapat diubah dan menjadi bagian dari riwayat pasien.';
+    }
     m.hidden = false;
     const init = m.dataset.initial ? $(m.dataset.initial) : m.querySelector('[data-close]');
     init.focus();
@@ -631,12 +964,13 @@ h1{font-size:28px;line-height:1.2;font-weight:650;letter-spacing:-.02em;color:va
       $('chkMask').focus(); return;
     }
     $('mSave').hidden = true; openId = null;
-    state = 'final'; render();
+    cur.kind = 'final'; cur.chip = 'Final — Tersimpan';
+    render();
     const link = document.querySelector('#actions a'); if (link) link.focus();
     toast('Hasil kunjungan berhasil dikonfirmasi dan disimpan.');
   });
 
-  render();
+  setState('draft');
 })();
 </script>
 </body>
