@@ -1488,5 +1488,38 @@ async def test_39_demo_sample_photo_whitelist_and_non_demo_rejected(
     assert r_bad_file.status_code == 400
 
 
+async def test_40_reject_webp_upload_422(
+    visit_client: tuple[AsyncClient, Path],
+) -> None:
+    """
+    U3: Backend menolak berkas berformat WebP (baik content_type image/webp
+    maupun berkas WebP yang disamarkan berekstensi .jpg) dengan HTTP 422.
+    """
+    ac, _ = visit_client
+    _override_segmentation_px(3277)
+
+    webp_img = Image.new("RGB", (64, 64), color=(150, 100, 90))
+    buf = io.BytesIO()
+    webp_img.save(buf, format="WEBP")
+    webp_bytes = buf.getvalue()
+
+    r_webp = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-01", "distance_confirmed": "true"},
+        files={"file": ("luka.webp", webp_bytes, "image/webp")},
+    )
+    assert r_webp.status_code == 422
+    assert "JPG atau PNG" in r_webp.json()["detail"]
+
+    r_spoofed = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-01", "distance_confirmed": "true"},
+        files={"file": ("luka_palsu.jpg", webp_bytes, "image/jpeg")},
+    )
+    assert r_spoofed.status_code == 422
+    assert "JPG atau PNG" in r_spoofed.json()["detail"]
+
+
+
 
 
