@@ -52,11 +52,15 @@ def _override_segmentation_px(n_px: int) -> None:
     app.dependency_overrides[get_segmentation_service] = _get_custom_service
 
 
+_REAL_GEMINI_API_KEY = settings.gemini_api_key.strip()
+
+
 @pytest.fixture
 async def visit_client(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> AsyncGenerator[tuple[AsyncClient, Path], None]:
     monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "gemini_api_key", "")
 
     test_engine = create_async_engine(settings.resolved_test_database_url, future=True)
     TestSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False, class_=AsyncSession)
@@ -1297,15 +1301,17 @@ async def test_36_reversed_trend_direction_rejected_and_fallback(
 
 
 @pytest.mark.skipif(
-    not settings.gemini_api_key.strip(),
+    not _REAL_GEMINI_API_KEY,
     reason="GEMINI_API_KEY kosong; uji manual Gemini asli dilewati",
 )
 async def test_37_real_gemini_api_call_manual(
     visit_client: tuple[AsyncClient, Path],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Uji manual dengan GEMINI_API_KEY asli (dilewati otomatis bila key kosong)."""
     ac, _ = visit_client
-    raw_key = settings.gemini_api_key.strip()
+    monkeypatch.setattr(settings, "gemini_api_key", _REAL_GEMINI_API_KEY)
+    raw_key = _REAL_GEMINI_API_KEY
     masked_key = f"{raw_key[:6]}...{raw_key[-4:]}" if len(raw_key) > 10 else "***"
     await _create_and_confirm_baseline(ac, n_px=3277, visit_date="2026-10-01")
     _override_segmentation_px(2294)
