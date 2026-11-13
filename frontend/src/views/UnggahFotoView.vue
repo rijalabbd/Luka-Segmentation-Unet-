@@ -12,6 +12,8 @@ import {
   resolveStorageUrl,
 } from '@/api/patients'
 import type { PatientSummary, VisitRecord } from '@/types/patient'
+import ReferencePanel from '@/components/ReferencePanel.vue'
+import { formatDateID, formatFileSize, getTodayISO } from '@/utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,14 +32,6 @@ const isLoadingPatient = ref(true)
 const loadError = ref('')
 const submitError = ref('')
 
-function getTodayISO(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
 const todayISO = getTodayISO()
 const visitDate = ref(todayISO)
 
@@ -49,13 +43,10 @@ const isConfirmed = ref(false)
 const isLoadingSample = ref(false)
 const isSubmitting = ref(false)
 const liveAnnouncement = ref('')
-const isZoomOpen = ref(false)
 
-// Panel foto acuan state (10.3)
+// Panel foto acuan state (U1)
 const activeRefTab = ref<'baseline' | 'latest'>('baseline')
 const showRefContour = ref(false)
-const compareMode = ref<'side' | 'overlay'>('side')
-const overlayOpacity = ref(50)
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const pickBtnRef = ref<HTMLButtonElement | null>(null)
@@ -109,30 +100,6 @@ const activeRefDisplayUrl = computed(() => {
 })
 
 const latestFinalDate = computed(() => latestFinalVisit.value?.visit_date ?? '')
-
-const MONTHS_SHORT = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'Mei',
-  'Jun',
-  'Jul',
-  'Agu',
-  'Sep',
-  'Okt',
-  'Nov',
-  'Des',
-]
-
-function formatDateID(isoDate: string | null | undefined): string {
-  if (!isoDate) return '-'
-  const parts = isoDate.split('-').map(Number)
-  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return isoDate
-  const [y, m, d] = parts
-  const monthName = MONTHS_SHORT[(m ?? 1) - 1] ?? ''
-  return `${String(d).padStart(2, '0')} ${monthName} ${y}`
-}
 
 const visitBadgeText = computed(() => {
   if (!isFollowUp.value) {
@@ -194,13 +161,6 @@ const confirmLabelText = computed(() => {
     ? 'Saya sudah membandingkan foto dengan foto acuan; jarak dan sudut sudah sama.'
     : 'Foto diambil sesuai panduan di samping.'
 })
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) {
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 function revokePreview() {
   if (previewUrl.value) {
@@ -577,240 +537,17 @@ onBeforeUnmount(() => {
               <p v-if="dateError" id="tgl-err" class="error" role="alert">{{ dateError }}</p>
             </div>
 
-            <!-- Panel Foto Acuan (10.3) -->
-            <section
-              v-if="!isFollowUp"
-              id="ref-panel-baseline"
-              class="ref-panel ref-baseline-only"
-              aria-labelledby="ref-baseline-heading"
-            >
-              <h2 id="ref-baseline-heading" class="ref-title">Foto acuan</h2>
-              <p id="ref-baseline-msg" class="ref-baseline-note">
-                Kunjungan awal: foto ini akan menjadi acuan kunjungan berikutnya.
-              </p>
-            </section>
-
-            <section
-              v-else
-              id="ref-panel"
-              class="ref-panel"
-              aria-labelledby="ref-title"
-            >
-              <div class="ref-header">
-                <div>
-                  <h2 id="ref-title" class="ref-title">Foto acuan</h2>
-                  <p class="ref-sub">
-                    Alat bantu visual untuk menyamakan jarak dan sudut pemotretan terhadap kunjungan
-                    sebelumnya.
-                  </p>
-                </div>
-
-                <!-- Pilihan tab acuan: Baseline (A0) sebagai utama, Kunjungan Terakhir sebagai tab kedua -->
-                <div
-                  v-if="hasDistinctLatestRef"
-                  class="ref-tabs"
-                  role="tablist"
-                  aria-label="Pilih foto kunjungan acuan"
-                >
-                  <button
-                    id="tab-ref-baseline"
-                    type="button"
-                    role="tab"
-                    class="ref-tab"
-                    :class="{ active: activeRefTab === 'baseline' }"
-                    :aria-selected="activeRefTab === 'baseline'"
-                    @click="activeRefTab = 'baseline'"
-                  >
-                    Acuan Utama: Baseline A₀ (Kunjungan ke-1 ·
-                    {{ formatDateID(baselineVisit?.visit_date) }})
-                  </button>
-                  <button
-                    id="tab-ref-latest"
-                    type="button"
-                    role="tab"
-                    class="ref-tab"
-                    :class="{ active: activeRefTab === 'latest' }"
-                    :aria-selected="activeRefTab === 'latest'"
-                    @click="activeRefTab = 'latest'"
-                  >
-                    Kunjungan Terakhir (Kunjungan ke-{{ latestFinalVisit?.visit_index }} ·
-                    {{ formatDateID(latestFinalVisit?.visit_date) }})
-                  </button>
-                </div>
-              </div>
-
-              <!-- Keadaan ketika pasien tidak memiliki berkas citra pada kunjungan acuan -->
-              <div v-if="!activeRefImageUrl" id="ref-unavailable" class="ref-unavailable" role="status">
-                <strong>Foto acuan tidak tersedia</strong>
-                <span>
-                  Data kunjungan ke-{{ activeRefVisit?.visit_index ?? 1 }} ({{
-                    formatDateID(activeRefVisit?.visit_date)
-                  }}) tidak menyertakan berkas citra. Gunakan panduan jarak dan sudut di samping.
-                </span>
-              </div>
-
-              <!-- Keadaan ketika foto acuan tersedia -->
-              <div v-else class="ref-body">
-                <div class="ref-toolbar">
-                  <div class="ref-meta">
-                    <span class="ref-tag">
-                      {{
-                        activeRefTab === 'baseline' || !hasDistinctLatestRef
-                          ? 'Baseline A₀'
-                          : 'Kunjungan Terakhir'
-                      }}
-                    </span>
-                    <span class="ref-meta-text">
-                      Kunjungan ke-{{ activeRefVisit?.visit_index }} ·
-                      {{ formatDateID(activeRefVisit?.visit_date) }} · Luas relatif:
-                      <strong>{{ activeRefVisit?.area_pct.toFixed(2) }}%</strong>
-                    </span>
-                  </div>
-
-                  <div class="ref-controls">
-                    <label v-if="activeRefOverlayUrl" class="contour-toggle" for="toggle-ref-contour">
-                      <input
-                        id="toggle-ref-contour"
-                        v-model="showRefContour"
-                        type="checkbox"
-                      />
-                      <span>Tampilkan kontur masker acuan</span>
-                    </label>
-                    <button
-                      id="ref-open"
-                      type="button"
-                      class="btn btn-secondary btn-sm"
-                      :aria-label="`Perbesar foto acuan kunjungan ke-${activeRefVisit?.visit_index}`"
-                      @click="isZoomOpen = true"
-                    >
-                      Perbesar
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Jika foto baru belum dipilih: tampilkan foto acuan tunggal -->
-                <div v-if="!selectedFile" id="ref-single-view" class="ref-single">
-                  <div class="ref-img-box">
-                    <img
-                      id="ref-img"
-                      :src="activeRefDisplayUrl"
-                      :alt="`Foto luka acuan dari kunjungan ke-${activeRefVisit?.visit_index}`"
-                    />
-                  </div>
-                  <div class="ref-single-caption">
-                    <p>
-                      Perhatikan posisi tepi anggota tubuh dan proporsi luka pada bingkai di samping
-                      sebelum mengambil atau memilih foto kunjungan baru.
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Jika foto baru sudah dipilih: tampilkan mode Berdampingan atau Tumpuk -->
-                <div v-else class="ref-compare">
-                  <div class="compare-bar">
-                    <span class="compare-lbl">Mode perbandingan visual:</span>
-                    <div class="mode-switch" role="group" aria-label="Mode perbandingan visual">
-                      <button
-                        id="mode-side"
-                        type="button"
-                        class="mode-btn"
-                        :class="{ active: compareMode === 'side' }"
-                        :aria-pressed="compareMode === 'side'"
-                        @click="compareMode = 'side'"
-                      >
-                        Berdampingan
-                      </button>
-                      <button
-                        id="mode-overlay"
-                        type="button"
-                        class="mode-btn"
-                        :class="{ active: compareMode === 'overlay' }"
-                        :aria-pressed="compareMode === 'overlay'"
-                        @click="compareMode = 'overlay'"
-                      >
-                        Tumpuk
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Mode 1: Berdampingan -->
-                  <div v-if="compareMode === 'side'" id="ref-side-view" class="ref-side-grid">
-                    <figure class="compare-card">
-                      <div class="compare-head">
-                        <span>Foto Acuan (Kunjungan ke-{{ activeRefVisit?.visit_index }})</span>
-                        <small>{{ formatDateID(activeRefVisit?.visit_date) }}</small>
-                      </div>
-                      <div class="compare-square">
-                        <img
-                          :src="activeRefDisplayUrl"
-                          :alt="`Foto acuan kunjungan ke-${activeRefVisit?.visit_index}`"
-                        />
-                      </div>
-                    </figure>
-
-                    <figure class="compare-card">
-                      <div class="compare-head">
-                        <span>Foto Baru (Kunjungan ke-{{ nextVisitNumber }})</span>
-                        <small>{{ formatDateID(visitDate) }}</small>
-                      </div>
-                      <div class="compare-square">
-                        <img
-                          :src="previewUrl"
-                          alt="Foto baru yang dipilih untuk dibandingkan"
-                        />
-                      </div>
-                    </figure>
-                  </div>
-
-                  <!-- Mode 2: Tumpuk dengan slider transparansi 0-100% -->
-                  <div v-else id="ref-overlay-view" class="ref-overlay-wrap">
-                    <div class="overlay-stage">
-                      <img
-                        class="overlay-base"
-                        :src="activeRefDisplayUrl"
-                        :alt="`Lapisan bawah: foto acuan kunjungan ke-${activeRefVisit?.visit_index}`"
-                      />
-                      <img
-                        class="overlay-top"
-                        :src="previewUrl"
-                        alt="Lapisan atas: foto kunjungan baru"
-                        :style="{ opacity: overlayOpacity / 100 }"
-                      />
-                    </div>
-
-                    <div class="slider-panel">
-                      <div class="slider-head">
-                        <label for="opacity-slider">
-                          Transparansi foto baru: <strong>{{ overlayOpacity }}%</strong>
-                        </label>
-                        <span class="slider-sub">
-                          Geser untuk menyamakan tepi anggota tubuh dan ukuran bingkai
-                        </span>
-                      </div>
-                      <input
-                        id="opacity-slider"
-                        v-model.number="overlayOpacity"
-                        type="range"
-                        min="0"
-                        max="100"
-                        step="1"
-                      />
-                      <div class="slider-ticks" aria-hidden="true">
-                        <span>0% (Foto acuan)</span>
-                        <span>50%</span>
-                        <span>100% (Foto baru)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <p class="ref-tip">
-                <strong>Tips jarak pemotretan:</strong> Selisih jarak kecil pun menggeser luas
-                terbaca (selisih jarak sekitar 2,5% kira-kira menggeser luas sekitar 5%). Panel ini
-                adalah alat bantu visual, bukan pengukur jarak otomatis.
-              </p>
-            </section>
+            <!-- Panel Foto Acuan (U1) -->
+            <ReferencePanel
+              v-model:active-tab="activeRefTab"
+              v-model:show-contour="showRefContour"
+              :is-follow-up="isFollowUp"
+              :has-distinct-latest="hasDistinctLatestRef"
+              :active-visit="activeRefVisit"
+              :active-image-url="activeRefImageUrl"
+              :active-overlay-url="activeRefOverlayUrl"
+              :active-display-url="activeRefDisplayUrl"
+            />
 
             <label id="foto-lbl" class="lbl" for="file">Foto Luka</label>
 
@@ -1000,31 +737,6 @@ onBeforeUnmount(() => {
         </div>
       </template>
     </main>
-
-    <!-- Dialog perbesar foto acuan -->
-    <div
-      v-if="isZoomOpen && activeRefDisplayUrl"
-      id="zoom"
-      class="modal-back"
-      @click.self="isZoomOpen = false"
-    >
-      <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="z-t">
-        <div class="cap">
-          <h2 id="z-t">
-            Acuan Kunjungan ke-{{ activeRefVisit?.visit_index }} ·
-            {{ formatDateID(activeRefVisit?.visit_date) }}
-          </h2>
-          <button class="btn btn-secondary" type="button" @click="isZoomOpen = false">
-            Tutup
-          </button>
-        </div>
-        <img
-          id="z-img"
-          :src="activeRefDisplayUrl"
-          :alt="`Foto luka acuan dari kunjungan ke-${activeRefVisit?.visit_index}, ukuran diperbesar`"
-        />
-      </div>
-    </div>
   </div>
 </template>
 
