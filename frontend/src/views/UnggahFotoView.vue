@@ -297,9 +297,20 @@ async function loadDemoSamplePhoto() {
     handleSelectedFile(sampleFile)
   } catch (err) {
     if (err instanceof ApiError) {
-      fileError.value = err.message
+      if (err.status === 403) {
+        fileError.value =
+          err.message || 'Foto sampel hanya tersedia untuk pasien mode demo.'
+      } else if (err.status === 404) {
+        fileError.value =
+          err.message || 'Pasien atau berkas foto sampel demo tidak ditemukan di server.'
+      } else if (err.status === 0) {
+        fileError.value =
+          'Tidak dapat terhubung ke server backend untuk memuat foto sampel.'
+      } else {
+        fileError.value = err.message
+      }
     } else {
-      fileError.value = 'Gagal memuat foto sampel dari server backend.'
+      fileError.value = 'Tidak dapat terhubung ke server backend untuk memuat foto sampel.'
     }
   } finally {
     isLoadingSample.value = false
