@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 from datetime import date, datetime, timedelta, timezone
 import io
 import json
+import os
 from pathlib import Path
 
 from PIL import Image
@@ -1301,18 +1302,17 @@ async def test_36_reversed_trend_direction_rejected_and_fallback(
 
 
 @pytest.mark.skipif(
-    not _REAL_GEMINI_API_KEY,
-    reason="GEMINI_API_KEY kosong; uji manual Gemini asli dilewati",
+    os.getenv("RUN_REAL_GEMINI") != "1" or not _REAL_GEMINI_API_KEY,
+    reason="Diperlukan RUN_REAL_GEMINI=1 dan GEMINI_API_KEY terisi untuk uji manual Gemini asli",
 )
 async def test_37_real_gemini_api_call_manual(
     visit_client: tuple[AsyncClient, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Uji manual dengan GEMINI_API_KEY asli (dilewati otomatis bila key kosong)."""
+    """Uji manual dengan GEMINI_API_KEY asli (hanya berjalan bila RUN_REAL_GEMINI=1)."""
     ac, _ = visit_client
     monkeypatch.setattr(settings, "gemini_api_key", _REAL_GEMINI_API_KEY)
     raw_key = _REAL_GEMINI_API_KEY
-    masked_key = f"{raw_key[:6]}...{raw_key[-4:]}" if len(raw_key) > 10 else "***"
     await _create_and_confirm_baseline(ac, n_px=3277, visit_date="2026-10-01")
     _override_segmentation_px(2294)
     r2 = await ac.post(
@@ -1323,7 +1323,7 @@ async def test_37_real_gemini_api_call_manual(
     c2 = await ac.post(f"/api/v1/visits/{r2.json()['id']}/confirm")
     assert c2.status_code == 200
     body = c2.json()
-    print(f"\n[TEST_37] GEMINI_MODEL={settings.gemini_model} KEY={masked_key}")
+    print(f"\n[TEST_37] GEMINI_MODEL={settings.gemini_model} key terisi ({len(raw_key)} karakter)")
     print(f"[TEST_37] narrative_source={body['narrative_source']}")
     print(f"[TEST_37] clinician_notes={body['clinician_notes']}")
     print(f"[TEST_37] patient_narrative={body['patient_narrative']}")
