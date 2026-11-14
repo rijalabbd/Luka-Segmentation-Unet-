@@ -27,8 +27,10 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-woundai}:${POSTGRES_PASSWORD:-woundai_secret}@db:5432/${POSTGRES_DB:-woundai_db}
       TEST_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-woundai}:${POSTGRES_PASSWORD:-woundai_secret}@db:5432/${POSTGRES_TEST_DB:-woundai_test}
       STORAGE_DIR: /app/storage
-      MODEL_CHECKPOINT_PATH: /app/checkpoints/best_resnet34_unet_01norm.pth
-      MODEL_NORMALIZATION: zero_one
+      MODEL_CHECKPOINT_PATH: ${MODEL_CHECKPOINT_PATH:-/app/checkpoints/best_resnet34_unet_01norm.pth}
+      MODEL_NORMALIZATION: ${MODEL_NORMALIZATION:-zero_one}
+      MODEL_INPUT_SIZE: ${MODEL_INPUT_SIZE:-256}
+      MODEL_BINARY_THRESHOLD: ${MODEL_BINARY_THRESHOLD:-0.5}
       SEED_DEMO_ON_STARTUP: ${SEED_DEMO_ON_STARTUP:-false}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash}

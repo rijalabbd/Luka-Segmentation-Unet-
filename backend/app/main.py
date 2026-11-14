@@ -12,7 +12,7 @@ from app.api.v1.endpoints.visits import router as visits_router
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, DBSession
 from app.services.seed import seed_demo_patients
-from app.services.segmentation import load_segmentation_model
+from app.services.segmentation import get_model_identity, load_segmentation_model
 from app.services.storage import (
     ALLOWED_STORAGE_SUBDIRS,
     get_storage_root,
@@ -46,13 +46,14 @@ app.add_middleware(
 
 
 @app.get(f"{settings.api_v1_prefix}/health", tags=["system"])
-async def health_check(db: DBSession) -> dict[str, str]:
+async def health_check(db: DBSession) -> dict[str, object]:
     await db.execute(text("SELECT 1"))
     return {
         "status": "ok",
         "mode": "local_isolated",
         "label": "Server Lokal Terhubung · Data Terisolasi",
         "short_label": "Lokal · Aman",
+        "model": get_model_identity(),
     }
 
 

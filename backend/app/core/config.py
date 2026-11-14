@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,6 +11,8 @@ class Settings(BaseSettings):
     storage_dir: str = "storage"
     model_checkpoint_path: str = "ml/checkpoints/best_resnet34_unet_01norm.pth"
     model_normalization: str = "zero_one"
+    model_input_size: int = 256
+    model_binary_threshold: float = 0.5
     max_upload_size_bytes: int = 10 * 1024 * 1024
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.5-flash"
@@ -21,6 +24,42 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("model_checkpoint_path")
+    @classmethod
+    def validate_model_checkpoint_path(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("MODEL_CHECKPOINT_PATH tidak boleh kosong.")
+        return cleaned
+
+    @field_validator("model_normalization")
+    @classmethod
+    def validate_model_normalization(cls, value: str) -> str:
+        cleaned = value.strip().lower()
+        if cleaned not in {"zero_one", "imagenet"}:
+            raise ValueError(
+                f"MODEL_NORMALIZATION tidak valid: '{value}'. Gunakan 'zero_one' atau 'imagenet'."
+            )
+        return cleaned
+
+    @field_validator("model_input_size")
+    @classmethod
+    def validate_model_input_size(cls, value: int) -> int:
+        if value < 32 or value > 2048 or value % 32 != 0:
+            raise ValueError(
+                f"MODEL_INPUT_SIZE tidak valid: {value}. Harus kelipatan 32 antara 32 dan 2048."
+            )
+        return value
+
+    @field_validator("model_binary_threshold")
+    @classmethod
+    def validate_model_binary_threshold(cls, value: float) -> float:
+        if not (0.0 < value < 1.0):
+            raise ValueError(
+                f"MODEL_BINARY_THRESHOLD tidak valid: {value}. Harus berada di antara 0 dan 1 (eksklusif)."
+            )
+        return value
 
     @property
     def resolved_test_database_url(self) -> str:
