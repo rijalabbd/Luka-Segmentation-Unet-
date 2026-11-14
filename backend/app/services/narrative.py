@@ -461,6 +461,24 @@ async def request_gemini_api(
         return response.json()
 
 
+_LOG_CONTROL_CHARS_RE = re.compile(r"[\r\n\t]+")
+_LOG_PII_PATTERNS = (
+    re.compile(r"\bRM[-\s]?\d+\b", re.IGNORECASE),
+    re.compile(r"\bPatient_[A-Za-z0-9_]+\b", re.IGNORECASE),
+    re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
+    re.compile(r"\b(?:Tn|Ny|Nn|An|Sdr|Bapak|Ibu)\.?\s+[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*\b"),
+    re.compile(r"\b(?:\+?\d[\d\s-]{5,}\d|\d{6,})\b"),
+)
+
+
+def _sanitize_narrative_for_log(text: str) -> str:
+    """Membersihkan baris baru/karakter kontrol serta menyamarkan pola PII sebelum dicatat ke log."""
+    cleaned = _LOG_CONTROL_CHARS_RE.sub(" ", text).strip()
+    for pat in _LOG_PII_PATTERNS:
+        cleaned = pat.sub("[REDACTED_PII]", cleaned)
+    return cleaned
+
+
 def _extract_json_from_gemini_response(raw_response: dict[str, object]) -> dict[str, str]:
     candidates = raw_response.get("candidates")
     if not isinstance(candidates, list) or not candidates:
@@ -567,7 +585,12 @@ async def generate_longitudinal_narrative(
         unit=unit,
     )
     if not is_valid:
-        logger.warning("Narrative fallback reason=validator_rejected:%s", reason)
+        logger.warning(
+            "Narrative fallback reason=validator_rejected:%s raw_clinician_notes=%r raw_patient_narrative=%r",
+            reason,
+            _sanitize_narrative_for_log(parsed["clinician_notes"]),
+            _sanitize_narrative_for_log(parsed["patient_narrative"]),
+        )
         return generate_fallback_narrative(
             a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge, unit=unit
         )

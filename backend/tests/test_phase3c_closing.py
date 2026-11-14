@@ -671,3 +671,73 @@ def test_3d_02_unicode_minus_normalized_across_three_trend_statuses() -> None:
         assert bad_dec is False and rb_dec == "arah_tren_atau_format_pac_tidak_sesuai:pac_negatif_di_narasi_pasien"
         assert bad_stb is False and rb_stb == "arah_tren_atau_format_pac_tidak_sesuai:pac_negatif_di_narasi_pasien"
         assert bad_inc is False and rb_inc == "arah_tren_atau_format_pac_tidak_sesuai:pac_negatif_di_narasi_pasien"
+
+
+async def test_3d_03_rejected_narrative_logged_at_warning_without_pii(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """3d-3: Teks mentah clinician_notes & patient_narrative yang ditolak dicatat di log WARNING tanpa PII."""
+    import json
+    import logging
+    from app.services import narrative as narrative_module
+
+    monkeypatch.setattr(settings, "gemini_api_key", "fake-3d3-key")
+
+    raw_clinician = (
+        "Pasien RM-0010 Tn. Budi Santoso (NIK 3201123456789001):\n"
+        "Area luka meningkat 99,99% dibanding awal."
+    )
+    raw_patient = (
+        "Halo Patient_10, hubungi pasien@contoh.id atau 081234567890.\n"
+        "Ukuran luka terlihat membesar."
+    )
+
+    async def _mock_rejected_with_pii(**_kwargs: object) -> dict[str, object]:
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": json.dumps(
+                                    {
+                                        "clinician_notes": raw_clinician,
+                                        "patient_narrative": raw_patient,
+                                    }
+                                )
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+
+    monkeypatch.setattr(narrative_module, "request_gemini_api", _mock_rejected_with_pii)
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="app.services.narrative"):
+        _, _, src = await narrative_module.generate_longitudinal_narrative(
+            a0=12.60,
+            at=26.37,
+            delta_a=13.77,
+            pac=-109.29,
+            badge="meningkat",
+            trend_status="Tren Meningkat (Area Luka Membesar)",
+            unit="%",
+        )
+
+    assert src == "template_fallback"
+    warn_recs = [
+        rec
+        for rec in caplog.records
+        if rec.levelno == logging.WARNING and "reason=validator_rejected:" in rec.message
+    ]
+    assert len(warn_recs) == 1
+    msg = warn_recs[0].message
+    assert "raw_clinician_notes=" in msg
+    assert "raw_patient_narrative=" in msg
+    assert "Area luka meningkat 99,99% dibanding awal." in msg
+    assert "Ukuran luka terlihat membesar." in msg
+    assert "[REDACTED_PII]" in msg
+    for leak in ("RM-0010", "Budi Santoso", "3201123456789001", "Patient_10", "pasien@contoh.id", "081234567890"):
+        assert leak not in msg
