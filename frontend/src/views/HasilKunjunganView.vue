@@ -12,10 +12,11 @@ import {
   resolveStorageUrl,
 } from '@/api/patients'
 import type { PatientSummary, VisitRecord } from '@/types/patient'
+import PacFinalCard from '@/components/PacFinalCard.vue'
 import PacPreviewCard from '@/components/PacPreviewCard.vue'
 import RulerCalibration from '@/components/RulerCalibration.vue'
 import VisitActionModals from '@/components/VisitActionModals.vue'
-import { formatDateID, formatDecimalID, formatSignedDecimalID } from '@/utils/formatters'
+import { formatDateID, formatDecimalID } from '@/utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -101,7 +102,9 @@ const segmentationDisplayUrl = computed(() => {
   return resolveStorageUrl(visit.value.overlay_path || visit.value.image_path)
 })
 
-const baselineFinalVisit = computed<VisitRecord | null>(() => finalVisits.value[0] ?? null)
+const baselineFinalVisit = computed<VisitRecord | null>(
+  () => finalVisits.value.find((v) => v.visit_index === 1) ?? finalVisits.value[0] ?? null,
+)
 
 const toastMessage = ref('')
 let toastTimer: ReturnType<typeof setTimeout> | undefined
@@ -186,6 +189,11 @@ async function handleConfirmAndSave() {
     visit.value = confirmed
     showSaveModal.value = false
     showToast('Hasil kunjungan berhasil dikonfirmasi dan disimpan.')
+    try {
+      finalVisits.value = await fetchPatientVisits(confirmed.patient_id, 'final')
+    } catch {
+      // Abaikan jika pemuatan ulang daftar final gagal; kunjungan utama sudah tersimpan
+    }
   } catch (err) {
     saveModalError.value = err instanceof ApiError ? err.message : 'Terjadi kesalahan saat mengonfirmasi kunjungan.'
   } finally {
@@ -286,7 +294,15 @@ watch(chkMaskChecked, (val) => { if (val) saveModalError.value = '' })
         </RouterLink>
         <template v-if="visit">
           <span aria-hidden="true">/</span>
-          <span>{{ visit.patient_id }}</span>
+          <RouterLink
+            v-if="!isDraft"
+            :to="`/pasien/${encodeURIComponent(visit.patient_id)}`"
+          >
+            Riwayat {{ visit.patient_id }}
+          </RouterLink>
+          <span v-else>{{ visit.patient_id }}</span>
+          <span aria-hidden="true">/</span>
+          <span aria-current="page">Kunjungan ke-{{ displayVisitNumber }}</span>
         </template>
       </nav>
 
@@ -421,12 +437,27 @@ watch(chkMaskChecked, (val) => { if (val) saveModalError.value = '' })
                     : 'Persentase area luka pada citra'
                 }}
               </div>
+              <div
+                v-if="isCalibrated && visit.scale_cm_per_px !== null"
+                id="areaScale"
+                class="m-sub m-scale"
+              >
+                Skala s = {{ formatDecimalID(visit.scale_cm_per_px, 4) }} cm/px<template
+                  v-if="visit.calib_length_cm !== null"
+                >
+                  (penggaris {{ formatDecimalID(visit.calib_length_cm, 1) }} cm)
+                </template>
+              </div>
               <p id="areaLimit" class="m-limit">
                 {{
                   isCalibrated
                     ? 'Luas dihitung dari kalibrasi penggaris dua titik pada bidang penggaris. Tidak mengoreksi perbedaan sudut pandang.'
                     : 'Estimasi relatif terhadap luas citra (% kanvas), tanpa penanda kalibrasi fisik. Bukan ukuran dalam cm².'
                 }}
+              </p>
+              <p v-if="!isDraft && isBaselineVisit" id="baseNote" class="m-note">
+                Hasil ini menjadi acuan baseline A₀. Nilai PAC dan grafik tren baru tersedia
+                mulai kunjungan kedua.
               </p>
             </section>
 
@@ -435,30 +466,17 @@ watch(chkMaskChecked, (val) => { if (val) saveModalError.value = '' })
               :preview="visit.preview"
               :baseline-visit="baselineFinalVisit"
             />
+            <PacFinalCard
+              v-else-if="!isDraft"
+              :visit="visit"
+              :baseline-visit="baselineFinalVisit"
+            />
           </div>
         </div>
 
         <section v-if="isDraft" id="narrWait" class="panel narr-wait">
           <b>Narasi dibuat setelah hasil dikonfirmasi.</b> Catatan klinis dan ringkasan pasien
           disusun setelah hasil dikonfirmasi dan disimpan.
-        </section>
-
-        <section v-else class="panel final-basic-narr">
-          <h2>Status Kunjungan Final</h2>
-          <p v-if="visit.trend_status">
-            Status tren tersimpan: <b>{{ visit.trend_status }}</b>
-            <template v-if="visit.pac !== null">
-              · PAC {{ formatSignedDecimalID(visit.pac, 1) }}%
-              ({{ visit.pac_basis === 'calibrated' ? 'Terkalibrasi cm²' : 'Basis Relatif %' }})
-            </template>
-          </p>
-          <p v-else>Kunjungan baseline tersimpan tanpa perhitungan PAC.</p>
-          <p v-if="visit.patient_narrative">
-            <b>Ringkasan Pasien:</b> {{ visit.patient_narrative }}
-          </p>
-          <p v-if="visit.clinician_notes">
-            <b>Catatan Klinisi:</b> {{ visit.clinician_notes }}
-          </p>
         </section>
 
         <div v-if="isDraft" id="actions" class="actions sticky">

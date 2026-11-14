@@ -2,18 +2,11 @@
 import { computed } from 'vue'
 import type { VisitPreview, VisitRecord } from '@/types/patient'
 import { formatDecimalID, formatSignedDecimalID } from '@/utils/formatters'
+import { buildActiveWarnings, getTrendCssClass } from '@/utils/visitWarnings'
 
 interface Props {
   preview: VisitPreview
   baselineVisit: VisitRecord | null
-}
-
-interface WarningMeta {
-  code: string
-  title: string
-  text: string
-  strong: boolean
-  role: 'alert' | 'status'
 }
 
 const props = defineProps<Props>()
@@ -45,56 +38,11 @@ const deltaText = computed(() => {
   return isCalibratedBasis.value ? `${signed} cm²` : `${signed} poin persentase`
 })
 
-const trendClass = computed(() => {
-  const txt = (props.preview.trend_status || '').toLowerCase()
-  if (txt.includes('menurun')) return 'down'
-  if (txt.includes('meningkat')) return 'up'
-  return 'flat'
-})
+const trendClass = computed(() => getTrendCssClass(props.preview.trend_status))
 
-const WARNING_DEFINITIONS: Record<string, Omit<WarningMeta, 'code'>> = {
-  DISTANCE_SENSITIVE: {
-    title: 'Perhatikan variasi jarak pemotretan',
-    text: 'Perubahan sekecil ini dapat dipengaruhi variasi jarak pemotretan (±1 cm). Jika foto memuat penggaris, gunakan kalibrasi. Konfirmasi dengan pemeriksaan klinis langsung.',
-    strong: false,
-    role: 'status',
-  },
-  DISTANCE_LARGE: {
-    title: 'Perubahan besar pada foto tanpa kalibrasi',
-    text: 'Pada foto tanpa kalibrasi, selisih jarak pemotretan dapat menimbulkan perubahan luas semu yang besar (misalnya selisih 5 cm pada jarak 20 cm setara sekitar 36%). Periksa kembali jarak foto dengan overlay, atau gunakan kalibrasi jika ada penggaris.',
-    strong: true,
-    role: 'alert',
-  },
-  MIXED_BASIS: {
-    title: 'PAC memakai luas relatif',
-    text: 'PAC dihitung dengan luas relatif karena kunjungan awal tidak terkalibrasi. Kunjungan awal (baseline A₀) tidak memiliki data kalibrasi penggaris, sehingga perbandingan longitudinal tetap menggunakan basis persentase area citra (%).',
-    strong: false,
-    role: 'status',
-  },
-  LOW_BASELINE: {
-    title: 'Luas awal sangat kecil',
-    text: 'Luas awal kurang dari 1% dari citra, sehingga PAC sangat sensitif terhadap selisih kecil jumlah piksel.',
-    strong: false,
-    role: 'status',
-  },
-}
-
-const activeWarnings = computed<WarningMeta[]>(() => {
-  const list: WarningMeta[] = []
-  for (const code of props.preview.warnings ?? []) {
-    if (
-      (code === 'DISTANCE_SENSITIVE' || code === 'DISTANCE_LARGE') &&
-      props.preview.pac_basis !== 'relative'
-    ) {
-      continue
-    }
-    const def = WARNING_DEFINITIONS[code]
-    if (def) {
-      list.push({ code, ...def })
-    }
-  }
-  return list
-})
+const activeWarnings = computed(() =>
+  buildActiveWarnings(props.preview.warnings, props.preview.pac_basis),
+)
 </script>
 
 <template>
