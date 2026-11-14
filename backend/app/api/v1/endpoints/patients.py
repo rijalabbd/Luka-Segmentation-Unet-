@@ -205,7 +205,7 @@ async def create_draft_visit(
         ) from exc
 
     n_wound_px, mask_bytes = await run_in_threadpool(segment_fn, image_bytes)
-    safe_filename = f"upload{ext}" if not file.filename else file.filename
+    safe_filename = f"upload{ext}"
     image_rel, mask_rel = await run_in_threadpool(
         save_visit_files,
         patient.rm_code,
