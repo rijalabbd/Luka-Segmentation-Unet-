@@ -137,3 +137,125 @@ async def test_p3_stored_image_dimensions_match_columns_exif_and_non_square(
             f"[P3-RECT] path={v2['image_path']} db=({v2['img_width_px']}x{v2['img_height_px']}) "
             f"storage=({stored_2.width}x{stored_2.height})"
         )
+
+
+async def test_p4_system_prompt_unit_clauses_calming_phrases_and_meningkat_consultation(
+    patch_client: tuple[AsyncClient, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """P4: Klausa satuan dua mode di system prompt, tolak kalimat menenangkan, dan wajibkan ajakan konsultasi Tren Meningkat."""
+    ac, _ = patch_client
+
+    # 1. Verifikasi klausa kondisional % dan cm² hadir di SYSTEM_PROMPT_TABEL_3_4
+    assert 'Jika masukan tidak memuat field "satuan"' in SYSTEM_PROMPT_TABEL_3_4
+    assert "dilarang menggunakan satuan cm atau cm²" in SYSTEM_PROMPT_TABEL_3_4
+    assert 'Jika masukan memuat "satuan": "cm²"' in SYSTEM_PROMPT_TABEL_3_4
+    assert 'istilah "poin persentase" dilarang' in SYSTEM_PROMPT_TABEL_3_4
+
+    # 2. Validator menolak keempat frasa menenangkan pada seluruh status tren
+    calming_phrases = ("tenang", "jangan khawatir", "tidak perlu cemas", "baik-baik saja")
+    trend_cases: tuple[tuple[str, float, float, float, float], ...] = (
+        ("menurun", 5.00, 3.50, -1.50, 30.00),
+        ("stabil", 5.00, 4.90, -0.10, 2.00),
+        ("meningkat", 5.00, 6.50, 1.50, -30.00),
+    )
+    for badge, a0, at, delta_a, pac in trend_cases:
+        c_raw, p_ok, _ = generate_fallback_narrative(a0, at, delta_a, pac, badge)  # type: ignore[arg-type]
+        c_ok = (
+            c_raw
+            if "estimasi" in c_raw.lower() and "foto" in c_raw.lower()
+            else f"{c_raw} Hasil ini merupakan estimasi berdasarkan foto, bukan diagnosis medis."
+        )
+        for phrase in calming_phrases:
+            ok, reason = validate_narrative_output(
+                c_ok,
+                f"{p_ok} Tetap {phrase}.",
+                a0=a0,
+                at=at,
+                delta_a=delta_a,
+                pac=pac,
+                badge=badge,  # type: ignore[arg-type]
+            )
+            assert ok is False
+            assert reason == f"kata_terlarang:patient_narrative:{phrase}"
+
+    # 3. Validator menolak Tren Meningkat tanpa ajakan konsultasi dan menerimanya bila ada ajakan
+    c_inc_raw, p_inc, _ = generate_fallback_narrative(5.00, 6.50, 1.50, -30.00, "meningkat")
+    c_inc = f"{c_inc_raw} Hasil ini merupakan estimasi berdasarkan foto, bukan diagnosis medis."
+    p_no_consult = (
+        "Berdasarkan hasil pengukuran sistem, area luka terdeteksi lebih besar (bertambah sekitar 30.00%). "
+        "Hasil ini merupakan estimasi berdasarkan foto, bukan diagnosis medis."
+    )
+    ok_no_consult, reason_no_consult = validate_narrative_output(
+        c_inc,
+        p_no_consult,
+        a0=5.00,
+        at=6.50,
+        delta_a=1.50,
+        pac=-30.00,
+        badge="meningkat",
+    )
+    assert ok_no_consult is False
+    assert reason_no_consult == "ajakan_konsultasi_hilang:patient_narrative"
+
+    ok_with_consult, reason_with_consult = validate_narrative_output(
+        c_inc,
+        p_inc,
+        a0=5.00,
+        at=6.50,
+        delta_a=1.50,
+        pac=-30.00,
+        badge="meningkat",
+    )
+    assert ok_with_consult is True, reason_with_consult
+
+    # 4. Uji integrasi endpoint confirm saat Gemini mengirim kalimat menenangkan atau tanpa ajakan konsultasi -> fallback
+    monkeypatch.setattr(settings, "gemini_api_key", "fake-patch-key")
+    _override_segmentation_px(3277)
+    r1 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-01", "distance_confirmed": "true"},
+        files={"file": ("b1.png", _png_bytes(64, 64), "image/png")},
+    )
+    await ac.post(f"/api/v1/visits/{r1.json()['id']}/confirm")
+
+    async def _mock_meningkat_calming(**_kwargs: object) -> dict[str, object]:
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": json.dumps(
+                                    {
+                                        "clinician_notes": c_inc,
+                                        "patient_narrative": f"{p_inc} Tetap tenang dan jangan khawatir.",
+                                    }
+                                )
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+
+    monkeypatch.setattr(narrative_module, "request_gemini_api", _mock_meningkat_calming)
+    _override_segmentation_px(4260)
+    r2 = await ac.post(
+        "/api/v1/patients/Patient_10/visits",
+        data={"visit_date": "2026-10-15", "distance_confirmed": "true"},
+        files={"file": ("b2.png", _png_bytes(64, 64), "image/png")},
+    )
+    c2 = await ac.post(f"/api/v1/visits/{r2.json()['id']}/confirm")
+    assert c2.status_code == 200
+    body2 = c2.json()
+    assert body2["narrative_source"] == "template_fallback"
+    assert "tenang" not in body2["patient_narrative"].lower()
+    assert "jangan khawatir" not in body2["patient_narrative"].lower()
+
+
+def _png_bytes(width: int, height: int) -> bytes:
+    img = Image.new("RGB", (width, height), color=(180, 90, 80))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
