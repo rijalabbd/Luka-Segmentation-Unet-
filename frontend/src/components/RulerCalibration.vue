@@ -185,11 +185,11 @@ const visibleError = computed(() => {
 const statusText = computed(() => {
   if (isPanelDisabled.value) return 'Panel kalibrasi tidak aktif karena kunjungan sudah final.'
   if (!p1.value) return 'Belum ada titik. Klik foto penggaris atau isi koordinat untuk menetapkan Titik 1.'
-  if (!p2.value) return `Titik 1 di (${p1.value.x.toFixed(1)}, ${p1.value.y.toFixed(1)}) px. Klik foto untuk Titik 2.`
+  if (!p2.value) return `Titik 1 di (${formatDecimalID(p1.value.x, 1)}, ${formatDecimalID(p1.value.y, 1)}) px. Klik foto untuk Titik 2.`
   if (!validation.value.ok) {
-    return `Titik 1 (${p1.value.x.toFixed(1)}, ${p1.value.y.toFixed(1)}) & Titik 2 (${p2.value.x.toFixed(1)}, ${p2.value.y.toFixed(1)}) px — belum valid.`
+    return `Titik 1 (${formatDecimalID(p1.value.x, 1)}, ${formatDecimalID(p1.value.y, 1)}) & Titik 2 (${formatDecimalID(p2.value.x, 1)}, ${formatDecimalID(p2.value.y, 1)}) px — belum valid.`
   }
-  return `Titik 1 (${p1.value.x.toFixed(1)}, ${p1.value.y.toFixed(1)}) & Titik 2 (${p2.value.x.toFixed(1)}, ${p2.value.y.toFixed(1)}) px siap diterapkan.`
+  return `Titik 1 (${formatDecimalID(p1.value.x, 1)}, ${formatDecimalID(p1.value.y, 1)}) & Titik 2 (${formatDecimalID(p2.value.x, 1)}, ${formatDecimalID(p2.value.y, 1)}) px siap diterapkan.`
 })
 
 function handleImageClick(e: MouseEvent) {
