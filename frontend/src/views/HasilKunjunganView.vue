@@ -10,6 +10,7 @@ import {
   resolveStorageUrl,
 } from '@/api/patients'
 import type { PatientSummary, VisitRecord } from '@/types/patient'
+import PacPreviewCard from '@/components/PacPreviewCard.vue'
 import RulerCalibration from '@/components/RulerCalibration.vue'
 import { formatDateID, formatDecimalID } from '@/utils/formatters'
 
@@ -364,15 +365,13 @@ watch(
                     : 'Estimasi relatif terhadap luas citra (% kanvas), tanpa penanda kalibrasi fisik. Bukan ukuran dalam cm².'
                 }}
               </p>
-              <p v-if="isBaselineVisit" class="m-sub" style="margin-top: 10px">
-                Baseline acuan A₀:
-                {{
-                  baselineFinalVisit
-                    ? formatDecimalID(baselineFinalVisit.area_pct)
-                    : formatDecimalID(visit.area_pct)
-                }}%
-              </p>
             </section>
+
+            <PacPreviewCard
+              v-if="isDraft && visit.preview"
+              :preview="visit.preview"
+              :baseline-visit="baselineFinalVisit"
+            />
           </div>
         </div>
 
