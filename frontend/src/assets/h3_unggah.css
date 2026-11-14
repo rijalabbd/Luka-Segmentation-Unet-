@@ -293,6 +293,12 @@ h1 {
   max-width: 280px;
   margin: 0;
 }
+.p-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
 
 .grid {
   display: grid;
@@ -406,6 +412,11 @@ input[type='date']:focus-visible {
 }
 .btn-ghost:hover {
   text-decoration: underline;
+}
+.btn-sm {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
 }
 .error {
   margin-top: 10px;

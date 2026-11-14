@@ -3,7 +3,7 @@ import BerandaView from '@/views/BerandaView.vue'
 import PilihPasienView from '@/views/PilihPasienView.vue'
 import UnggahFotoView from '@/views/UnggahFotoView.vue'
 import HasilKunjunganView from '@/views/HasilKunjunganView.vue'
-import UnggahFotoPlaceholderView from '@/views/UnggahFotoPlaceholderView.vue'
+import RiwayatPasienView from '@/views/RiwayatPasienView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -31,7 +31,7 @@ const router = createRouter({
     {
       path: '/pasien/:patientId',
       name: 'riwayat-pasien',
-      component: UnggahFotoPlaceholderView,
+      component: RiwayatPasienView,
     },
   ],
   scrollBehavior(to, _from, savedPosition) {

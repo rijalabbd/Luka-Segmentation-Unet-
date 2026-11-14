@@ -420,9 +420,18 @@ onBeforeUnmount(() => {
               <span v-for="(attr, idx) in patientAttrs" :key="idx">{{ attr }}</span>
             </div>
           </div>
-          <p class="p-note">
-            Pastikan nomor RM sesuai dengan pasien di hadapan Anda sebelum mengunggah foto.
-          </p>
+          <div class="p-side">
+            <p class="p-note">
+              Pastikan nomor RM sesuai dengan pasien di hadapan Anda sebelum mengunggah foto.
+            </p>
+            <RouterLink
+              id="link-patient-history"
+              class="btn btn-secondary btn-sm"
+              :to="`/pasien/${encodeURIComponent(patient?.id || patientId)}`"
+            >
+              Lihat Riwayat Pasien
+            </RouterLink>
+          </div>
         </section>
 
         <!-- Peringatan draf yang menggantung (10.2 butir 3) -->

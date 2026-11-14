@@ -104,6 +104,10 @@ function patientUploadUrl(id: string): string {
   return `/pemeriksaan/${encodeURIComponent(id)}/unggah`
 }
 
+function patientHistoryUrl(id: string): string {
+  return `/pasien/${encodeURIComponent(id)}`
+}
+
 const RM_PATTERN = /^[A-Za-z0-9][A-Za-z0-9\-_]{2,19}$/
 
 // Empty state shortcut: carry an RM-shaped search term into the new-patient form.
@@ -559,14 +563,23 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <RouterLink
-              class="btn card-primary-btn"
-              :to="patientUploadUrl(p.id)"
-              :aria-label="`Pilih pasien ${p.id}${p.nama ? ', ' + p.nama : ''}, ${p.n} kunjungan, ${p.trend_status}`"
-              @keydown="handleCardSpaceKey($event, p.id)"
-            >
-              Pilih Pasien <span class="arrow" aria-hidden="true">→</span>
-            </RouterLink>
+            <div class="card-actions">
+              <RouterLink
+                class="btn-secondary"
+                :to="patientHistoryUrl(p.id)"
+                :aria-label="`Lihat riwayat pasien ${p.id}`"
+              >
+                Riwayat
+              </RouterLink>
+              <RouterLink
+                class="btn card-primary-btn"
+                :to="patientUploadUrl(p.id)"
+                :aria-label="`Pilih pasien ${p.id}${p.nama ? ', ' + p.nama : ''}, ${p.n} kunjungan, ${p.trend_status}`"
+                @keydown="handleCardSpaceKey($event, p.id)"
+              >
+                Pilih Pasien <span class="arrow" aria-hidden="true">→</span>
+              </RouterLink>
+            </div>
           </li>
         </ul>
 
@@ -1369,6 +1382,16 @@ p {
   cursor: progress;
 }
 
+.card-actions {
+  grid-area: action;
+  justify-self: end;
+  align-self: end;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .card-primary-btn {
   grid-area: action;
   justify-self: end;
@@ -1658,10 +1681,14 @@ select.control:focus-visible,
   .skel-badge {
     justify-self: start;
   }
+  .card-actions,
   .card-primary-btn,
   .skel-btn {
     width: 100%;
     justify-self: stretch;
+  }
+  .card-actions .btn-secondary {
+    flex: 1;
   }
   .row {
     grid-template-columns: 1fr;
