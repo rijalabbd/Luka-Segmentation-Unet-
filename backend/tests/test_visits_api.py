@@ -213,9 +213,9 @@ async def test_14_confirm_baseline_and_followup_plus_idempotency(
     assert b2["pac"] == 30.0
     assert b2["trend_status"] == "Tren Menurun (Area Luka Mengecil)"
     assert b2["narrative_source"] == "template_fallback"
-    assert "5.00%" in b2["clinician_notes"]
-    assert "3.50%" in b2["clinician_notes"]
-    assert "30.00%" in b2["patient_narrative"]
+    assert "5,00%" in b2["clinician_notes"]
+    assert "3,50%" in b2["clinician_notes"]
+    assert "30,00%" in b2["patient_narrative"]
 
     # 3. Buat & konfirmasi kunjungan 3 (At = 6.00% -> 3932 px terhadap A0 = 5.00% -> PAC = -20.00%)
     _override_segmentation_px(3932)
@@ -1168,8 +1168,8 @@ async def test_33_at_zero_confirm_rejected_or_confirmed_with_flag(
     assert body["trend_status"] == "Tren Menurun (Area Luka Mengecil)"
     assert body["confirm_zero_area"] is True
     assert body["narrative_source"] == "template_fallback"
-    assert "+100.00%" in body["clinician_notes"]
-    assert "100.00%" in body["patient_narrative"]
+    assert "+100,00%" in body["clinician_notes"]
+    assert "100,00%" in body["patient_narrative"]
 
     # Verifikasi dari GET /visits/{id} bahwa confirm_zero_area=True tersimpan di database
     persisted = (await ac.get(f"/api/v1/visits/{zero_followup_id}")).json()

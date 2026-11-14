@@ -515,9 +515,12 @@ async def test_k6_09_cm2_validator_fallback_and_gemini_payload(
             a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge, unit="cm²"
         )
         assert src == "template_fallback"
-        assert f"{a0:.2f} cm²" in c_notes
-        assert f"{at:.2f} cm²" in c_notes
-        assert f"{delta_a:+.2f} cm²" in c_notes
+        a0_id = f"{a0:.2f}".replace(".", ",")
+        at_id = f"{at:.2f}".replace(".", ",")
+        da_id = f"{delta_a:+.2f}".replace(".", ",")
+        assert f"{a0_id} cm²" in c_notes
+        assert f"{at_id} cm²" in c_notes
+        assert f"{da_id} cm²" in c_notes
         assert "poin persentase" not in c_notes.lower()
         assert "bukan diagnosis medis" in p_narr.lower()
 
@@ -553,7 +556,7 @@ async def test_k6_09_cm2_validator_fallback_and_gemini_payload(
 
     # Satuan salah: poin persentase pada mode cm²
     ok_pp, r_pp = validate_narrative_output(
-        valid_c.replace("ΔA: -2.00 cm²", "ΔA: -2.00 poin persentase"),
+        valid_c.replace("ΔA: -2,00 cm²", "ΔA: -2,00 poin persentase"),
         valid_p,
         a0=8.00,
         at=6.00,
@@ -594,7 +597,7 @@ async def test_k6_09_cm2_validator_fallback_and_gemini_payload(
     assert ok_pct1 is False
 
     ok_pct2, r_pct2 = validate_narrative_output(
-        valid_c.replace("8.00 cm²", "8.00%"),
+        valid_c.replace("8,00 cm²", "8,00%"),
         valid_p,
         a0=8.00,
         at=6.00,

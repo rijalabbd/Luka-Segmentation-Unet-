@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 SYSTEM_PROMPT_TABEL_3_4 = """Anda adalah asisten dokumentasi klinis untuk pemantauan longitudinal ulkus kusta.
 Hasilkan keluaran HANYA dalam format JSON valid dengan tepat dua kunci: "clinician_notes" dan "patient_narrative".
 Wajib patuhi enam aturan Tabel 3.4 berikut tanpa pengecualian:
-1. Kepatuhan Angka: Menggunakan angka sesuai data masukan (A0, A_t, delta_A, PAC) tanpa mengubah atau menambahkan angka baru. Jika masukan tidak memuat field "satuan" (atau "satuan" = "%"), A0 dan A_t dinyatakan dalam satuan %, delta_A dalam poin persentase, dan PAC dalam % (dilarang menggunakan satuan cm atau cm²). Jika masukan memuat "satuan": "cm²", A0, A_t, dan delta_A wajib ditulis dalam satuan cm², PAC tetap dalam %, dan istilah "poin persentase" dilarang.
+1. Kepatuhan Angka: Menggunakan angka sesuai data masukan (A0, A_t, delta_A, PAC) tanpa mengubah atau menambahkan angka baru. Jika masukan tidak memuat field "satuan" (atau "satuan" = "%"), A0 dan A_t dinyatakan dalam satuan %, delta_A dalam poin persentase, dan PAC dalam % (dilarang menggunakan satuan cm atau cm²). Jika masukan memuat "satuan": "cm²", A0, A_t, dan delta_A wajib ditulis dalam satuan cm², PAC tetap dalam %, dan istilah "poin persentase" dilarang. Seluruh angka desimal dalam teks narasi wajib ditulis menggunakan tanda koma (contoh: 26,37%), tanpa pemisah ribuan.
 2. Larangan Diagnosis: Tidak memberikan diagnosis medis maupun meresepkan obat.
 3. Bahasa Observasional: Menggunakan istilah pengamatan fisik, seperti "terdeteksi mengecil", "terukur membesar", atau "relatif stabil". Dilarang memakai kata "membaik", "memburuk", "sembuh", "infeksi", "diagnosis" (kecuali dalam frasa disclaimer "bukan diagnosis medis"), atau "resep".
 4. Disclaimer Medis: Menyertakan keterangan di kedua narasi bahwa hasil merupakan estimasi visual sistem berdasarkan foto dan memerlukan pemeriksaan langsung oleh tenaga medis (perawat atau dokter), serta bukan diagnosis medis.
@@ -35,8 +35,8 @@ FORBIDDEN_WORDS = (
     "baik-baik saja",
 )
 
-# Toleransi pembulatan angka (mis. 21.05% vs 21.1% berselisih 0.05 <= 0.15)
-NUMBER_ROUNDING_TOLERANCE = 0.15
+# Toleransi presisi perbandingan angka pasca-normalisasi koma/titik (menolak selisih >= 0.01 seperti 26,38 vs 26.37)
+NUMBER_ROUNDING_TOLERANCE = 0.004
 
 NarrativeServiceFn = Callable[
     ...,
@@ -127,36 +127,28 @@ def _matches_trend_direction(
     combined = f"{c_low} {p_low}"
 
     # Format: narasi awam memakai nilai mutlak PAC (tidak boleh ada tanda minus di depan angka PAC)
+    c_norm = clinician_notes.replace(",", ".")
+    p_norm = patient_narrative.replace(",", ".")
     abs_pac = abs(pac)
     if abs_pac > 0:
-        for fmt in (f"-{abs_pac:.2f}", f"-{abs_pac:.1f}", f"-{abs_pac:.2f}".replace(".", ","), f"-{abs_pac:.1f}".replace(".", ",")):
-            if fmt in patient_narrative:
-                return False
+        neg_candidates = [f"-{abs_pac:.2f}", f"-{abs_pac:.1f}"]
+        if abs(abs_pac - round(abs_pac)) < 1e-6:
+            neg_candidates.append(f"-{int(round(abs_pac))}")
+        if any(fmt in p_norm for fmt in neg_candidates):
+            return False
 
     # Format: catatan klinis memakai tanda (+ atau -) untuk PAC jika PAC != 0
     if pac > 0:
-        has_plus = any(
-            s in clinician_notes
-            for s in (
-                f"+{pac:.2f}",
-                f"+{pac:.1f}",
-                f"+{pac:.2f}".replace(".", ","),
-                f"+{pac:.1f}".replace(".", ","),
-            )
-        )
-        if not has_plus:
+        pos_candidates = [f"+{pac:.2f}", f"+{pac:.1f}"]
+        if abs(pac - round(pac)) < 1e-6:
+            pos_candidates.append(f"+{int(round(pac))}")
+        if not any(s in c_norm for s in pos_candidates):
             return False
     elif pac < 0:
-        has_minus = any(
-            s in clinician_notes
-            for s in (
-                f"{pac:.2f}",
-                f"{pac:.1f}",
-                f"{pac:.2f}".replace(".", ","),
-                f"{pac:.1f}".replace(".", ","),
-            )
-        )
-        if not has_minus:
+        min_candidates = [f"{pac:.2f}", f"{pac:.1f}"]
+        if abs(pac - round(pac)) < 1e-6:
+            min_candidates.append(f"{int(round(pac))}")
+        if not any(s in c_norm for s in min_candidates):
             return False
 
     if badge == "menurun":
@@ -299,6 +291,14 @@ def validate_narrative_output(
     return True, "ok"
 
 
+def _fmt_dec(value: float) -> str:
+    return f"{value:.2f}".replace(".", ",")
+
+
+def _fmt_signed_dec(value: float) -> str:
+    return f"{value:+.2f}".replace(".", ",")
+
+
 def generate_fallback_narrative(
     a0: float,
     at: float,
@@ -314,12 +314,15 @@ def generate_fallback_narrative(
     is_cm2 = unit == "cm²"
     satuan = " cm²" if is_cm2 else "%"
     satuan_delta = " cm²" if is_cm2 else " poin persentase"
-    frasa_area_pasien = f"{at:.2f} cm²" if is_cm2 else f"{at:.2f}% dari area foto"
+    a0_s = _fmt_dec(a0)
+    at_s = _fmt_dec(at)
+    delta_s = _fmt_signed_dec(delta_a)
+    frasa_area_pasien = f"{at_s} cm²" if is_cm2 else f"{at_s}% dari area foto"
 
     if pac is None or badge == "tidak_dapat_dihitung":
         clinician_notes = (
-            f"Evaluasi Longitudinal (T₁ → Tₜ): Luas luka awal tercatat {a0:.2f}{satuan} dan luas saat ini "
-            f"{at:.2f}{satuan} (ΔA: {delta_a:+.2f}{satuan_delta}, PAC tidak dapat dihitung karena A₀ = 0). "
+            f"Evaluasi Longitudinal (T₁ → Tₜ): Luas luka awal tercatat {a0_s}{satuan} dan luas saat ini "
+            f"{at_s}{satuan} (ΔA: {delta_s}{satuan_delta}, PAC tidak dapat dihitung karena A₀ = 0). "
             "Pemeriksaan klinis langsung tetap diperlukan karena hasil merupakan estimasi berdasarkan foto."
         )
         patient_narrative = (
@@ -329,32 +332,35 @@ def generate_fallback_narrative(
         )
         return clinician_notes, patient_narrative, "template_fallback"
 
+    pac_s = _fmt_dec(pac)
+    pac_signed_s = _fmt_signed_dec(pac)
+    abs_pac_s = _fmt_dec(abs(pac))
+
     if badge == "menurun":
         clinician_notes = (
-            f"Evaluasi Longitudinal (T₁ → Tₜ): Area luka terukur menurun dari {a0:.2f}{satuan} menjadi "
-            f"{at:.2f}{satuan} (PAC: +{pac:.2f}%, ΔA: {delta_a:+.2f}{satuan_delta}). Hasil pengukuran "
+            f"Evaluasi Longitudinal (T₁ → Tₜ): Area luka terukur menurun dari {a0_s}{satuan} menjadi "
+            f"{at_s}{satuan} (PAC: +{pac_s}%, ΔA: {delta_s}{satuan_delta}). Hasil pengukuran "
             "menunjukkan penurunan luas permukaan luka. Pemeriksaan klinis langsung tetap diperlukan "
             "karena hasil merupakan estimasi berdasarkan foto."
         )
         patient_narrative = (
             f"Berdasarkan hasil pengukuran sistem, area luka pada pemeriksaan ini terdeteksi lebih "
-            f"kecil dibandingkan pemeriksaan sebelumnya (berkurang sekitar {pac:.2f}%). Tetap lanjutkan "
+            f"kecil dibandingkan pemeriksaan sebelumnya (berkurang sekitar {abs_pac_s}%). Tetap lanjutkan "
             "perawatan sesuai anjuran perawat atau dokter. Hasil ini merupakan estimasi berdasarkan "
             "foto, bukan diagnosis medis."
         )
         return clinician_notes, patient_narrative, "template_fallback"
 
     if badge == "meningkat":
-        abs_pac = abs(pac)
         clinician_notes = (
-            f"Evaluasi Longitudinal (T₁ → Tₜ): Area luka terukur meningkat dari {a0:.2f}{satuan} menjadi "
-            f"{at:.2f}{satuan} (PAC: {pac:.2f}%, ΔA: {delta_a:+.2f}{satuan_delta}). Hasil pengukuran "
+            f"Evaluasi Longitudinal (T₁ → Tₜ): Area luka terukur meningkat dari {a0_s}{satuan} menjadi "
+            f"{at_s}{satuan} (PAC: {pac_s}%, ΔA: {delta_s}{satuan_delta}). Hasil pengukuran "
             "menunjukkan perluasan luas permukaan luka. Pemeriksaan klinis langsung diperlukan untuk "
-            "menentukan tindakan selanjutnya."
+            "menentukan tindakan selanjutnya karena hasil merupakan estimasi berdasarkan foto."
         )
         patient_narrative = (
             f"Berdasarkan hasil pengukuran sistem, area luka pada pemeriksaan ini terdeteksi lebih "
-            f"besar dibandingkan pemeriksaan sebelumnya (bertambah sekitar {abs_pac:.2f}%). Segera "
+            f"besar dibandingkan pemeriksaan sebelumnya (bertambah sekitar {abs_pac_s}%). Segera "
             "konsultasikan hasil ini kepada perawat atau dokter untuk pemeriksaan lebih lanjut. "
             "Hasil ini merupakan estimasi berdasarkan foto, bukan diagnosis medis."
         )
@@ -363,9 +369,9 @@ def generate_fallback_narrative(
     # Default: Tren Stabil (Perubahan Minimal)
     clinician_notes = (
         f"Evaluasi Longitudinal (T₁ → Tₜ): Tidak terdeteksi perubahan berarti pada luas luka "
-        f"({a0:.2f}{satuan} → {at:.2f}{satuan}, ΔA: {delta_a:+.2f}{satuan_delta}, PAC: {pac:+.2f}%). "
+        f"({a0_s}{satuan} → {at_s}{satuan}, ΔA: {delta_s}{satuan_delta}, PAC: {pac_signed_s}%). "
         "Hasil pengukuran menunjukkan luas luka relatif stabil. Pemeriksaan klinis langsung "
-        "tetap diperlukan."
+        "tetap diperlukan karena hasil merupakan estimasi berdasarkan foto."
     )
     patient_narrative = (
         f"Berdasarkan hasil pengukuran sistem, area luka relatif tidak berubah dibandingkan "

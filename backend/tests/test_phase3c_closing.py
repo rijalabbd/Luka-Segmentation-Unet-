@@ -230,3 +230,80 @@ async def test_c3_seeded_visits_with_pac_have_explicit_pac_basis_and_pac_rel() -
             await session.commit()
     finally:
         await test_engine.dispose()
+
+
+def test_c4_01_fallback_comma_format_all_trends_and_units() -> None:
+    """C4: Semua templat fallback memakai koma desimal (tanpa angka bertitik) untuk 3 tren x 2 satuan."""
+    import re
+    from app.services.narrative import generate_fallback_narrative, validate_narrative_output
+
+    cases = [
+        ("menurun", 12.60, 8.82, -3.78, 30.00),
+        ("stabil", 12.60, 12.35, -0.25, 1.98),
+        ("meningkat", 12.60, 26.37, 13.77, -109.29),
+    ]
+    for unit in ("%", "cm²"):
+        for badge, a0, at, delta_a, pac in cases:
+            c_notes, p_narr, src = generate_fallback_narrative(
+                a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge, unit=unit  # type: ignore[arg-type]
+            )
+            assert src == "template_fallback"
+            combined = f"{c_notes}\n{p_narr}"
+            assert re.search(r"\d+\.\d+", combined) is None, f"Masih ada desimal bertitik pada {badge} {unit}: {combined}"
+            assert f"{a0:.2f}".replace(".", ",") in c_notes
+            assert f"{at:.2f}".replace(".", ",") in c_notes
+            ok, reason = validate_narrative_output(
+                c_notes,
+                p_narr,
+                a0=a0,
+                at=at,
+                delta_a=delta_a,
+                pac=pac,
+                badge=badge,  # type: ignore[arg-type]
+                unit=unit,  # type: ignore[arg-type]
+            )
+            assert ok is True, f"{badge} {unit}: {reason}"
+
+
+def test_c4_02_validator_accepts_comma_and_dot_and_rejects_mismatch() -> None:
+    """C4: Validator menerima 26,37% dan 26.37%, namun menolak 26,38% (selisih di atas toleransi pembulatan)."""
+    from app.services.narrative import validate_narrative_output
+
+    a0, at, delta_a, pac = 12.60, 26.37, 13.77, -109.29
+    p_narr = (
+        "Dari hasil pengukuran terbaru, area luka mengalami peningkatan sebesar 109,29% dibandingkan pemeriksaan awal. "
+        "Segera konsultasikan kondisi ini dengan perawat atau dokter untuk pemeriksaan dan penanganan lebih lanjut. "
+        "Hasil ini merupakan estimasi berdasarkan foto, bukan diagnosis medis."
+    )
+    c_comma = (
+        "Ringkasan Pengukuran Longitudinal:\n"
+        "- Baseline (A0): 12,60% · Saat Ini (At): 26,37%\n"
+        "- Selisih (ΔA): +13,77 poin persentase · PAC: -109,29% · Status: Meningkat.\n"
+        "Pemeriksaan klinis langsung tetap diperlukan karena hasil merupakan estimasi berdasarkan foto."
+    )
+    c_dot = (
+        "Ringkasan Pengukuran Longitudinal:\n"
+        "- Baseline (A0): 12.60% · Saat Ini (At): 26.37%\n"
+        "- Selisih (ΔA): +13.77 poin persentase · PAC: -109.29% · Status: Meningkat.\n"
+        "Pemeriksaan klinis langsung tetap diperlukan karena hasil merupakan estimasi berdasarkan foto."
+    )
+    c_wrong_comma = c_comma.replace("26,37%", "26,38%")
+    c_wrong_dot = c_dot.replace("26.37%", "26.38%")
+
+    ok_comma, reason_comma = validate_narrative_output(
+        c_comma, p_narr, a0=a0, at=at, delta_a=delta_a, pac=pac, badge="meningkat", unit="%"
+    )
+    ok_dot, reason_dot = validate_narrative_output(
+        c_dot, p_narr, a0=a0, at=at, delta_a=delta_a, pac=pac, badge="meningkat", unit="%"
+    )
+    ok_bad_comma, reason_bad_comma = validate_narrative_output(
+        c_wrong_comma, p_narr, a0=a0, at=at, delta_a=delta_a, pac=pac, badge="meningkat", unit="%"
+    )
+    ok_bad_dot, reason_bad_dot = validate_narrative_output(
+        c_wrong_dot, p_narr, a0=a0, at=at, delta_a=delta_a, pac=pac, badge="meningkat", unit="%"
+    )
+
+    assert ok_comma is True, reason_comma
+    assert ok_dot is True, reason_dot
+    assert ok_bad_comma is False and "angka_asing" in reason_bad_comma
+    assert ok_bad_dot is False and "angka_asing" in reason_bad_dot
