@@ -20,7 +20,7 @@ from app.services.calibration import (
     compute_and_validate_calibration,
 )
 from app.services.narrative import NarrativeServiceFn, get_narrative_service
-from app.services.pac import evaluate_pac_and_trend
+from app.services.pac import LongitudinalEvaluation, evaluate_visit_longitudinal
 from app.services.storage import delete_visit_files, resolve_storage_path
 
 router = APIRouter(prefix="/visits", tags=["visits"])
@@ -94,18 +94,16 @@ async def _build_visit_response(db: DBSession, visit: Visit) -> VisitResponse:
         return resp
 
     baseline = final_visits[0]
-    delta_rel, pac_rel, _badge, trend_label = evaluate_pac_and_trend(
-        baseline.area_pct, visit.area_pct
-    )
+    eval_res = evaluate_visit_longitudinal(baseline, visit)
     resp.preview = VisitPreview(
         is_baseline=False,
-        pac_basis="relative",
-        delta_area=round(delta_rel, 2),
-        pac=round(pac_rel, 2) if pac_rel is not None else None,
-        pac_rel=round(pac_rel, 2) if pac_rel is not None else None,
-        pac_cm2=None,
-        trend_status=trend_label,
-        warnings=[],
+        pac_basis=eval_res.pac_basis,
+        delta_area=eval_res.delta_area,
+        pac=eval_res.pac,
+        pac_rel=eval_res.pac_rel,
+        pac_cm2=eval_res.pac_cm2,
+        trend_status=eval_res.trend_status,
+        warnings=list(eval_res.warnings),
     )
     return resp
 
@@ -225,7 +223,9 @@ async def confirm_visit(
         )
         final_visits = list((await db.execute(stmt)).scalars().all())
         is_baseline = len(final_visits) == 0
-        baseline_area = final_visits[0].area_pct if final_visits else 0.0
+        eval_res: LongitudinalEvaluation | None = (
+            evaluate_visit_longitudinal(final_visits[0], visit) if not is_baseline else None
+        )
 
         # Aturan S1:
         # - Baseline dengan n_wound_px = 0 (A_t = 0): selalu ditolak (422).
@@ -255,27 +255,18 @@ async def confirm_visit(
         await db.rollback()
 
         # Di luar transaksi database: hitung PAC & panggil layanan narasi (Gemini + validator + fallback)
-        rounded_delta: float | None = None
-        rounded_pac: float | None = None
-        trend_label: str | None = None
         clinician_notes: str | None = None
         patient_narrative: str | None = None
         narrative_source: str | None = None
 
-        if not is_baseline:
-            delta_a, pac, badge, trend_label = evaluate_pac_and_trend(
-                baseline_area, visit_area
-            )
-            rounded_delta = round(delta_a, 2)
-            rounded_pac = round(pac, 2) if pac is not None else None
-
+        if eval_res is not None:
             clinician_notes, patient_narrative, narrative_source = await narrative_service(
-                baseline_area,
-                visit_area,
-                rounded_delta,
-                rounded_pac,
-                badge,
-                trend_label,
+                eval_res.a0,
+                eval_res.at,
+                eval_res.delta_area,
+                eval_res.pac,
+                eval_res.badge,
+                eval_res.trend_status,
             )
 
         # Transaksi 2 (singkat): kunci baris pasien dan visit, tetapkan visit_index, dan simpan final
@@ -318,17 +309,25 @@ async def confirm_visit(
         visit_locked.confirm_zero_area = bool(locked_is_zero and confirmed_zero)
         visit_locked.confirmed_at = datetime.now(timezone.utc)
 
-        if next_index == 1:
+        if next_index == 1 or eval_res is None:
             visit_locked.delta_area = None
             visit_locked.pac = None
+            visit_locked.pac_rel = None
+            visit_locked.pac_cm2 = None
+            visit_locked.pac_basis = None
+            visit_locked.warnings = []
             visit_locked.trend_status = None
             visit_locked.clinician_notes = None
             visit_locked.patient_narrative = None
             visit_locked.narrative_source = None
         else:
-            visit_locked.delta_area = rounded_delta
-            visit_locked.pac = rounded_pac
-            visit_locked.trend_status = trend_label
+            visit_locked.delta_area = eval_res.delta_area
+            visit_locked.pac = eval_res.pac
+            visit_locked.pac_rel = eval_res.pac_rel
+            visit_locked.pac_cm2 = eval_res.pac_cm2
+            visit_locked.pac_basis = eval_res.pac_basis
+            visit_locked.warnings = list(eval_res.warnings)
+            visit_locked.trend_status = eval_res.trend_status
             visit_locked.clinician_notes = clinician_notes
             visit_locked.patient_narrative = patient_narrative
             visit_locked.narrative_source = narrative_source
