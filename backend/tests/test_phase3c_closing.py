@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator
 import io
+import os
 from pathlib import Path
 
 from httpx import ASGITransport, AsyncClient
@@ -307,3 +308,163 @@ def test_c4_02_validator_accepts_comma_and_dot_and_rejects_mismatch() -> None:
     assert ok_dot is True, reason_dot
     assert ok_bad_comma is False and "angka_asing" in reason_bad_comma
     assert ok_bad_dot is False and "angka_asing" in reason_bad_dot
+
+
+async def test_c5_01_forced_failure_fallback_saves_visit_as_final(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """C5: Saat Gemini gagal/timeout, confirm tetap mengembalikan 200 status=final dengan template_fallback."""
+    import logging
+    import httpx
+    from sqlalchemy import delete
+    from app.models.patient import Patient, Visit
+    from app.services import narrative as narrative_module
+    from app.services.segmentation import SegmentationFn, get_segmentation_service
+    from app.services.storage import generate_stub_binary_mask_png
+
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "gemini_api_key", "fake-c5-timeout-key")
+
+    def _set_seg(n_px: int) -> None:
+        def _seg(_image_bytes: bytes) -> tuple[int, bytes]:
+            return n_px, generate_stub_binary_mask_png(n_px)
+
+        def _get_seg() -> SegmentationFn:
+            return _seg
+
+        app.dependency_overrides[get_segmentation_service] = _get_seg
+
+    async def _always_timeout(*_args: object, **_kwargs: object) -> dict[str, object]:
+        raise httpx.TimeoutException("Simulasi timeout Gemini C5")
+
+    monkeypatch.setattr(narrative_module, "request_gemini_api", _always_timeout)
+
+    test_engine = create_async_engine(settings.resolved_test_database_url, future=True)
+    TestSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False, class_=AsyncSession)
+
+    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        async with TestSessionLocal() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        async with TestSessionLocal() as session:
+            await session.execute(delete(Visit))
+            await session.execute(delete(Patient))
+            await session.commit()
+
+        png_bytes = _make_solid_png_bytes(180, 90, 80, size=64)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            r_pat = await ac.post(
+                "/api/v1/patients",
+                json={
+                    "id": "Patient_C5",
+                    "nama": "Uji Kegagalan C5",
+                    "umur": 48,
+                    "jk": "Perempuan",
+                    "lokasi": "Telapak kaki kiri",
+                    "consent": True,
+                    "is_demo": False,
+                },
+            )
+            assert r_pat.status_code == 201
+
+            _set_seg(3277)
+            d1 = await ac.post(
+                "/api/v1/patients/Patient_C5/visits",
+                data={"visit_date": "2026-10-01", "distance_confirmed": "true"},
+                files={"file": ("c5_t1.png", png_bytes, "image/png")},
+            )
+            assert d1.status_code == 201
+            c1 = await ac.post(f"/api/v1/visits/{d1.json()['id']}/confirm")
+            assert c1.status_code == 200
+            assert c1.json()["status"] == "final"
+
+            _set_seg(2294)
+            d2 = await ac.post(
+                "/api/v1/patients/Patient_C5/visits",
+                data={"visit_date": "2026-10-15", "distance_confirmed": "true"},
+                files={"file": ("c5_t2.png", png_bytes, "image/png")},
+            )
+            assert d2.status_code == 201
+            v2_id = d2.json()["id"]
+
+            caplog.clear()
+            with caplog.at_level(logging.WARNING, logger="app.services.narrative"):
+                c2 = await ac.post(f"/api/v1/visits/{v2_id}/confirm")
+
+            assert c2.status_code == 200
+            body2 = c2.json()
+            assert body2["status"] == "final"
+            assert body2["narrative_source"] == "template_fallback"
+            assert "5,00%" in body2["clinician_notes"]
+            assert "3,50%" in body2["clinician_notes"]
+            assert "30,00%" in body2["patient_narrative"]
+
+            persisted = await ac.get(f"/api/v1/visits/{v2_id}")
+            assert persisted.status_code == 200
+            p_body = persisted.json()
+            assert p_body["status"] == "final"
+            assert p_body["narrative_source"] == "template_fallback"
+            assert p_body["clinician_notes"] == body2["clinician_notes"]
+
+            warnings = [rec.getMessage() for rec in caplog.records if "fallback" in rec.getMessage().lower()]
+            assert warnings, "Log peringatan fallback wajib tercatat saat Gemini timeout"
+            print(f"[C5-FORCED-FALLBACK] status={body2['status']} source={body2['narrative_source']} log={warnings[-1]}")
+    finally:
+        app.dependency_overrides.clear()
+        async with TestSessionLocal() as session:
+            await session.execute(delete(Visit))
+            await session.execute(delete(Patient))
+            await session.commit()
+        await test_engine.dispose()
+
+
+@pytest.mark.skipif(
+    os.getenv("RUN_REAL_GEMINI") != "1" or not settings.gemini_api_key.strip(),
+    reason="Hanya dijalankan saat RUN_REAL_GEMINI=1 dan GEMINI_API_KEY tersedia",
+)
+async def test_c5_02_real_gemini_six_combinations_matrix(caplog: pytest.LogCaptureFixture) -> None:
+    """C5 (manual): Matriks 6 kombinasi Gemini asli ({menurun, stabil, meningkat} x {%, cm²})."""
+    import logging
+    from app.services import narrative as narrative_module
+
+    combos = [
+        ("menurun", "Tren Menurun (Area Luka Mengecil)", 12.60, 8.82, -3.78, 30.00),
+        ("stabil", "Tren Stabil (Perubahan Minimal)", 12.60, 12.35, -0.25, 1.98),
+        ("meningkat", "Tren Meningkat (Area Luka Membesar)", 12.60, 26.37, 13.77, -109.29),
+    ]
+
+    for unit in ("%", "cm²"):
+        for badge, trend_status, a0, at, delta_a, pac in combos:
+            caplog.clear()
+            with caplog.at_level(logging.WARNING, logger="app.services.narrative"):
+                c_notes, p_narr, source = await narrative_module.generate_longitudinal_narrative(
+                    a0=a0,
+                    at=at,
+                    delta_a=delta_a,
+                    pac=pac,
+                    badge=badge,  # type: ignore[arg-type]
+                    trend_status=trend_status,
+                    unit=unit,  # type: ignore[arg-type]
+                )
+            warn_msgs = [rec.getMessage() for rec in caplog.records]
+            reason = " | ".join(warn_msgs) if warn_msgs else "-"
+            print(f"[C5-COMBO] badge={badge} unit={unit} source={source} reason={reason}")
+            print(f"[C5-CLINICIAN] {c_notes}")
+            print(f"[C5-PATIENT] {p_narr}")
+            assert source in {"llm", "template_fallback"}
+            ok, val_reason = narrative_module.validate_narrative_output(
+                c_notes,
+                p_narr,
+                a0=a0,
+                at=at,
+                delta_a=delta_a,
+                pac=pac,
+                badge=badge,  # type: ignore[arg-type]
+                unit=unit,  # type: ignore[arg-type]
+            )
+            assert ok is True, f"{badge} {unit}: {val_reason}"
