@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import BerandaView from '@/views/BerandaView.vue'
 import PilihPasienView from '@/views/PilihPasienView.vue'
 import UnggahFotoView from '@/views/UnggahFotoView.vue'
+import HasilKunjunganView from '@/views/HasilKunjunganView.vue'
 import UnggahFotoPlaceholderView from '@/views/UnggahFotoPlaceholderView.vue'
 
 const router = createRouter({
@@ -25,7 +26,7 @@ const router = createRouter({
     {
       path: '/kunjungan/:visitId',
       name: 'hasil-kunjungan',
-      component: UnggahFotoPlaceholderView,
+      component: HasilKunjunganView,
     },
     {
       path: '/pasien/:patientId',

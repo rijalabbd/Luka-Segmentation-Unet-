@@ -1,4 +1,5 @@
 import type {
+  CalibrationPayload,
   HealthResponse,
   PatientCreatePayload,
   PatientSummary,
@@ -206,4 +207,94 @@ export async function fetchDemoSamplePhoto(patientId: string): Promise<File> {
   const blob = await res.blob()
   const filename = res.headers.get('X-Sample-Filename')?.trim() || 'foto_sampel_demo.jpg'
   return new File([blob], filename, { type: blob.type || 'image/jpeg' })
+}
+
+export async function fetchVisit(visitId: number): Promise<VisitRecord> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/visits/${encodeURIComponent(String(visitId))}`, {
+      headers: { Accept: 'application/json' },
+    })
+  } catch {
+    throw new ApiError(0, 'Tidak dapat terhubung ke server backend lokal untuk memuat data kunjungan.')
+  }
+  if (!res.ok) {
+    const fallback =
+      res.status === 404
+        ? `Data kunjungan #${visitId} tidak ditemukan.`
+        : `Gagal memuat data kunjungan (HTTP ${res.status}).`
+    throw new ApiError(res.status, await readErrorDetail(res, fallback))
+  }
+  return (await res.json()) as VisitRecord
+}
+
+export async function putVisitCalibration(
+  visitId: number,
+  payload: CalibrationPayload,
+): Promise<VisitRecord> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/visits/${encodeURIComponent(String(visitId))}/calibration`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+  } catch {
+    throw new ApiError(0, 'Tidak dapat terhubung ke server backend lokal untuk menyimpan kalibrasi.')
+  }
+  if (!res.ok) {
+    throw new ApiError(
+      res.status,
+      await readErrorDetail(res, `Gagal menyimpan kalibrasi (HTTP ${res.status}).`),
+    )
+  }
+  return (await res.json()) as VisitRecord
+}
+
+export async function deleteVisitCalibration(visitId: number): Promise<VisitRecord> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/visits/${encodeURIComponent(String(visitId))}/calibration`, {
+      method: 'DELETE',
+      headers: { Accept: 'application/json' },
+    })
+  } catch {
+    throw new ApiError(0, 'Tidak dapat terhubung ke server backend lokal untuk menghapus kalibrasi.')
+  }
+  if (!res.ok) {
+    throw new ApiError(
+      res.status,
+      await readErrorDetail(res, `Gagal menghapus kalibrasi (HTTP ${res.status}).`),
+    )
+  }
+  return (await res.json()) as VisitRecord
+}
+
+export async function confirmVisit(
+  visitId: number,
+  confirmZeroArea = false,
+): Promise<VisitRecord> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/visits/${encodeURIComponent(String(visitId))}/confirm`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ confirm_zero_area: confirmZeroArea }),
+    })
+  } catch {
+    throw new ApiError(0, 'Tidak dapat terhubung ke server backend lokal saat mengonfirmasi kunjungan.')
+  }
+  if (!res.ok) {
+    throw new ApiError(
+      res.status,
+      await readErrorDetail(res, `Gagal mengonfirmasi kunjungan (HTTP ${res.status}).`),
+    )
+  }
+  return (await res.json()) as VisitRecord
 }

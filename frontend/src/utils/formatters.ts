@@ -36,3 +36,15 @@ export function formatFileSize(bytes: number): string {
   }
   return `${(bytes / (1048576)).toFixed(1)} MB`
 }
+
+export function formatDecimalID(value: number | null | undefined, digits = 2): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '–'
+  return value.toFixed(digits).replace('.', ',')
+}
+
+export function formatSignedDecimalID(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '–'
+  const roundedZero = Math.abs(value) < 0.5 * Math.pow(10, -digits)
+  const sign = roundedZero ? '' : value > 0 ? '+' : '−'
+  return `${sign}${Math.abs(value).toFixed(digits).replace('.', ',')}`
+}
