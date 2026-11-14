@@ -34,7 +34,7 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) {
     return `${Math.max(1, Math.round(bytes / 1024))} KB`
   }
-  return `${(bytes / (1048576)).toFixed(1)} MB`
+  return `${formatDecimalID(bytes / 1048576, 1)} MB`
 }
 
 export function formatDecimalID(value: number | null | undefined, digits = 2): string {
