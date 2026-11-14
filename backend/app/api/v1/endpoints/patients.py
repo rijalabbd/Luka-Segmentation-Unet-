@@ -234,6 +234,9 @@ async def create_draft_visit(
         distance_confirmed=True,
         n_wound_px=n_wound_px,
         area_pct=area_pct,
+        measure_mode="relative",
+        img_width_px=_rgb_img.width,
+        img_height_px=_rgb_img.height,
     )
     db.add(draft)
     await db.commit()

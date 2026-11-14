@@ -3,15 +3,25 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from PIL import Image, ImageOps
 from sqlalchemy import func, select
 
 from app.core.database import DBSession
 from app.models.patient import Patient
 from app.models.visit import Visit
-from app.schemas.visit import ConfirmVisitRequest, VisitResponse
+from app.schemas.visit import (
+    CalibrationRequest,
+    ConfirmVisitRequest,
+    VisitPreview,
+    VisitResponse,
+)
+from app.services.calibration import (
+    CalibrationValidationError,
+    compute_and_validate_calibration,
+)
 from app.services.narrative import NarrativeServiceFn, get_narrative_service
 from app.services.pac import evaluate_pac_and_trend
-from app.services.storage import delete_visit_files
+from app.services.storage import delete_visit_files, resolve_storage_path
 
 router = APIRouter(prefix="/visits", tags=["visits"])
 
@@ -48,10 +58,138 @@ async def _get_visit_or_404(
     return visit
 
 
+def _resolve_visit_image_dimensions(visit: Visit) -> tuple[int, int]:
+    if (
+        visit.img_width_px is not None
+        and visit.img_height_px is not None
+        and visit.img_width_px > 0
+        and visit.img_height_px > 0
+    ):
+        return visit.img_width_px, visit.img_height_px
+    if visit.image_path:
+        try:
+            abs_path = resolve_storage_path(visit.image_path)
+            if abs_path.is_file():
+                with Image.open(abs_path) as img:
+                    oriented = ImageOps.exif_transpose(img)
+                    return int(oriented.width), int(oriented.height)
+        except Exception:
+            pass
+    return 256, 256
+
+
+async def _build_visit_response(db: DBSession, visit: Visit) -> VisitResponse:
+    resp = VisitResponse.model_validate(visit)
+    if visit.status != "draft":
+        return resp
+
+    stmt = (
+        select(Visit)
+        .where(Visit.patient_id == visit.patient_id, Visit.status == "final")
+        .order_by(Visit.visit_index.asc(), Visit.id.asc())
+    )
+    final_visits = list((await db.execute(stmt)).scalars().all())
+    if not final_visits:
+        resp.preview = VisitPreview(is_baseline=True)
+        return resp
+
+    baseline = final_visits[0]
+    delta_rel, pac_rel, _badge, trend_label = evaluate_pac_and_trend(
+        baseline.area_pct, visit.area_pct
+    )
+    resp.preview = VisitPreview(
+        is_baseline=False,
+        pac_basis="relative",
+        delta_area=round(delta_rel, 2),
+        pac=round(pac_rel, 2) if pac_rel is not None else None,
+        pac_rel=round(pac_rel, 2) if pac_rel is not None else None,
+        pac_cm2=None,
+        trend_status=trend_label,
+        warnings=[],
+    )
+    return resp
+
+
 @router.get("/{visit_id}", response_model=VisitResponse)
 async def get_visit(visit_id: int, db: DBSession) -> VisitResponse:
     visit = await _get_visit_or_404(db, visit_id)
-    return VisitResponse.model_validate(visit)
+    return await _build_visit_response(db, visit)
+
+
+@router.put("/{visit_id}/calibration", response_model=VisitResponse)
+async def put_visit_calibration(
+    visit_id: int,
+    payload: CalibrationRequest,
+    db: DBSession,
+) -> VisitResponse:
+    visit = await _get_visit_or_404(db, visit_id, for_update=True)
+    if visit.status != "draft":
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Kunjungan yang sudah final tidak dapat dikalibrasi ulang.",
+        )
+
+    width_px, height_px = _resolve_visit_image_dimensions(visit)
+    try:
+        cal = compute_and_validate_calibration(
+            x1=payload.x1,
+            y1=payload.y1,
+            x2=payload.x2,
+            y2=payload.y2,
+            length_cm=payload.length_cm,
+            width_px=width_px,
+            height_px=height_px,
+            n_wound_px=visit.n_wound_px,
+        )
+    except CalibrationValidationError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    visit.measure_mode = "calibrated"
+    visit.img_width_px = width_px
+    visit.img_height_px = height_px
+    visit.calib_x1 = payload.x1
+    visit.calib_y1 = payload.y1
+    visit.calib_x2 = payload.x2
+    visit.calib_y2 = payload.y2
+    visit.calib_length_cm = payload.length_cm
+    visit.scale_cm_per_px = cal.scale_cm_per_px
+    visit.area_cm2 = cal.area_cm2
+
+    await db.commit()
+    await db.refresh(visit)
+    return await _build_visit_response(db, visit)
+
+
+@router.delete("/{visit_id}/calibration", response_model=VisitResponse)
+async def delete_visit_calibration(
+    visit_id: int,
+    db: DBSession,
+) -> VisitResponse:
+    visit = await _get_visit_or_404(db, visit_id, for_update=True)
+    if visit.status != "draft":
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Kalibrasi pada kunjungan final tidak dapat dihapus.",
+        )
+
+    visit.measure_mode = "relative"
+    visit.calib_x1 = None
+    visit.calib_y1 = None
+    visit.calib_x2 = None
+    visit.calib_y2 = None
+    visit.calib_length_cm = None
+    visit.scale_cm_per_px = None
+    visit.area_cm2 = None
+
+    await db.commit()
+    await db.refresh(visit)
+    return await _build_visit_response(db, visit)
 
 
 @router.post("/{visit_id}/confirm", response_model=VisitResponse)
