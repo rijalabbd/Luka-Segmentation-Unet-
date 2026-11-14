@@ -129,3 +129,71 @@ async def test_c1_04_health_endpoint_exposes_model_identity_without_sensitive_pa
         assert len(model_info["checkpoint_sha256_short"]) == 12
     else:
         assert model_info["checkpoint_sha256_short"] is None
+
+
+def test_c2_01_gemini_settings_validation_and_request_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Parameter layanan Gemini dibaca dari konfigurasi dan nilai tidak valid ditolak."""
+    with pytest.raises(ValidationError, match="GEMINI_TEMPERATURE"):
+        Settings(gemini_temperature=2.5)
+    with pytest.raises(ValidationError, match="GEMINI_MAX_OUTPUT_TOKENS"):
+        Settings(gemini_max_output_tokens=16)
+    with pytest.raises(ValidationError, match="GEMINI_TIMEOUT_SECONDS"):
+        Settings(gemini_timeout_seconds=0)
+    with pytest.raises(ValidationError, match="GEMINI_MODEL"):
+        Settings(gemini_model="   ")
+
+    import asyncio
+    import httpx
+    from app.services import narrative as narrative_module
+
+    captured: dict[str, object] = {}
+
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {"candidates": [{"content": {"parts": [{"text": "{}"}]}}]}
+
+    class _FakeAsyncClient:
+        def __init__(self, *, timeout: float) -> None:
+            captured["timeout"] = timeout
+
+        async def __aenter__(self) -> "_FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(
+            self, url: str, *, json: dict[str, object], headers: dict[str, str]
+        ) -> _FakeResponse:
+            captured["url"] = url
+            captured["json"] = json
+            captured["headers"] = headers
+            return _FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+    monkeypatch.setattr(settings, "gemini_api_key", "fake-c2-key")
+    monkeypatch.setattr(settings, "gemini_model", "gemini-test-model")
+    monkeypatch.setattr(settings, "gemini_temperature", 0.15)
+    monkeypatch.setattr(settings, "gemini_max_output_tokens", 640)
+    monkeypatch.setattr(settings, "gemini_timeout_seconds", 7.5)
+
+    asyncio.run(
+        narrative_module.request_gemini_api(
+            user_payload={"A0": 5.0, "A_t": 3.5, "delta_A": -1.5, "PAC": 30.0, "trend_status": "Tren Menurun"},
+            api_key=settings.gemini_api_key,
+            model=settings.gemini_model,
+            timeout_seconds=settings.gemini_timeout_seconds,
+        )
+    )
+
+    assert "gemini-test-model:generateContent" in str(captured["url"])
+    assert captured["timeout"] == 7.5
+    gen_cfg = captured["json"]["generationConfig"]  # type: ignore[index]
+    assert gen_cfg["temperature"] == 0.15
+    assert gen_cfg["maxOutputTokens"] == 640
+    assert "fake-c2-key" == captured["headers"]["x-goog-api-key"]  # type: ignore[index]

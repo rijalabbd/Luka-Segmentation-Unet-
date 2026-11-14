@@ -382,15 +382,23 @@ async def request_gemini_api(
     api_key: str,
     model: str,
     timeout_seconds: float,
+    temperature: float | None = None,
+    max_output_tokens: int | None = None,
 ) -> dict[str, object]:
     """
     Memanggil endpoint REST Google Gemini API (generateContent) secara asinkron
     menggunakan header x-goog-api-key (agar API key tidak pernah muncul di URL log).
     """
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    effective_temperature = (
+        settings.gemini_temperature if temperature is None else temperature
+    )
+    effective_max_tokens = (
+        settings.gemini_max_output_tokens if max_output_tokens is None else max_output_tokens
+    )
     generation_config: dict[str, object] = {
-        "temperature": 0.3,
-        "maxOutputTokens": 800,
+        "temperature": effective_temperature,
+        "maxOutputTokens": effective_max_tokens,
         "responseMimeType": "application/json",
         "responseSchema": {
             "type": "OBJECT",
@@ -494,6 +502,8 @@ async def generate_longitudinal_narrative(
             api_key=api_key,
             model=settings.gemini_model,
             timeout_seconds=settings.gemini_timeout_seconds,
+            temperature=settings.gemini_temperature,
+            max_output_tokens=settings.gemini_max_output_tokens,
         )
     except (httpx.TimeoutException, TimeoutError):
         logger.warning("Narrative fallback reason=timeout")

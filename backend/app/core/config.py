@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     max_upload_size_bytes: int = 10 * 1024 * 1024
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.5-flash"
+    gemini_temperature: float = 0.3
+    gemini_max_output_tokens: int = 800
     gemini_timeout_seconds: float = 10.0
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
@@ -58,6 +60,41 @@ class Settings(BaseSettings):
         if not (0.0 < value < 1.0):
             raise ValueError(
                 f"MODEL_BINARY_THRESHOLD tidak valid: {value}. Harus berada di antara 0 dan 1 (eksklusif)."
+            )
+        return value
+
+    @field_validator("gemini_model")
+    @classmethod
+    def validate_gemini_model(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("GEMINI_MODEL tidak boleh kosong.")
+        return cleaned
+
+    @field_validator("gemini_temperature")
+    @classmethod
+    def validate_gemini_temperature(cls, value: float) -> float:
+        if not (0.0 <= value <= 2.0):
+            raise ValueError(
+                f"GEMINI_TEMPERATURE tidak valid: {value}. Harus berada di rentang 0,0 hingga 2,0."
+            )
+        return value
+
+    @field_validator("gemini_max_output_tokens")
+    @classmethod
+    def validate_gemini_max_output_tokens(cls, value: int) -> int:
+        if value < 64:
+            raise ValueError(
+                f"GEMINI_MAX_OUTPUT_TOKENS tidak valid: {value}. Minimal 64 token."
+            )
+        return value
+
+    @field_validator("gemini_timeout_seconds")
+    @classmethod
+    def validate_gemini_timeout_seconds(cls, value: float) -> float:
+        if value <= 0.0:
+            raise ValueError(
+                f"GEMINI_TIMEOUT_SECONDS tidak valid: {value}. Harus lebih besar dari 0 detik."
             )
         return value
 
