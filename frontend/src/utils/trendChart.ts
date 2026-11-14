@@ -200,7 +200,7 @@ export function computeTrendChartModel(
   const rawRelPoints = sorted
     .map((v, idx) => {
       const pacVal =
-        idx === 0 ? 0 : (v.pac_rel ?? (v.pac_basis === 'relative' ? v.pac : null))
+        idx === 0 ? 0 : (v.pac_rel ?? (v.pac_basis !== 'calibrated' ? v.pac : null))
       if (pacVal === null || Number.isNaN(pacVal)) return null
       return { visit: v, idx, pac: pacVal }
     })

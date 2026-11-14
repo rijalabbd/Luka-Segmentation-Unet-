@@ -217,3 +217,37 @@ test('mode campuran saat baseline relatif (MIXED_BASIS) dan skala Y dinamis nila
   assert.ok(model.yMax >= 100)
   assert.ok(model.ticks.some((t) => t.isZero))
 })
+
+test('data lama / seed relatif dengan pac_rel=null dan pac_basis=null tetap memakai kolom pac', () => {
+  const visits = [
+    makeVisit({ id: 1, visit_index: 1, visit_date: '2026-10-03', area_pct: 10.26 }),
+    makeVisit({
+      id: 2,
+      visit_index: 2,
+      visit_date: '2026-10-17',
+      area_pct: 7.65,
+      delta_area: -2.61,
+      pac: 25.44,
+      pac_rel: null,
+      pac_cm2: null,
+      pac_basis: null,
+    }),
+    makeVisit({
+      id: 3,
+      visit_index: 3,
+      visit_date: '2026-10-24',
+      area_pct: 8.1,
+      delta_area: -2.16,
+      pac: 21.05,
+      pac_rel: null,
+      pac_cm2: null,
+      pac_basis: null,
+    }),
+  ]
+
+  const model = computeTrendChartModel(visits, 720)
+  assert.equal(model.mode, 'single_relative')
+  assert.equal(model.series[0]?.points.length, 3)
+  assert.equal(model.series[0]?.points[1]?.pac, 25.44)
+  assert.equal(model.series[0]?.points[2]?.pac, 21.05)
+})
