@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Date,
     DateTime,
@@ -66,6 +67,23 @@ class Visit(Base):
     delta_area: Mapped[float | None] = mapped_column(Float, nullable=True)
     pac: Mapped[float | None] = mapped_column(Float, nullable=True)
     trend_status: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    measure_mode: Mapped[str] = mapped_column(
+        String(16), default="relative", nullable=False
+    )  # relative | calibrated
+    img_width_px: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    img_height_px: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    calib_x1: Mapped[float | None] = mapped_column(Float, nullable=True)
+    calib_y1: Mapped[float | None] = mapped_column(Float, nullable=True)
+    calib_x2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    calib_y2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    calib_length_cm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    scale_cm_per_px: Mapped[float | None] = mapped_column(Float, nullable=True)
+    area_cm2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pac_rel: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pac_cm2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pac_basis: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    warnings: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     clinician_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     patient_narrative: Mapped[str | None] = mapped_column(Text, nullable=True)
