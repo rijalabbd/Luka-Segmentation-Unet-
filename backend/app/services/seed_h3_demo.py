@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
 from app.main import app
+from app.models.patient import Patient
 from app.models.visit import Visit, derive_overlay_rel_path
 from app.services.segmentation import get_loaded_model, load_segmentation_model
 from app.services.seed import BASE_DEMO_RM_CODES, seed_demo_patients
@@ -84,9 +85,14 @@ async def seed_h3_test_data(clear: bool = False) -> None:
             print(f"[ORPHAN-CLEANUP] {len(orphans)} berkas yatim dihapus dari storage.")
             return
 
-        # Bersihkan H3 demo terlebih dahulu agar idempoten saat dijalankan ulang
-        for pid in H3_DEMO_RM_CODES:
-            await client.delete(f"/api/v1/patients/{pid}")
+        # Bersihkan seluruh pasien demo terlebih dahulu agar idempoten dan bebas sisa demo lama
+        async with AsyncSessionLocal() as session:
+            extra_demo_codes = (
+                await session.execute(select(Patient.rm_code).where(Patient.is_demo.is_(True)))
+            ).scalars().all()
+        for pid in sorted(set(H3_DEMO_RM_CODES) | set(extra_demo_codes)):
+            if pid not in BASE_DEMO_RM_CODES:
+                await client.delete(f"/api/v1/patients/{pid}")
 
         # 0. Reset dan buat pasien demo dasar (RM-0012, RM-0017, RM-0023)
         async with AsyncSessionLocal() as session:

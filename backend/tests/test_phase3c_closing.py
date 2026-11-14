@@ -197,3 +197,36 @@ def test_c2_01_gemini_settings_validation_and_request_config(
     assert gen_cfg["temperature"] == 0.15
     assert gen_cfg["maxOutputTokens"] == 640
     assert "fake-c2-key" == captured["headers"]["x-goog-api-key"]  # type: ignore[index]
+
+
+async def test_c3_seeded_visits_with_pac_have_explicit_pac_basis_and_pac_rel() -> None:
+    """C3: Setelah seed_demo_patients, tidak ada kunjungan final berPAC dengan pac_basis null."""
+    from sqlalchemy import delete, select
+    from app.models.patient import Patient, Visit
+    from app.services.seed import seed_demo_patients
+
+    test_engine = create_async_engine(settings.resolved_test_database_url, future=True)
+    TestSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False, class_=AsyncSession)
+
+    try:
+        async with TestSessionLocal() as session:
+            await session.execute(delete(Visit))
+            await session.execute(delete(Patient))
+            await session.commit()
+            await seed_demo_patients(session)
+
+            visits = (await session.execute(select(Visit).where(Visit.status == "final"))).scalars().all()
+            assert len(visits) >= 6
+            for v in visits:
+                assert v.measure_mode == "relative"
+                if v.pac is not None:
+                    assert v.pac_basis == "relative"
+                    assert v.pac_rel == pytest.approx(v.pac)
+            null_basis_with_pac = [v for v in visits if v.pac is not None and v.pac_basis is None]
+            assert null_basis_with_pac == []
+
+            await session.execute(delete(Visit))
+            await session.execute(delete(Patient))
+            await session.commit()
+    finally:
+        await test_engine.dispose()
