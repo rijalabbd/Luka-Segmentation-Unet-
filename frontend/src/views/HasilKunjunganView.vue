@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   ApiError,
   checkServerHealth,
+  confirmVisit,
+  deleteVisit,
   fetchPatient,
   fetchPatientVisits,
   fetchVisit,
@@ -12,9 +14,11 @@ import {
 import type { PatientSummary, VisitRecord } from '@/types/patient'
 import PacPreviewCard from '@/components/PacPreviewCard.vue'
 import RulerCalibration from '@/components/RulerCalibration.vue'
-import { formatDateID, formatDecimalID } from '@/utils/formatters'
+import VisitActionModals from '@/components/VisitActionModals.vue'
+import { formatDateID, formatDecimalID, formatSignedDecimalID } from '@/utils/formatters'
 
 const route = useRoute()
+const router = useRouter()
 
 const visitId = computed(() => Number(route.params.visitId))
 
@@ -29,7 +33,9 @@ const loadError = ref('')
 const showMaskOverlay = ref(true)
 
 const isDraft = computed(() => visit.value?.status === 'draft')
-const isCalibrated = computed(() => visit.value?.measure_mode === 'calibrated' && visit.value?.area_cm2 !== null)
+const isCalibrated = computed(
+  () => visit.value?.measure_mode === 'calibrated' && visit.value?.area_cm2 !== null,
+)
 
 const isBaselineVisit = computed(() => {
   if (!visit.value) return false
@@ -48,20 +54,16 @@ const displayVisitNumber = computed(() => {
 const statusChipLabel = computed(() => {
   if (!visit.value) return ''
   if (visit.value.status === 'draft') return 'Draf — Belum Disimpan'
-  if (isBaselineVisit.value) return 'Final · Baseline'
-  return 'Final — Tersimpan'
+  return isBaselineVisit.value ? 'Final · Baseline' : 'Final — Tersimpan'
 })
 
 const statusChipClass = computed(() => {
-  if (!visit.value) return 'draft'
-  if (visit.value.status === 'draft') return 'draft'
+  if (!visit.value || visit.value.status === 'draft') return 'draft'
   return isBaselineVisit.value ? 'base' : 'final'
 })
 
 const bannerInfo = computed(() => {
-  if (!visit.value) {
-    return { cls: 'draft', title: '', text: '' }
-  }
+  if (!visit.value) return { cls: 'draft', title: '', text: '' }
   if (visit.value.status === 'draft') {
     return {
       cls: 'draft',
@@ -104,12 +106,37 @@ const baselineFinalVisit = computed<VisitRecord | null>(() => finalVisits.value[
 const toastMessage = ref('')
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 
+const showSaveModal = ref(false)
+const showDiscardModal = ref(false)
+const chkMaskChecked = ref(false)
+const saveModalError = ref('')
+const discardModalError = ref('')
+const isConfirming = ref(false)
+const isDiscarding = ref(false)
+
+const modalsRef = ref<InstanceType<typeof VisitActionModals> | null>(null)
+const saveOpenerRef = ref<HTMLButtonElement | null>(null)
+const discardOpenerRef = ref<HTMLButtonElement | null>(null)
+let lastModalOpener: HTMLButtonElement | null = null
+
+const saveModalDescription = computed(() => {
+  if (!visit.value) return ''
+  const modeTxt = isCalibrated.value ? 'terkalibrasi (cm²)' : 'berbasis luas relatif (%)'
+  const mixedNote =
+    isCalibrated.value && visit.value.preview?.pac_basis === 'relative'
+      ? ', dengan PAC memakai luas relatif karena kunjungan awal tidak terkalibrasi'
+      : ''
+  return (
+    `Hasil kunjungan ke-${displayVisitNumber.value} (${formatDateID(visit.value.visit_date)}) ` +
+    `akan dikonfirmasi dan disimpan sebagai rekam kunjungan final pasien ${visit.value.patient_id} ` +
+    `dengan pengukuran ${modeTxt}${mixedNote}. Setelah disimpan, hasil dan kalibrasi tidak dapat diubah.`
+  )
+})
+
 function showToast(msg: string) {
   toastMessage.value = msg
   if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => {
-    toastMessage.value = ''
-  }, 4500)
+  toastTimer = setTimeout(() => { toastMessage.value = '' }, 4500)
 }
 
 function handleVisitUpdated(updated: VisitRecord) {
@@ -119,6 +146,66 @@ function handleVisitUpdated(updated: VisitRecord) {
 function handleCalibrationConflict(msg: string) {
   showToast(msg)
   loadPageData()
+}
+
+function openSaveModal() {
+  if (!isDraft.value) return
+  lastModalOpener = saveOpenerRef.value
+  chkMaskChecked.value = false
+  saveModalError.value = ''
+  showSaveModal.value = true
+}
+
+function openDiscardModal() {
+  if (!isDraft.value) return
+  lastModalOpener = discardOpenerRef.value
+  discardModalError.value = ''
+  showDiscardModal.value = true
+}
+
+function closeModals() {
+  if (isConfirming.value || isDiscarding.value) return
+  showSaveModal.value = false
+  showDiscardModal.value = false
+  nextTick(() => lastModalOpener?.focus())
+}
+
+async function handleConfirmAndSave() {
+  if (!visit.value || isConfirming.value) return
+  if (!chkMaskChecked.value) {
+    saveModalError.value = 'Centang pernyataan ini setelah memeriksa masker, lalu simpan.'
+    modalsRef.value?.focusCheckbox()
+    return
+  }
+
+  saveModalError.value = ''
+  isConfirming.value = true
+  try {
+    const confirmZero = visit.value.n_wound_px <= 0 || visit.value.area_pct <= 0
+    const confirmed = await confirmVisit(visit.value.id, confirmZero)
+    visit.value = confirmed
+    showSaveModal.value = false
+    showToast('Hasil kunjungan berhasil dikonfirmasi dan disimpan.')
+  } catch (err) {
+    saveModalError.value = err instanceof ApiError ? err.message : 'Terjadi kesalahan saat mengonfirmasi kunjungan.'
+  } finally {
+    isConfirming.value = false
+  }
+}
+
+async function handleDiscardAndRetake() {
+  if (!visit.value || isDiscarding.value) return
+  discardModalError.value = ''
+  isDiscarding.value = true
+  const targetPatientId = visit.value.patient_id
+  try {
+    await deleteVisit(visit.value.id)
+    showDiscardModal.value = false
+    await router.push(`/pemeriksaan/${encodeURIComponent(targetPatientId)}/unggah`)
+  } catch (err) {
+    discardModalError.value = err instanceof ApiError ? err.message : 'Gagal membuang draf kunjungan.'
+    isDiscarding.value = false
+  }
 }
 
 async function loadPageData() {
@@ -151,30 +238,16 @@ async function loadPageData() {
     patient.value = p
     finalVisits.value = finals
   } catch (err) {
-    if (err instanceof ApiError) {
-      loadError.value = err.message
-    } else {
-      loadError.value = 'Gagal memuat detail kunjungan.'
-    }
+    loadError.value = err instanceof ApiError ? err.message : 'Gagal memuat detail kunjungan.'
   } finally {
     isLoading.value = false
   }
 }
 
-onMounted(() => {
-  loadPageData()
-})
-
-onBeforeUnmount(() => {
-  if (toastTimer) clearTimeout(toastTimer)
-})
-
-watch(
-  () => route.params.visitId,
-  () => {
-    loadPageData()
-  },
-)
+onMounted(() => loadPageData())
+onBeforeUnmount(() => { if (toastTimer) clearTimeout(toastTimer) })
+watch(() => route.params.visitId, () => loadPageData())
+watch(chkMaskChecked, (val) => { if (val) saveModalError.value = '' })
 </script>
 
 <template>
@@ -192,11 +265,7 @@ watch(
         </RouterLink>
         <div class="topright">
           <div class="sys" role="status">
-            <span
-              class="dot"
-              :class="{ offline: serverOnline === false }"
-              aria-hidden="true"
-            ></span>
+            <span class="dot" :class="{ offline: serverOnline === false }" aria-hidden="true"></span>
             <span>{{ healthLabel }}</span>
           </div>
           <nav class="topnav" aria-label="Navigasi utama">
@@ -279,11 +348,7 @@ watch(
                     <span>Area luka (masker segmentasi)</span>
                   </div>
                   <label class="overlay-toggle" for="toggle-mask-overlay">
-                    <input
-                      id="toggle-mask-overlay"
-                      v-model="showMaskOverlay"
-                      type="checkbox"
-                    />
+                    <input id="toggle-mask-overlay" v-model="showMaskOverlay" type="checkbox" />
                     <span>Tampilkan overlay masker</span>
                   </label>
                 </div>
@@ -305,9 +370,7 @@ watch(
                 <figure class="fig">
                   <div class="fig-label">
                     Hasil Segmentasi
-                    <small>{{
-                      showMaskOverlay ? 'Foto dengan overlay masker' : 'Overlay disembunyikan'
-                    }}</small>
+                    <small>{{ showMaskOverlay ? 'Foto dengan overlay masker' : 'Overlay disembunyikan' }}</small>
                   </div>
                   <div class="fig-frame">
                     <img
@@ -384,7 +447,10 @@ watch(
           <h2>Status Kunjungan Final</h2>
           <p v-if="visit.trend_status">
             Status tren tersimpan: <b>{{ visit.trend_status }}</b>
-            <template v-if="visit.pac !== null"> · PAC {{ visit.pac }}%</template>
+            <template v-if="visit.pac !== null">
+              · PAC {{ formatSignedDecimalID(visit.pac, 1) }}%
+              ({{ visit.pac_basis === 'calibrated' ? 'Terkalibrasi cm²' : 'Basis Relatif %' }})
+            </template>
           </p>
           <p v-else>Kunjungan baseline tersimpan tanpa perhitungan PAC.</p>
           <p v-if="visit.patient_narrative">
@@ -401,8 +467,24 @@ watch(
             Foto Ulang, draf beserta kalibrasi pada kunjungan ini akan dibuang.
           </p>
           <div class="btn-row">
-            <button id="bDiscard" class="btn btn-secondary" type="button">Foto Ulang</button>
-            <button id="bSave" class="btn btn-primary" type="button">Setujui dan Simpan</button>
+            <button
+              id="bDiscard"
+              ref="discardOpenerRef"
+              class="btn btn-secondary"
+              type="button"
+              @click="openDiscardModal"
+            >
+              Foto Ulang
+            </button>
+            <button
+              id="bSave"
+              ref="saveOpenerRef"
+              class="btn btn-primary"
+              type="button"
+              @click="openSaveModal"
+            >
+              Setujui dan Simpan
+            </button>
           </div>
         </div>
 
@@ -426,6 +508,22 @@ watch(
         </div>
       </template>
     </main>
+
+    <VisitActionModals
+      ref="modalsRef"
+      v-model:chk-mask="chkMaskChecked"
+      :show-save="showSaveModal"
+      :show-discard="showDiscardModal"
+      :save-description="saveModalDescription"
+      :visit-number="displayVisitNumber"
+      :is-confirming="isConfirming"
+      :is-discarding="isDiscarding"
+      :save-error="saveModalError"
+      :discard-error="discardModalError"
+      @close="closeModals"
+      @confirm-save="handleConfirmAndSave"
+      @confirm-discard="handleDiscardAndRetake"
+    />
 
     <div aria-live="polite">
       <div v-if="toastMessage" class="toast" role="status">{{ toastMessage }}</div>
