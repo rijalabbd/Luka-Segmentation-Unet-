@@ -139,11 +139,41 @@ export async function deleteVisit(visitId: number): Promise<void> {
       headers: { Accept: 'application/json' },
     })
   } catch {
-    throw new ApiError(0, 'Tidak dapat terhubung ke server backend lokal untuk menghapus draf.')
+    throw new ApiError(0, 'Tidak dapat terhubung ke server backend lokal untuk menghapus kunjungan.')
   }
   if (!res.ok) {
-    throw new ApiError(res.status, await readErrorDetail(res, 'Gagal menghapus draf kunjungan.'))
+    const fallback =
+      res.status === 404
+        ? `Data kunjungan #${visitId} tidak ditemukan atau sudah dihapus.`
+        : res.status === 409
+          ? 'Kunjungan tidak dapat dihapus karena melanggar aturan LIFO (hanya kunjungan terakhir yang boleh dihapus).'
+          : `Gagal menghapus kunjungan (HTTP ${res.status}).`
+    throw new ApiError(res.status, await readErrorDetail(res, fallback))
   }
+}
+
+export async function deletePatient(
+  patientId: string,
+): Promise<{ deleted_patient_id: string; deleted_visits: number }> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/patients/${encodeURIComponent(patientId)}`, {
+      method: 'DELETE',
+      headers: { Accept: 'application/json' },
+    })
+  } catch {
+    throw new ApiError(0, 'Tidak dapat terhubung ke server backend lokal saat menghapus data pasien.')
+  }
+  if (!res.ok) {
+    const fallback =
+      res.status === 404
+        ? `Data pasien ${patientId} tidak ditemukan atau sudah dihapus.`
+        : res.status === 409
+          ? 'Data pasien tidak dapat dihapus karena masih ada operasi aktif.'
+          : `Gagal menghapus data pasien (HTTP ${res.status}).`
+    throw new ApiError(res.status, await readErrorDetail(res, fallback))
+  }
+  return (await res.json()) as { deleted_patient_id: string; deleted_visits: number }
 }
 
 export async function createDraftVisit(

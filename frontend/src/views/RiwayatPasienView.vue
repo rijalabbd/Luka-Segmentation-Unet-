@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   ApiError,
   checkServerHealth,
+  deletePatient,
+  deleteVisit,
   fetchPatient,
   fetchPatientVisits,
 } from '@/api/patients'
+import PatientDangerModals from '@/components/PatientDangerModals.vue'
 import TrendChart from '@/components/TrendChart.vue'
 import VisitHistoryTable from '@/components/VisitHistoryTable.vue'
 import type { PatientSummary, VisitRecord } from '@/types/patient'
@@ -15,6 +18,7 @@ import { sortVisitsChronologically } from '@/utils/trendChart'
 import { getTrendCssClass } from '@/utils/visitWarnings'
 
 const route = useRoute()
+const router = useRouter()
 const patientId = computed(() => String(route.params.patientId ?? '').trim())
 
 const serverOnline = ref<boolean | null>(null)
@@ -25,10 +29,25 @@ const finalVisits = ref<VisitRecord[]>([])
 const isLoading = ref(true)
 const loadError = ref('')
 
+const visitToDelete = ref<VisitRecord | null>(null)
+const showDeletePatientModal = ref(false)
+const isDeletingVisit = ref(false)
+const isDeletingPatient = ref(false)
+const deleteVisitError = ref('')
+const deletePatientError = ref('')
+const deletePatientBtnRef = ref<HTMLButtonElement | null>(null)
+let lastModalOpener: HTMLElement | null = null
+
+const toastMessage = ref('')
+let toastTimer: ReturnType<typeof setTimeout> | undefined
+
 const sortedVisits = computed(() => sortVisitsChronologically(finalVisits.value))
 const baselineVisit = computed<VisitRecord | null>(() => sortedVisits.value[0] ?? null)
 const latestVisit = computed<VisitRecord | null>(() =>
   sortedVisits.value.length > 0 ? sortedVisits.value[sortedVisits.value.length - 1] ?? null : null,
+)
+const previousBeforeLatest = computed<VisitRecord | null>(() =>
+  sortedVisits.value.length >= 2 ? sortedVisits.value[sortedVisits.value.length - 2] ?? null : null,
 )
 
 const patientAttrs = computed(() => {
@@ -63,6 +82,74 @@ const pacSummaryDelta = computed(() => {
   const basisLabel = v.pac_basis === 'calibrated' ? 'Basis cm²' : 'Basis Relatif %'
   return `${basisLabel} · ΔA ${formatSignedDecimalID(v.delta_area, 2)} ${unit} vs A₀`
 })
+
+function showToast(msg: string) {
+  toastMessage.value = msg
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastMessage.value = '' }, 5000)
+}
+
+function openDeleteVisitModal(visit: VisitRecord) {
+  lastModalOpener = document.activeElement as HTMLElement | null
+  deleteVisitError.value = ''
+  visitToDelete.value = visit
+}
+
+function openDeletePatientModal() {
+  lastModalOpener = deletePatientBtnRef.value
+  deletePatientError.value = ''
+  showDeletePatientModal.value = true
+}
+
+function closeModals() {
+  if (isDeletingVisit.value || isDeletingPatient.value) return
+  visitToDelete.value = null
+  showDeletePatientModal.value = false
+  nextTick(() => {
+    if (lastModalOpener && document.contains(lastModalOpener)) {
+      lastModalOpener.focus()
+    }
+  })
+}
+
+async function handleConfirmDeleteVisit() {
+  const target = visitToDelete.value
+  if (!target || isDeletingVisit.value) return
+  const deletedNum = target.visit_index ?? sortedVisits.value.length
+  const prev = previousBeforeLatest.value
+  deleteVisitError.value = ''
+  isDeletingVisit.value = true
+  try {
+    await deleteVisit(target.id)
+    visitToDelete.value = null
+    await loadPageData()
+    const msg = prev
+      ? `Kunjungan ke-${deletedNum} dihapus. Kunjungan ke-${prev.visit_index ?? deletedNum - 1} kini menjadi data terkini.`
+      : `Kunjungan ke-${deletedNum} (baseline) dihapus. Riwayat kunjungan pasien kini kosong.`
+    showToast(msg)
+  } catch (err) {
+    deleteVisitError.value =
+      err instanceof ApiError ? err.message : 'Gagal menghapus kunjungan terakhir.'
+  } finally {
+    isDeletingVisit.value = false
+  }
+}
+
+async function handleConfirmDeletePatient() {
+  if (!patient.value || isDeletingPatient.value) return
+  deletePatientError.value = ''
+  isDeletingPatient.value = true
+  try {
+    await deletePatient(patient.value.id)
+    showDeletePatientModal.value = false
+    await router.push('/pemeriksaan')
+  } catch (err) {
+    deletePatientError.value =
+      err instanceof ApiError ? err.message : 'Gagal menghapus data pasien.'
+  } finally {
+    isDeletingPatient.value = false
+  }
+}
 
 async function loadPageData() {
   if (!patientId.value) {
@@ -100,6 +187,7 @@ async function loadPageData() {
 }
 
 onMounted(() => loadPageData())
+onBeforeUnmount(() => { if (toastTimer) clearTimeout(toastTimer) })
 watch(() => route.params.patientId, () => loadPageData())
 </script>
 
@@ -237,9 +325,49 @@ watch(() => route.params.patientId, () => loadPageData())
 
         <TrendChart :visits="sortedVisits" :patient-id="patient.id" />
 
-        <VisitHistoryTable :visits="sortedVisits" />
+        <VisitHistoryTable
+          :visits="sortedVisits"
+          :allow-delete="true"
+          @request-delete="openDeleteVisitModal"
+        />
+
+        <section id="dangerZone" class="danger" aria-labelledby="t-danger">
+          <div>
+            <h2 id="t-danger">Zona Bahaya</h2>
+            <p>Tindakan di area ini bersifat permanen dan mempengaruhi seluruh rekam medis pasien.</p>
+          </div>
+          <button
+            id="bDelPatient"
+            ref="deletePatientBtnRef"
+            class="btn btn-danger-o"
+            type="button"
+            @click="openDeletePatientModal"
+          >
+            Hapus Seluruh Data Pasien
+          </button>
+        </section>
       </template>
     </main>
+
+    <PatientDangerModals
+      v-if="patient"
+      :patient="patient"
+      :visit-to-delete="visitToDelete"
+      :previous-visit="previousBeforeLatest"
+      :visit-count="sortedVisits.length"
+      :show-patient-modal="showDeletePatientModal"
+      :is-deleting-visit="isDeletingVisit"
+      :is-deleting-patient="isDeletingPatient"
+      :visit-error="deleteVisitError"
+      :patient-error="deletePatientError"
+      @close="closeModals"
+      @confirm-delete-visit="handleConfirmDeleteVisit"
+      @confirm-delete-patient="handleConfirmDeletePatient"
+    />
+
+    <div aria-live="polite">
+      <div v-if="toastMessage" class="toast" role="status">{{ toastMessage }}</div>
+    </div>
   </div>
 </template>
 
