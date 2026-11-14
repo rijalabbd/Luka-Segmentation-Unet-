@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   ApiError,
@@ -10,6 +10,7 @@ import {
   resolveStorageUrl,
 } from '@/api/patients'
 import type { PatientSummary, VisitRecord } from '@/types/patient'
+import RulerCalibration from '@/components/RulerCalibration.vue'
 import { formatDateID, formatDecimalID } from '@/utils/formatters'
 
 const route = useRoute()
@@ -99,6 +100,26 @@ const segmentationDisplayUrl = computed(() => {
 
 const baselineFinalVisit = computed<VisitRecord | null>(() => finalVisits.value[0] ?? null)
 
+const toastMessage = ref('')
+let toastTimer: ReturnType<typeof setTimeout> | undefined
+
+function showToast(msg: string) {
+  toastMessage.value = msg
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    toastMessage.value = ''
+  }, 4500)
+}
+
+function handleVisitUpdated(updated: VisitRecord) {
+  visit.value = updated
+}
+
+function handleCalibrationConflict(msg: string) {
+  showToast(msg)
+  loadPageData()
+}
+
 async function loadPageData() {
   if (!Number.isFinite(visitId.value) || visitId.value <= 0) {
     loadError.value = 'ID kunjungan tidak valid.'
@@ -141,6 +162,10 @@ async function loadPageData() {
 
 onMounted(() => {
   loadPageData()
+})
+
+onBeforeUnmount(() => {
+  if (toastTimer) clearTimeout(toastTimer)
 })
 
 watch(
@@ -299,6 +324,15 @@ watch(
                 65.536 piksel peta masker 256×256).
               </p>
             </section>
+
+            <RulerCalibration
+              v-if="isDraft"
+              :visit="visit"
+              :image-url="originalImageUrl"
+              @updated="handleVisitUpdated"
+              @conflict="handleCalibrationConflict"
+              @notify="showToast"
+            />
           </div>
 
           <div class="metrics">
@@ -393,6 +427,10 @@ watch(
         </div>
       </template>
     </main>
+
+    <div aria-live="polite">
+      <div v-if="toastMessage" class="toast" role="status">{{ toastMessage }}</div>
+    </div>
   </div>
 </template>
 
