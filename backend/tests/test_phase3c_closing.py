@@ -612,3 +612,62 @@ async def test_3d_01_trend_direction_specific_subreasons_and_warning_log(
         in rec.message
         for rec in caplog.records
     )
+
+
+def test_3d_02_unicode_minus_normalized_across_three_trend_statuses() -> None:
+    """3d-2: Karakter minus Unicode U+2212 (−) dan U+2013 (–) dinormalisasi ke '-' di tiga status tren."""
+    from app.services.narrative import generate_fallback_narrative, validate_narrative_output
+
+    # 1. Menurun (PAC = +30,00%, ΔA = -3,78)
+    c_dec, p_dec, _ = generate_fallback_narrative(
+        a0=12.60, at=8.82, delta_a=-3.78, pac=30.00, badge="menurun", unit="%"
+    )
+    # 2. Stabil dengan PAC negatif (A0=12,60%, At=12,85%, ΔA=+0,25, PAC=-1,98%)
+    c_stb, p_stb, _ = generate_fallback_narrative(
+        a0=12.60, at=12.85, delta_a=0.25, pac=-1.98, badge="stabil", unit="%"
+    )
+    # 3. Meningkat (PAC = -109,29%, ΔA = +13,77)
+    c_inc, p_inc, _ = generate_fallback_narrative(
+        a0=12.60, at=26.37, delta_a=13.77, pac=-109.29, badge="meningkat", unit="%"
+    )
+
+    for minus_char in ("\u2212", "\u2013"):
+        # Klinisi memakai minus Unicode -> diterima pada ketiga status
+        ok_dec, r_dec = validate_narrative_output(
+            c_dec.replace("-3,78", f"{minus_char}3,78"),
+            p_dec,
+            a0=12.60, at=8.82, delta_a=-3.78, pac=30.00, badge="menurun", unit="%",
+        )
+        ok_stb, r_stb = validate_narrative_output(
+            c_stb.replace("-1,98", f"{minus_char}1,98"),
+            p_stb,
+            a0=12.60, at=12.85, delta_a=0.25, pac=-1.98, badge="stabil", unit="%",
+        )
+        ok_inc, r_inc = validate_narrative_output(
+            c_inc.replace("-109,29", f"{minus_char}109,29"),
+            p_inc,
+            a0=12.60, at=26.37, delta_a=13.77, pac=-109.29, badge="meningkat", unit="%",
+        )
+        assert ok_dec is True, r_dec
+        assert ok_stb is True, r_stb
+        assert ok_inc is True, r_inc
+
+        # Pasien membubuhkan minus Unicode di depan PAC -> ditolak dengan sub-alasan tepat
+        bad_dec, rb_dec = validate_narrative_output(
+            c_dec,
+            p_dec.replace("30,00%", f"{minus_char}30,00%"),
+            a0=12.60, at=8.82, delta_a=-3.78, pac=30.00, badge="menurun", unit="%",
+        )
+        bad_stb, rb_stb = validate_narrative_output(
+            c_stb,
+            p_stb.replace("12,85%", f"12,85% (perubahan {minus_char}1,98%)"),
+            a0=12.60, at=12.85, delta_a=0.25, pac=-1.98, badge="stabil", unit="%",
+        )
+        bad_inc, rb_inc = validate_narrative_output(
+            c_inc,
+            p_inc.replace("109,29%", f"{minus_char}109,29%"),
+            a0=12.60, at=26.37, delta_a=13.77, pac=-109.29, badge="meningkat", unit="%",
+        )
+        assert bad_dec is False and rb_dec == "arah_tren_atau_format_pac_tidak_sesuai:pac_negatif_di_narasi_pasien"
+        assert bad_stb is False and rb_stb == "arah_tren_atau_format_pac_tidak_sesuai:pac_negatif_di_narasi_pasien"
+        assert bad_inc is False and rb_inc == "arah_tren_atau_format_pac_tidak_sesuai:pac_negatif_di_narasi_pasien"

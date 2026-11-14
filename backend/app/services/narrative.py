@@ -116,6 +116,11 @@ def _has_meningkat_consultation_call(patient_narrative: str) -> bool:
     return has_action and has_clinician
 
 
+def _normalize_minus(text: str) -> str:
+    """Menormalisasi tanda minus Unicode (U+2212) dan en-dash (U+2013) ke hyphen ASCII '-'."""
+    return text.replace("\u2212", "-").replace("\u2013", "-")
+
+
 def _check_trend_direction(
     clinician_notes: str,
     patient_narrative: str,
@@ -128,8 +133,8 @@ def _check_trend_direction(
     combined = f"{c_low} {p_low}"
 
     # Format: narasi awam memakai nilai mutlak PAC (tidak boleh ada tanda minus di depan angka PAC)
-    c_norm = clinician_notes.replace(",", ".")
-    p_norm = patient_narrative.replace(",", ".")
+    c_norm = _normalize_minus(clinician_notes).replace(",", ".")
+    p_norm = _normalize_minus(patient_narrative).replace(",", ".")
     abs_pac = abs(pac)
     if abs_pac > 0:
         neg_candidates = [f"-{abs_pac:.2f}", f"-{abs_pac:.1f}"]
