@@ -8,6 +8,11 @@ from app.schemas.patient import PatientSummaryResponse, PatientTrendBadge, forma
 CANVAS_TOTAL_PX = 65536
 TOTAL_MASK_PIXELS = CANVAS_TOTAL_PX
 
+PAC_WARN_MIN: float = 5.0
+PAC_WARN_STRONG_MIN: float = 10.0
+PAC_WARN_MAX: float | None = None
+LOW_BASELINE_THRESHOLD_PCT: float = 1.0
+
 
 @dataclass(frozen=True)
 class LongitudinalEvaluation:
@@ -77,11 +82,38 @@ def evaluate_pac_and_trend(
     return delta_a, pac, badge, label
 
 
+def evaluate_distance_warnings(
+    pac_rel: float | None,
+    pac_basis: Literal["relative", "calibrated"],
+    *,
+    a0_rel: float | None = None,
+    mixed_basis: bool = False,
+) -> list[str]:
+    """Susun daftar kode peringatan (warnings) sesuai PRD v3 Keputusan D1 & Bagian 2 G5."""
+    warnings: list[str] = []
+    if mixed_basis:
+        warnings.append("MIXED_BASIS")
+
+    if pac_basis == "relative" and pac_rel is not None:
+        abs_pac = round(abs(pac_rel), 2)
+        if PAC_WARN_MIN <= abs_pac <= PAC_WARN_STRONG_MIN:
+            warnings.append("DISTANCE_SENSITIVE")
+        elif abs_pac > PAC_WARN_STRONG_MIN and (
+            PAC_WARN_MAX is None or abs_pac <= PAC_WARN_MAX
+        ):
+            warnings.append("DISTANCE_LARGE")
+
+    if a0_rel is not None and 0.0 < round(a0_rel, 6) < LOW_BASELINE_THRESHOLD_PCT:
+        warnings.append("LOW_BASELINE")
+
+    return warnings
+
+
 def evaluate_visit_longitudinal(
     baseline_visit: Visit,
     current_visit: Visit,
 ) -> LongitudinalEvaluation:
-    """Evaluasi longitudinal dua basis (relatif % dan terkalibrasi cm²) sesuai PRD v3 G3 & G4."""
+    """Evaluasi longitudinal dua basis (relatif % dan terkalibrasi cm²) sesuai PRD v3 G3, G4, & G5."""
     a0_rel = float(baseline_visit.area_pct)
     at_rel = float(current_visit.area_pct)
     delta_rel = at_rel - a0_rel
@@ -98,8 +130,6 @@ def evaluate_visit_longitudinal(
         and current_visit.area_cm2 is not None
     )
 
-    warnings: list[str] = []
-
     if base_calibrated and curr_calibrated:
         a0_cm2 = float(baseline_visit.area_cm2)  # type: ignore[arg-type]
         at_cm2 = float(current_visit.area_cm2)  # type: ignore[arg-type]
@@ -107,6 +137,12 @@ def evaluate_visit_longitudinal(
         raw_pac_cm2 = ((a0_cm2 - at_cm2) / a0_cm2) * 100.0
         rounded_pac_cm2 = round(raw_pac_cm2, 2)
         badge, trend_status = classify(raw_pac_cm2, None, "calibrated")
+        warnings = evaluate_distance_warnings(
+            rounded_pac_rel,
+            "calibrated",
+            a0_rel=a0_rel,
+            mixed_basis=False,
+        )
         return LongitudinalEvaluation(
             pac_basis="calibrated",
             a0=round(a0_cm2, 2),
@@ -120,9 +156,13 @@ def evaluate_visit_longitudinal(
             warnings=warnings,
         )
 
-    if base_calibrated != curr_calibrated:
-        warnings.append("MIXED_BASIS")
-
+    mixed_basis = base_calibrated != curr_calibrated
+    warnings = evaluate_distance_warnings(
+        rounded_pac_rel,
+        "relative",
+        a0_rel=a0_rel,
+        mixed_basis=mixed_basis,
+    )
     badge, trend_status = classify(raw_pac_rel, delta_rel, "relative")
     return LongitudinalEvaluation(
         pac_basis="relative",
