@@ -16,7 +16,7 @@ import GhostOverlay from '@/components/GhostOverlay.vue'
 import PhotoDropzone from '@/components/PhotoDropzone.vue'
 import PhotoGuideCard from '@/components/PhotoGuideCard.vue'
 import ReferencePanel from '@/components/ReferencePanel.vue'
-import { formatDateID, getTodayISO } from '@/utils/formatters'
+import { formatDateID, formatDecimalID, getTodayISO } from '@/utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
@@ -437,7 +437,7 @@ onBeforeUnmount(() => {
             <strong>Ada draf belum disimpan ({{ formatDateID(pendingDraft.visit_date) }})</strong>
             <p>
               Luas relatif terdeteksi sementara:
-              <strong>{{ pendingDraft.area_pct.toFixed(2) }}%</strong> kanvas. Pilih untuk
+              <strong>{{ formatDecimalID(pendingDraft.area_pct) }}%</strong> kanvas. Pilih untuk
               melanjutkan evaluasi draf tersebut atau buang draf untuk mengunggah foto baru.
             </p>
           </div>

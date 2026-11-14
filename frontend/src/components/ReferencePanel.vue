@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import type { VisitRecord } from '@/types/patient'
-import { formatDateID } from '@/utils/formatters'
+import { formatDateID, formatDecimalID } from '@/utils/formatters'
 
 interface Props {
   isFollowUp: boolean
@@ -34,7 +34,7 @@ const captionText = computed(() => {
   const visitLabel = isLatestTab.value
     ? `Kunjungan ke-${props.activeVisit.visit_index ?? '?'}`
     : 'Kunjungan awal'
-  return `(${visitLabel} · ${formatDateID(props.activeVisit.visit_date)} · Luas relatif: ${props.activeVisit.area_pct.toFixed(2)}%)`
+  return `(${visitLabel} · ${formatDateID(props.activeVisit.visit_date)} · Luas relatif: ${formatDecimalID(props.activeVisit.area_pct)}%)`
 })
 
 const helpText = computed(() => {
