@@ -260,14 +260,25 @@ async def confirm_visit(
         narrative_source: str | None = None
 
         if eval_res is not None:
-            clinician_notes, patient_narrative, narrative_source = await narrative_service(
-                eval_res.a0,
-                eval_res.at,
-                eval_res.delta_area,
-                eval_res.pac,
-                eval_res.badge,
-                eval_res.trend_status,
-            )
+            if eval_res.pac_basis == "calibrated":
+                clinician_notes, patient_narrative, narrative_source = await narrative_service(
+                    eval_res.a0,
+                    eval_res.at,
+                    eval_res.delta_area,
+                    eval_res.pac,
+                    eval_res.badge,
+                    eval_res.trend_status,
+                    unit="cm²",
+                )
+            else:
+                clinician_notes, patient_narrative, narrative_source = await narrative_service(
+                    eval_res.a0,
+                    eval_res.at,
+                    eval_res.delta_area,
+                    eval_res.pac,
+                    eval_res.badge,
+                    eval_res.trend_status,
+                )
 
         # Transaksi 2 (singkat): kunci baris pasien dan visit, tetapkan visit_index, dan simpan final
         await db.execute(

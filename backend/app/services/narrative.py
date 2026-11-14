@@ -2,6 +2,7 @@ from collections.abc import Awaitable, Callable
 import json
 import logging
 import re
+from typing import Literal
 
 import httpx
 
@@ -34,7 +35,7 @@ FORBIDDEN_WORDS = (
 NUMBER_ROUNDING_TOLERANCE = 0.15
 
 NarrativeServiceFn = Callable[
-    [float, float, float, float | None, PatientTrendBadge, str],
+    ...,
     Awaitable[tuple[str, str, str]],
 ]
 
@@ -45,18 +46,24 @@ def build_gemini_user_prompt(
     delta_a: float,
     pac: float,
     trend_status: str,
+    unit: Literal["%", "cm²"] = "%",
 ) -> dict[str, float | str]:
     """
-    Membuat muatan user prompt ke Gemini yang HANYA berisi lima field:
-    A0, A_t, delta_A, PAC, dan status tren (tanpa PII, nama, kode RM, atau citra).
+    Membuat muatan user prompt ke Gemini:
+    - Mode relatif (unit="%"): tepat lima field (A0, A_t, delta_A, PAC, trend_status).
+    - Mode terkalibrasi (unit="cm²"): lima field di atas + string satuan ("satuan": "cm²") sesuai Keputusan D3.
+    Tanpa PII, nama, kode RM, koordinat kalibrasi, skala, atau citra.
     """
-    return {
+    payload: dict[str, float | str] = {
         "A0": round(a0, 2),
         "A_t": round(at, 2),
         "delta_A": round(delta_a, 2),
         "PAC": round(pac, 2),
         "trend_status": trend_status,
     }
+    if unit == "cm²":
+        payload["satuan"] = "cm²"
+    return payload
 
 
 def extract_numbers_from_text(text: str) -> list[float]:
@@ -177,6 +184,48 @@ def _matches_trend_direction(
     return True
 
 
+_FOREIGN_UNIT_CM_RE = re.compile(r"\bcm(?:²|2)?\b|cm²", re.IGNORECASE)
+_FOREIGN_UNIT_MM_RE = re.compile(r"\bmm(?:²|2)?\b|mm²", re.IGNORECASE)
+_FOREIGN_UNIT_OTHER_RE = re.compile(r"\b(?:meter|inci|inch)\b", re.IGNORECASE)
+_CM2_TOKEN_RE = re.compile(r"\bcm(?:²|2)\b|cm²", re.IGNORECASE)
+_PCT_NUMBER_RE = re.compile(r"(?<![A-Za-z_])(\d+(?:[.,]\d+)?)\s*%")
+
+
+def _check_unit_compliance(
+    c_text: str,
+    p_text: str,
+    pac: float,
+    unit: Literal["%", "cm²"],
+) -> str | None:
+    combined = f"{c_text} {p_text}"
+    if _FOREIGN_UNIT_MM_RE.search(combined):
+        return "satuan_asing:mm"
+    if _FOREIGN_UNIT_OTHER_RE.search(combined):
+        return "satuan_asing:meter_atau_inci"
+
+    if unit == "%":
+        if _FOREIGN_UNIT_CM_RE.search(combined):
+            return "satuan_asing:cm"
+        return None
+
+    # unit == "cm²"
+    if "poin persentase" in combined.lower():
+        return "satuan_asing:poin_persentase"
+    if not _CM2_TOKEN_RE.search(c_text):
+        return "satuan_asing:tanpa_cm2"
+
+    expected_abs_pac = abs(round(pac, 2))
+    for match in _PCT_NUMBER_RE.finditer(combined):
+        try:
+            val = float(match.group(1).replace(",", "."))
+        except ValueError:
+            continue
+        if abs(val - expected_abs_pac) > NUMBER_ROUNDING_TOLERANCE:
+            return f"satuan_asing:persen_pada_luas_cm2:{val}"
+
+    return None
+
+
 def validate_narrative_output(
     clinician_notes: str,
     patient_narrative: str,
@@ -185,15 +234,17 @@ def validate_narrative_output(
     delta_a: float,
     pac: float,
     badge: PatientTrendBadge,
+    unit: Literal["%", "cm²"] = "%",
 ) -> tuple[bool, str]:
     """
-    Memvalidasi keluaran narasi LLM terhadap aturan Tabel 3.4:
+    Memvalidasi keluaran narasi LLM terhadap aturan Tabel 3.4 & PRD v3 G8:
     1. Kedua narasi tidak kosong.
     2. Bebas kata terlarang (membaik, memburuk, sembuh, infeksi, diagnosis, resep).
-    3. Setiap angka di dalam teks wajib cocok dengan salah satu dari empat angka masukan
+    3. Kepatuhan satuan sesuai mode (unit="%" vs unit="cm²").
+    4. Setiap angka di dalam teks wajib cocok dengan salah satu dari empat angka masukan
        (A0, A_t, |delta_A|, |PAC|) dalam toleransi pembulatan NUMBER_ROUNDING_TOLERANCE.
-    4. Kedua narasi memuat disclaimer medis.
-    5. Arah tren dan format tanda PAC sesuai dengan klasifikasi Tabel 3.3.
+    5. Kedua narasi memuat disclaimer medis.
+    6. Arah tren dan format tanda PAC sesuai dengan klasifikasi Tabel 3.3.
     """
     if not isinstance(clinician_notes, str) or not isinstance(patient_narrative, str):
         return False, "tipe_bukan_string"
@@ -209,6 +260,10 @@ def validate_narrative_output(
             return False, f"kata_terlarang:{label}:{bad_word}"
         if not _has_required_disclaimer(text):
             return False, f"disclaimer_hilang:{label}"
+
+    unit_err = _check_unit_compliance(c_text, p_text, pac, unit)
+    if unit_err is not None:
+        return False, unit_err
 
     allowed_magnitudes = (
         abs(round(a0, 2)),
@@ -236,28 +291,34 @@ def generate_fallback_narrative(
     delta_a: float,
     pac: float | None,
     badge: PatientTrendBadge,
+    unit: Literal["%", "cm²"] = "%",
 ) -> tuple[str, str, str]:
     """
-    Templat narasi deterministik sesuai Tabel 3.5 (Bab 3.8).
+    Templat narasi deterministik sesuai Tabel 3.5 (Bab 3.8) & PRD v3 G8 (mode % atau cm²).
     Mengembalikan tuple: (clinician_notes, patient_narrative, narrative_source).
     """
+    is_cm2 = unit == "cm²"
+    satuan = " cm²" if is_cm2 else "%"
+    satuan_delta = " cm²" if is_cm2 else " poin persentase"
+    frasa_area_pasien = f"{at:.2f} cm²" if is_cm2 else f"{at:.2f}% dari area foto"
+
     if pac is None or badge == "tidak_dapat_dihitung":
         clinician_notes = (
-            f"Evaluasi Longitudinal (T₁ → Tₜ): Luas luka awal tercatat {a0:.2f}% dan luas saat ini "
-            f"{at:.2f}% (ΔA: {delta_a:+.2f} poin persentase, PAC tidak dapat dihitung karena A₀ = 0). "
+            f"Evaluasi Longitudinal (T₁ → Tₜ): Luas luka awal tercatat {a0:.2f}{satuan} dan luas saat ini "
+            f"{at:.2f}{satuan} (ΔA: {delta_a:+.2f}{satuan_delta}, PAC tidak dapat dihitung karena A₀ = 0). "
             "Pemeriksaan klinis langsung tetap diperlukan karena hasil merupakan estimasi berdasarkan foto."
         )
         patient_narrative = (
-            f"Berdasarkan hasil pengukuran sistem, luas area luka saat ini terdeteksi sekitar {at:.2f}% "
-            "dari area foto. Tetap konsultasikan kondisi luka kepada perawat atau dokter. "
+            f"Berdasarkan hasil pengukuran sistem, luas area luka saat ini terdeteksi sekitar {frasa_area_pasien}. "
+            "Tetap konsultasikan kondisi luka kepada perawat atau dokter. "
             "Hasil ini merupakan estimasi berdasarkan foto, bukan diagnosis medis."
         )
         return clinician_notes, patient_narrative, "template_fallback"
 
     if badge == "menurun":
         clinician_notes = (
-            f"Evaluasi Longitudinal (T₁ → Tₜ): Area luka terukur menurun dari {a0:.2f}% menjadi "
-            f"{at:.2f}% (PAC: +{pac:.2f}%, ΔA: {delta_a:+.2f} poin persentase). Hasil pengukuran "
+            f"Evaluasi Longitudinal (T₁ → Tₜ): Area luka terukur menurun dari {a0:.2f}{satuan} menjadi "
+            f"{at:.2f}{satuan} (PAC: +{pac:.2f}%, ΔA: {delta_a:+.2f}{satuan_delta}). Hasil pengukuran "
             "menunjukkan penurunan luas permukaan luka. Pemeriksaan klinis langsung tetap diperlukan "
             "karena hasil merupakan estimasi berdasarkan foto."
         )
@@ -272,8 +333,8 @@ def generate_fallback_narrative(
     if badge == "meningkat":
         abs_pac = abs(pac)
         clinician_notes = (
-            f"Evaluasi Longitudinal (T₁ → Tₜ): Area luka terukur meningkat dari {a0:.2f}% menjadi "
-            f"{at:.2f}% (PAC: {pac:.2f}%, ΔA: {delta_a:+.2f} poin persentase). Hasil pengukuran "
+            f"Evaluasi Longitudinal (T₁ → Tₜ): Area luka terukur meningkat dari {a0:.2f}{satuan} menjadi "
+            f"{at:.2f}{satuan} (PAC: {pac:.2f}%, ΔA: {delta_a:+.2f}{satuan_delta}). Hasil pengukuran "
             "menunjukkan perluasan luas permukaan luka. Pemeriksaan klinis langsung diperlukan untuk "
             "menentukan tindakan selanjutnya."
         )
@@ -288,13 +349,13 @@ def generate_fallback_narrative(
     # Default: Tren Stabil (Perubahan Minimal)
     clinician_notes = (
         f"Evaluasi Longitudinal (T₁ → Tₜ): Tidak terdeteksi perubahan berarti pada luas luka "
-        f"({a0:.2f}% → {at:.2f}%, ΔA: {delta_a:+.2f} poin persentase, PAC: {pac:+.2f}%). "
+        f"({a0:.2f}{satuan} → {at:.2f}{satuan}, ΔA: {delta_a:+.2f}{satuan_delta}, PAC: {pac:+.2f}%). "
         "Hasil pengukuran menunjukkan luas luka relatif stabil. Pemeriksaan klinis langsung "
         "tetap diperlukan."
     )
     patient_narrative = (
         f"Berdasarkan hasil pengukuran sistem, area luka relatif tidak berubah dibandingkan "
-        f"pemeriksaan sebelumnya, dengan luas sekitar {at:.2f}% dari area foto. Tetap konsultasikan "
+        f"pemeriksaan sebelumnya, dengan luas sekitar {frasa_area_pasien}. Tetap konsultasikan "
         "kondisi luka kepada perawat atau dokter. Hasil ini merupakan estimasi berdasarkan foto, "
         "bukan diagnosis medis."
     )
@@ -383,21 +444,26 @@ async def generate_longitudinal_narrative(
     pac: float | None,
     badge: PatientTrendBadge,
     trend_status: str,
+    unit: Literal["%", "cm²"] = "%",
 ) -> tuple[str, str, str]:
     """
     Menghasilkan narasi ganda untuk kunjungan lanjutan (t >= 2):
     - Jika A0 <= 0 atau PAC None: langsung gunakan fallback tanpa memanggil Gemini.
     - Jika GEMINI_API_KEY kosong: gunakan fallback.
-    - Panggil Gemini (timeout 10 detik), validasi JSON dan aturan Tabel 3.4.
+    - Panggil Gemini (timeout 10 detik), validasi JSON dan aturan Tabel 3.4 / PRD v3 G8.
     - Jika gagal/timeout/JSON rusak/ditolak validator: gunakan templat Tabel 3.5 (template_fallback).
     """
     if pac is None or badge == "tidak_dapat_dihitung" or a0 <= 0.0:
-        return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
+        return generate_fallback_narrative(
+            a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge, unit=unit
+        )
 
     api_key = settings.gemini_api_key.strip()
     if not api_key:
         logger.warning("Narrative fallback reason=no_api_key")
-        return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
+        return generate_fallback_narrative(
+            a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge, unit=unit
+        )
 
     user_payload = build_gemini_user_prompt(
         a0=a0,
@@ -405,6 +471,7 @@ async def generate_longitudinal_narrative(
         delta_a=delta_a,
         pac=pac,
         trend_status=trend_status,
+        unit=unit,
     )
 
     try:
@@ -416,19 +483,27 @@ async def generate_longitudinal_narrative(
         )
     except (httpx.TimeoutException, TimeoutError):
         logger.warning("Narrative fallback reason=timeout")
-        return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
+        return generate_fallback_narrative(
+            a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge, unit=unit
+        )
     except httpx.HTTPStatusError as exc:
         logger.warning("Narrative fallback reason=http_error:%s", exc.response.status_code)
-        return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
+        return generate_fallback_narrative(
+            a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge, unit=unit
+        )
     except Exception:
         logger.warning("Narrative fallback reason=http_error:network")
-        return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
+        return generate_fallback_narrative(
+            a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge, unit=unit
+        )
 
     try:
         parsed = _extract_json_from_gemini_response(raw_resp)
     except (ValueError, json.JSONDecodeError, KeyError, TypeError):
         logger.warning("Narrative fallback reason=invalid_json")
-        return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
+        return generate_fallback_narrative(
+            a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge, unit=unit
+        )
 
     is_valid, reason = validate_narrative_output(
         clinician_notes=parsed["clinician_notes"],
@@ -438,10 +513,13 @@ async def generate_longitudinal_narrative(
         delta_a=delta_a,
         pac=pac,
         badge=badge,
+        unit=unit,
     )
     if not is_valid:
         logger.warning("Narrative fallback reason=validator_rejected:%s", reason)
-        return generate_fallback_narrative(a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge)
+        return generate_fallback_narrative(
+            a0=a0, at=at, delta_a=delta_a, pac=pac, badge=badge, unit=unit
+        )
 
     return parsed["clinician_notes"].strip(), parsed["patient_narrative"].strip(), "llm"
 
