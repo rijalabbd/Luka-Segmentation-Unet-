@@ -1036,6 +1036,19 @@ async def test_31_sk3_k10_gemini_payload_no_pii_and_forbidden_words(
         assert pii not in serialized
 
     assert body["narrative_source"] == "template_fallback"
+    for phrase in ("tenang", "jangan khawatir", "tidak perlu cemas", "baik-baik saja"):
+        assert phrase in FORBIDDEN_WORDS
+        ok_calm, reason_calm = validate_narrative_output(
+            body["clinician_notes"],
+            f"{body['patient_narrative']} {phrase}.",
+            a0=5.0,
+            at=3.5,
+            delta_a=-1.5,
+            pac=30.0,
+            badge="menurun",
+        )
+        assert ok_calm is False and reason_calm == f"kata_terlarang:patient_narrative:{phrase}"
+
     for word in FORBIDDEN_WORDS:
         if word == "diagnosis":
             continue

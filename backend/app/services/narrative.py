@@ -19,7 +19,7 @@ Wajib patuhi enam aturan Tabel 3.4 berikut tanpa pengecualian:
 2. Larangan Diagnosis: Tidak memberikan diagnosis medis maupun meresepkan obat.
 3. Bahasa Observasional: Menggunakan istilah pengamatan fisik, seperti "terdeteksi mengecil", "terukur membesar", atau "relatif stabil". Dilarang memakai kata "membaik", "memburuk", "sembuh", "infeksi", "diagnosis" (kecuali dalam frasa disclaimer "bukan diagnosis medis"), atau "resep".
 4. Disclaimer Medis: Menyertakan keterangan di kedua narasi bahwa hasil merupakan estimasi visual sistem berdasarkan foto dan memerlukan pemeriksaan langsung oleh tenaga medis (perawat atau dokter), serta bukan diagnosis medis.
-5. Narasi Pasien (patient_narrative): Menggunakan bahasa Indonesia sehari-hari yang sederhana, empatik, dan mudah dipahami, serta mencantumkan nilai mutlak PAC (tanpa tanda minus '-').
+5. Narasi Pasien (patient_narrative): Menggunakan bahasa Indonesia sehari-hari yang sederhana, empatik, dan mudah dipahami, serta mencantumkan nilai mutlak PAC (tanpa tanda minus '-'). Dilarang memuat kalimat menenangkan ("tenang", "jangan khawatir", "tidak perlu cemas", "baik-baik saja") pada semua status tren. Pada Tren Meningkat, patient_narrative wajib memuat ajakan berkonsultasi dengan perawat atau dokter.
 6. Catatan Klinisi (clinician_notes): Menggunakan bahasa formal dan ringkas dengan mencantumkan nilai A0, A_t, delta_A (dengan tanda + atau -), dan PAC (wajib diawali tanda '+' jika PAC > 0 atau '-' jika PAC < 0 sesuai tanda pada data masukan)."""
 
 FORBIDDEN_WORDS = (
@@ -29,6 +29,10 @@ FORBIDDEN_WORDS = (
     "infeksi",
     "diagnosis",
     "resep",
+    "tenang",
+    "jangan khawatir",
+    "tidak perlu cemas",
+    "baik-baik saja",
 )
 
 # Toleransi pembulatan angka (mis. 21.05% vs 21.1% berselisih 0.05 <= 0.15)
@@ -103,6 +107,13 @@ def _has_required_disclaimer(text: str) -> bool:
         for kw in ("pemeriksaan", "perawat", "dokter", "tenaga medis", "bukan diagnosis")
     )
     return has_estimation and has_clinical_follow_up
+
+
+def _has_meningkat_consultation_call(patient_narrative: str) -> bool:
+    lowered = patient_narrative.lower()
+    has_action = any(kw in lowered for kw in ("konsultasi", "periksakan", "hubungi"))
+    has_clinician = any(kw in lowered for kw in ("perawat", "dokter", "tenaga medis"))
+    return has_action and has_clinician
 
 
 def _matches_trend_direction(
@@ -281,6 +292,9 @@ def validate_narrative_output(
 
     if not _matches_trend_direction(c_text, p_text, badge, pac):
         return False, "arah_tren_atau_format_pac_tidak_sesuai"
+
+    if badge == "meningkat" and not _has_meningkat_consultation_call(p_text):
+        return False, "ajakan_konsultasi_hilang:patient_narrative"
 
     return True, "ok"
 
