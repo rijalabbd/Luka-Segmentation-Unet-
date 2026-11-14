@@ -14,6 +14,7 @@ import {
 import type { PatientSummary, VisitRecord } from '@/types/patient'
 import PacFinalCard from '@/components/PacFinalCard.vue'
 import PacPreviewCard from '@/components/PacPreviewCard.vue'
+import NarrativeTabs from '@/components/NarrativeTabs.vue'
 import RulerCalibration from '@/components/RulerCalibration.vue'
 import VisitActionModals from '@/components/VisitActionModals.vue'
 import { formatDateID, formatDecimalID } from '@/utils/formatters'
@@ -478,6 +479,13 @@ watch(chkMaskChecked, (val) => { if (val) saveModalError.value = '' })
           <b>Narasi dibuat setelah hasil dikonfirmasi.</b> Catatan klinis dan ringkasan pasien
           disusun setelah hasil dikonfirmasi dan disimpan.
         </section>
+
+        <NarrativeTabs
+          v-else
+          :visit="visit"
+          :is-baseline="isBaselineVisit"
+          @notify="showToast"
+        />
 
         <div v-if="isDraft" id="actions" class="actions sticky">
           <p class="hint">
