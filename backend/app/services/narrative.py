@@ -116,12 +116,13 @@ def _has_meningkat_consultation_call(patient_narrative: str) -> bool:
     return has_action and has_clinician
 
 
-def _matches_trend_direction(
+def _check_trend_direction(
     clinician_notes: str,
     patient_narrative: str,
     badge: PatientTrendBadge,
     pac: float,
-) -> bool:
+) -> str | None:
+    """Memeriksa kesesuaian format PAC dan kata kunci arah tren; mengembalikan sub-alasan jika gagal."""
     c_low = clinician_notes.lower()
     p_low = patient_narrative.lower()
     combined = f"{c_low} {p_low}"
@@ -135,7 +136,7 @@ def _matches_trend_direction(
         if abs(abs_pac - round(abs_pac)) < 1e-6:
             neg_candidates.append(f"-{int(round(abs_pac))}")
         if any(fmt in p_norm for fmt in neg_candidates):
-            return False
+            return "pac_negatif_di_narasi_pasien"
 
     # Format: catatan klinis memakai tanda (+ atau -) untuk PAC jika PAC != 0
     if pac > 0:
@@ -143,48 +144,62 @@ def _matches_trend_direction(
         if abs(pac - round(pac)) < 1e-6:
             pos_candidates.append(f"+{int(round(pac))}")
         if not any(s in c_norm for s in pos_candidates):
-            return False
+            return "pac_klinisi_tanpa_tanda_plus"
     elif pac < 0:
         min_candidates = [f"{pac:.2f}", f"{pac:.1f}"]
         if abs(pac - round(pac)) < 1e-6:
             min_candidates.append(f"{int(round(pac))}")
         if not any(s in c_norm for s in min_candidates):
-            return False
+            return "pac_klinisi_tanpa_tanda_minus"
 
     if badge == "menurun":
         has_shrink_cue = any(
             w in combined for w in ("menurun", "mengecil", "penurunan", "lebih kecil", "berkurang")
         )
-        has_opposite = any(
-            w in combined for w in ("meningkat", "membesar", "perluasan", "lebih besar", "bertambah")
-        )
-        return has_shrink_cue and not has_opposite
+        if not has_shrink_cue:
+            return "kata_kunci_menurun_hilang"
+        for w in ("meningkat", "membesar", "perluasan", "lebih besar", "bertambah"):
+            if w in combined:
+                return f"kata_berlawanan_pada_menurun:{w}"
+        return None
 
     if badge == "meningkat":
         has_expand_cue = any(
             w in combined for w in ("meningkat", "membesar", "perluasan", "lebih besar", "bertambah")
         )
-        has_opposite = any(
-            w in combined for w in ("menurun", "mengecil", "penurunan", "lebih kecil", "berkurang")
-        )
-        return has_expand_cue and not has_opposite
+        if not has_expand_cue:
+            return "kata_kunci_meningkat_hilang"
+        for w in ("menurun", "mengecil", "penurunan", "lebih kecil", "berkurang"):
+            if w in combined:
+                return f"kata_berlawanan_pada_meningkat:{w}"
+        return None
 
     if badge == "stabil":
         has_stable_cue = any(w in combined for w in ("stabil", "tidak berubah", "tidak terdeteksi perubahan"))
-        has_opposite = any(
-            w in combined
-            for w in (
-                "area luka terukur menurun",
-                "area luka terukur meningkat",
-                "terdeteksi lebih kecil",
-                "terdeteksi lebih besar",
-                "perluasan luas",
-                "penurunan luas",
-            )
-        )
-        return has_stable_cue and not has_opposite
+        if not has_stable_cue:
+            return "kata_kunci_stabil_hilang"
+        for w in (
+            "area luka terukur menurun",
+            "area luka terukur meningkat",
+            "terdeteksi lebih kecil",
+            "terdeteksi lebih besar",
+            "perluasan luas",
+            "penurunan luas",
+        ):
+            if w in combined:
+                return f"kata_berlawanan_pada_stabil:{w}"
+        return None
 
-    return True
+    return None
+
+
+def _matches_trend_direction(
+    clinician_notes: str,
+    patient_narrative: str,
+    badge: PatientTrendBadge,
+    pac: float,
+) -> bool:
+    return _check_trend_direction(clinician_notes, patient_narrative, badge, pac) is None
 
 
 _FOREIGN_UNIT_CM_RE = re.compile(r"\bcm(?:²|2)?\b|cm²", re.IGNORECASE)
@@ -282,8 +297,9 @@ def validate_narrative_output(
         if not any(abs(num - target) <= NUMBER_ROUNDING_TOLERANCE for target in allowed_magnitudes):
             return False, f"angka_asing:{num}"
 
-    if not _matches_trend_direction(c_text, p_text, badge, pac):
-        return False, "arah_tren_atau_format_pac_tidak_sesuai"
+    trend_err = _check_trend_direction(c_text, p_text, badge, pac)
+    if trend_err is not None:
+        return False, f"arah_tren_atau_format_pac_tidak_sesuai:{trend_err}"
 
     if badge == "meningkat" and not _has_meningkat_consultation_call(p_text):
         return False, "ajakan_konsultasi_hilang:patient_narrative"

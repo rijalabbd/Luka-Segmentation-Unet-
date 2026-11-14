@@ -468,3 +468,147 @@ async def test_c5_02_real_gemini_six_combinations_matrix(caplog: pytest.LogCaptu
                 unit=unit,  # type: ignore[arg-type]
             )
             assert ok is True, f"{badge} {unit}: {val_reason}"
+
+
+async def test_3d_01_trend_direction_specific_subreasons_and_warning_log(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """3d-1: Sub-alasan _matches_trend_direction dilaporkan spesifik dan dicatat di log WARNING."""
+    import json
+    import logging
+    from app.services import narrative as narrative_module
+
+    # Baseline valid text templates for each trend
+    c_inc, p_inc, _ = narrative_module.generate_fallback_narrative(
+        a0=12.60, at=26.37, delta_a=13.77, pac=-109.29, badge="meningkat", unit="%"
+    )
+    c_dec, p_dec, _ = narrative_module.generate_fallback_narrative(
+        a0=12.60, at=8.82, delta_a=-3.78, pac=30.00, badge="menurun", unit="%"
+    )
+    c_stb, p_stb, _ = narrative_module.generate_fallback_narrative(
+        a0=12.60, at=12.35, delta_a=-0.25, pac=1.98, badge="stabil", unit="%"
+    )
+
+    checks = [
+        # 1. pac_negatif_di_narasi_pasien
+        (
+            c_inc,
+            p_inc.replace("109,29%", "-109,29%"),
+            12.60, 26.37, 13.77, -109.29, "meningkat",
+            "arah_tren_atau_format_pac_tidak_sesuai:pac_negatif_di_narasi_pasien",
+        ),
+        # 2. pac_klinisi_tanpa_tanda_plus
+        (
+            c_dec.replace("PAC: +30,00%", "PAC: 30,00%"),
+            p_dec,
+            12.60, 8.82, -3.78, 30.00, "menurun",
+            "arah_tren_atau_format_pac_tidak_sesuai:pac_klinisi_tanpa_tanda_plus",
+        ),
+        # 3. pac_klinisi_tanpa_tanda_minus
+        (
+            c_inc.replace("PAC: -109,29%", "PAC: 109,29%"),
+            p_inc,
+            12.60, 26.37, 13.77, -109.29, "meningkat",
+            "arah_tren_atau_format_pac_tidak_sesuai:pac_klinisi_tanpa_tanda_minus",
+        ),
+        # 4. kata_kunci_meningkat_hilang
+        (
+            c_inc.replace("meningkat", "berubah").replace("perluasan", "perubahan"),
+            p_inc.replace("lebih besar", "berbeda").replace("bertambah", "berubah"),
+            12.60, 26.37, 13.77, -109.29, "meningkat",
+            "arah_tren_atau_format_pac_tidak_sesuai:kata_kunci_meningkat_hilang",
+        ),
+        # 5. kata_berlawanan_pada_meningkat:penurunan
+        (
+            c_inc.replace("perluasan luas", "bukan penurunan luas"),
+            p_inc,
+            12.60, 26.37, 13.77, -109.29, "meningkat",
+            "arah_tren_atau_format_pac_tidak_sesuai:kata_berlawanan_pada_meningkat:penurunan",
+        ),
+        # 6. kata_kunci_menurun_hilang
+        (
+            c_dec.replace("menurun", "berubah").replace("penurunan", "perubahan"),
+            p_dec.replace("lebih kecil", "berbeda").replace("berkurang", "berubah"),
+            12.60, 8.82, -3.78, 30.00, "menurun",
+            "arah_tren_atau_format_pac_tidak_sesuai:kata_kunci_menurun_hilang",
+        ),
+        # 7. kata_berlawanan_pada_menurun:membesar
+        (
+            c_dec,
+            p_dec.replace("lebih kecil", "tidak membesar, melainkan lebih kecil"),
+            12.60, 8.82, -3.78, 30.00, "menurun",
+            "arah_tren_atau_format_pac_tidak_sesuai:kata_berlawanan_pada_menurun:membesar",
+        ),
+        # 8. kata_kunci_stabil_hilang
+        (
+            c_stb.replace("Tidak terdeteksi perubahan", "Diamati selisih").replace("relatif stabil", "datar"),
+            p_stb.replace("relatif tidak berubah", "diamati"),
+            12.60, 12.35, -0.25, 1.98, "stabil",
+            "arah_tren_atau_format_pac_tidak_sesuai:kata_kunci_stabil_hilang",
+        ),
+        # 9. kata_berlawanan_pada_stabil:area luka terukur meningkat
+        (
+            c_stb.replace("Tidak terdeteksi perubahan berarti", "Area luka terukur meningkat sedikit namun relatif stabil"),
+            p_stb,
+            12.60, 12.35, -0.25, 1.98, "stabil",
+            "arah_tren_atau_format_pac_tidak_sesuai:kata_berlawanan_pada_stabil:area luka terukur meningkat",
+        ),
+    ]
+
+    for c_notes, p_narr, a0, at, da, pac, badge, expected_reason in checks:
+        ok, reason = narrative_module.validate_narrative_output(
+            c_notes,
+            p_narr,
+            a0=a0,
+            at=at,
+            delta_a=da,
+            pac=pac,
+            badge=badge,  # type: ignore[arg-type]
+            unit="%",
+        )
+        assert ok is False
+        assert reason == expected_reason
+
+    # Verifikasi log level WARNING memuat sub-alasan spesifik saat generate_longitudinal_narrative menolak
+    monkeypatch.setattr(settings, "gemini_api_key", "fake-3d1-key")
+
+    async def _mock_opposite_word(**_kwargs: object) -> dict[str, object]:
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": json.dumps(
+                                    {
+                                        "clinician_notes": c_inc.replace("perluasan luas", "bukan penurunan luas"),
+                                        "patient_narrative": p_inc,
+                                    }
+                                )
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+
+    monkeypatch.setattr(narrative_module, "request_gemini_api", _mock_opposite_word)
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="app.services.narrative"):
+        _, _, src = await narrative_module.generate_longitudinal_narrative(
+            a0=12.60,
+            at=26.37,
+            delta_a=13.77,
+            pac=-109.29,
+            badge="meningkat",
+            trend_status="Tren Meningkat (Area Luka Membesar)",
+            unit="%",
+        )
+    assert src == "template_fallback"
+    assert any(
+        rec.levelno == logging.WARNING
+        and "reason=validator_rejected:arah_tren_atau_format_pac_tidak_sesuai:kata_berlawanan_pada_meningkat:penurunan"
+        in rec.message
+        for rec in caplog.records
+    )
