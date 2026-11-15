@@ -26,6 +26,20 @@ const isCalibratedBasis = computed(() => props.pacBasis === 'calibrated')
 
 const trendSummary = computed(() => formatTrendSummary(props.trendStatus, props.pac))
 
+const pacTooltipText = computed(() => {
+  if (props.pac === null || props.pac === undefined || Number.isNaN(props.pac)) {
+    return 'Selisih luas awal dan luas sekarang, dibagi luas awal.'
+  }
+  const signed = `${formatSignedDecimalID(props.pac, 1)}%`
+  const meaning =
+    props.pac < 0
+      ? 'Negatif = luka membesar.'
+      : props.pac > 0
+        ? 'Positif = luka mengecil.'
+        : 'Nol = luas tidak berubah.'
+  return `Perubahan luas (PAC): ${signed}. ${meaning}`
+})
+
 const bars = computed(() =>
   buildAreaComparisonBars({
     awal: props.awalArea,
@@ -35,18 +49,35 @@ const bars = computed(() =>
 )
 
 const activeWarnings = computed(() => buildActiveWarnings(props.warnings, props.pacBasis))
+
+const distanceWarnings = computed(() =>
+  activeWarnings.value.filter(
+    (w) => w.code === 'DISTANCE_SENSITIVE' || w.code === 'DISTANCE_LARGE',
+  ),
+)
+
+const otherWarnings = computed(() =>
+  activeWarnings.value.filter(
+    (w) => w.code !== 'DISTANCE_SENSITIVE' && w.code !== 'DISTANCE_LARGE',
+  ),
+)
 </script>
 
 <template>
   <section id="pacCard" class="panel metric" aria-labelledby="m2">
     <div class="m-head">
-      <div id="m2" class="m-label">Perubahan luas</div>
-      <details class="info-pop">
-        <summary aria-label="Info perhitungan perubahan luas">?</summary>
-        <div class="info-pop-body" role="note">
-          Selisih luas awal dan luas sekarang, dibagi luas awal.
-        </div>
-      </details>
+      <div class="m-title-group">
+        <div id="m2" class="m-label">Perubahan luas</div>
+        <details class="info-pop">
+          <summary aria-label="Info perhitungan perubahan luas">?</summary>
+          <div id="pacTooltipBody" class="info-pop-body" role="note">
+            {{ pacTooltipText }}
+          </div>
+        </details>
+      </div>
+      <span id="modeBadge" class="modebadge" :class="isCalibratedBasis ? 'cal' : 'rel'">
+        {{ isCalibratedBasis ? 'Terkalibrasi cm²' : 'Dari foto' }}
+      </span>
     </div>
 
     <div id="pacTrendBadge" class="status-hero" :class="trendSummary.cssClass">
@@ -55,6 +86,20 @@ const activeWarnings = computed(() => buildActiveWarnings(props.warnings, props.
         <span id="pacTrendHeadline">{{ trendSummary.headline }}</span>
       </div>
       <p class="status-neutral">Hasil dari foto. Dokter akan menilai langsung.</p>
+    </div>
+
+    <div
+      v-for="w in distanceWarnings"
+      :key="w.code"
+      class="warn"
+      :class="{ strong: w.strong }"
+      :data-code="w.code"
+      :role="w.role"
+    >
+      <div>
+        <b>{{ w.title }}</b>
+        <span>{{ w.text }}</span>
+      </div>
     </div>
 
     <div v-if="bars.length" class="bars" role="group" aria-label="Perbandingan luas awal dan sekarang">
@@ -70,11 +115,6 @@ const activeWarnings = computed(() => buildActiveWarnings(props.warnings, props.
         <span class="bar-val">{{ bar.valueText }}</span>
       </div>
     </div>
-
-    <p v-if="pac !== null && pac !== undefined" id="pacVal" class="pac-detail">
-      Perubahan luas (PAC): {{ formatSignedDecimalID(pac, 1) }}% · Selisih:
-      {{ formatSignedDecimalID(deltaArea, 1) }}{{ isCalibratedBasis ? ' cm²' : '%' }}
-    </p>
 
     <div v-if="pac === null" id="a0ZeroNotice" class="info-box warn" role="status">
       <div>
@@ -93,7 +133,7 @@ const activeWarnings = computed(() => buildActiveWarnings(props.warnings, props.
     </div>
 
     <div
-      v-for="w in activeWarnings"
+      v-for="w in otherWarnings"
       :key="w.code"
       class="warn"
       :class="{ strong: w.strong }"
@@ -122,11 +162,35 @@ const activeWarnings = computed(() => buildActiveWarnings(props.warnings, props.
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+.m-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .m-label {
   font-size: 14px;
   font-weight: 650;
   color: var(--text-2);
+}
+.modebadge {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.modebadge.cal {
+  color: var(--green);
+  background: var(--green-bg);
+  border-color: var(--green-bd);
+}
+.modebadge.rel {
+  color: var(--navy);
+  background: var(--teal-soft);
+  border-color: #bfdcdc;
 }
 .info-pop {
   position: relative;
@@ -155,7 +219,7 @@ const activeWarnings = computed(() => buildActiveWarnings(props.warnings, props.
 }
 .info-pop-body {
   position: absolute;
-  right: 0;
+  left: 0;
   top: calc(100% + 6px);
   width: min(260px, 75vw);
   z-index: 15;
@@ -259,12 +323,6 @@ const activeWarnings = computed(() => buildActiveWarnings(props.warnings, props.
   color: var(--navy);
   min-width: 66px;
   text-align: right;
-}
-.pac-detail {
-  margin: 12px 0 0;
-  font-size: 14px;
-  color: var(--muted);
-  line-height: 1.5;
 }
 .warn,
 .info-box {

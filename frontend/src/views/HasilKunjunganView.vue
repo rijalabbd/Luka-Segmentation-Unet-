@@ -74,7 +74,7 @@ const guidanceBanner = computed(() => {
   if (isBaselineVisit.value) {
     return {
       cls: 'base',
-      text: 'Tersimpan sebagai pemeriksaan awal. Perhitungan perubahan luas tersedia mulai pemeriksaan kedua.',
+      text: 'Ini pemeriksaan awal. Perubahan luas tersedia mulai pemeriksaan kedua.',
     }
   }
   return null
@@ -379,7 +379,7 @@ watch(() => route.params.visitId, () => loadPageData())
                       :src="baselinePhotoDisplayUrl"
                       alt="Foto luka pada pemeriksaan pertama sebagai pembanding awal"
                     />
-                    <span v-else class="m-sub">Foto pemeriksaan pertama tidak tersedia</span>
+                    <span v-else class="m-sub">Foto awal tidak tersedia</span>
                   </div>
                 </figure>
                 <figure id="figSekarang" class="fig">
@@ -448,7 +448,7 @@ watch(() => route.params.visitId, () => loadPageData())
               :baseline-visit="baselineFinalVisit"
             />
 
-            <section class="panel metric" aria-labelledby="m1">
+            <section v-if="isBaselineVisit" class="panel metric" aria-labelledby="m1">
               <div class="m-head">
                 <div id="m1" class="m-label">Luas luka</div>
                 <span id="modeBadge" class="modebadge" :class="isCalibrated ? 'cal' : 'rel'">

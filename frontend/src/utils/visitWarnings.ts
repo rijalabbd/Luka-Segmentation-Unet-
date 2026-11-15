@@ -139,7 +139,8 @@ export function buildAreaComparisonBars(params: {
 
   const safeAwal = Math.max(0, awal)
   const safeSekarang = Math.max(0, sekarang)
-  const scaleMax = Math.max(safeAwal, safeSekarang, 0.1)
+  const scaleFloor = unit === ' cm²' ? 2.0 : 5.0
+  const scaleMax = Math.max(safeAwal, safeSekarang, scaleFloor)
 
   const toWidth = (v: number): number => {
     if (v <= 0) return 0

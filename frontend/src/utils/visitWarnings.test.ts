@@ -63,15 +63,26 @@ test('buildActiveWarnings memadatkan peringatan jarak tanpa duplikasi dan tanpa 
   assert.equal(calWarnings[0]?.code, 'MIXED_BASIS')
 })
 
-test('buildAreaComparisonBars menghitung skala dari nol dan format 1 desimal berkoma', () => {
-  const bars = buildAreaComparisonBars({ awal: 12.64, sekarang: 26.42, unit: '%' })
+test('buildAreaComparisonBars menghitung skala dengan lantai 5% dan 2,0 cm² serta format 1 desimal berkoma', () => {
+  const smallBars = buildAreaComparisonBars({ awal: 0.4, sekarang: 0.4, unit: '%' })
+  assert.equal(smallBars.length, 2)
+  assert.equal(smallBars[0]?.valueText, '0,4%')
+  assert.equal(smallBars[0]?.widthPct, 8)
+  assert.equal(smallBars[1]?.valueText, '0,4%')
+  assert.equal(smallBars[1]?.widthPct, 8)
+
+  const bars = buildAreaComparisonBars({ awal: 12.6, sekarang: 26.4, unit: '%' })
   assert.equal(bars.length, 2)
   assert.equal(bars[0]?.label, 'Awal')
   assert.equal(bars[0]?.valueText, '12,6%')
   assert.equal(bars[1]?.label, 'Sekarang')
   assert.equal(bars[1]?.valueText, '26,4%')
   assert.equal(bars[1]?.widthPct, 100)
-  assert.ok(bars[0]!.widthPct > 45 && bars[0]!.widthPct < 50)
+  assert.ok(bars[0]!.widthPct > 47 && bars[0]!.widthPct < 48)
+
+  const cm2Small = buildAreaComparisonBars({ awal: 0.4, sekarang: 0.4, unit: ' cm²' })
+  assert.equal(cm2Small[0]?.valueText, '0,4 cm²')
+  assert.equal(cm2Small[0]?.widthPct, 20)
 
   const zeroBars = buildAreaComparisonBars({ awal: 4.0, sekarang: 0, unit: ' cm²' })
   assert.equal(zeroBars[0]?.valueText, '4,0 cm²')
