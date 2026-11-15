@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import {
-  ApiError,
   checkServerHealth,
   createDraftVisit,
   deleteVisit,
@@ -10,351 +9,300 @@ import {
   fetchPatient,
   fetchPatientVisits,
   resolveStorageUrl,
-} from '@/api/patients'
-import type { PatientSummary, VisitRecord } from '@/types/patient'
-import GhostOverlay from '@/components/GhostOverlay.vue'
-import PhotoDropzone from '@/components/PhotoDropzone.vue'
-import PhotoGuideCard from '@/components/PhotoGuideCard.vue'
-import ReferencePanel from '@/components/ReferencePanel.vue'
-import { formatDateID, formatDecimalID, getTodayISO } from '@/utils/formatters'
+} from '@/api/patients';
+import GhostOverlay from '@/components/GhostOverlay.vue';
+import PhotoDropzone from '@/components/PhotoDropzone.vue';
+import PhotoGuideCard from '@/components/PhotoGuideCard.vue';
+import ReferencePanel from '@/components/ReferencePanel.vue';
+import type { PatientSummary, VisitRecord } from '@/types/patient';
 
-const route = useRoute()
-const router = useRouter()
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
 
-const patientId = computed(() => String(route.params.patientId ?? '').trim())
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+function getTodayIso(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
-const serverOnline = ref<boolean | null>(null)
-const healthLabel = ref('Server Lokal Terhubung · Data Terisolasi')
+function formatDateParts(dateStr: string | null | undefined): { day: number; month: string; year: number } | null {
+  if (!dateStr) return null;
+  const parts = dateStr.slice(0, 10).split('-').map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+  const [year, monthIdx, day] = parts;
+  const month = MONTHS_SHORT[monthIdx - 1];
+  if (!month) return null;
+  return { day, month, year };
+}
 
-const patient = ref<PatientSummary | null>(null)
-const finalVisits = ref<VisitRecord[]>([])
-const pendingDraft = ref<VisitRecord | null>(null)
-const isDiscardingDraft = ref(false)
-const isLoadingPatient = ref(true)
-const loadError = ref('')
-const submitError = ref('')
+function formatDateShort(dateStr: string | null | undefined): string {
+  const p = formatDateParts(dateStr);
+  if (!p) return dateStr || '-';
+  return `${p.day} ${p.month} ${p.year}`;
+}
 
-const todayISO = getTodayISO()
-const visitDate = ref(todayISO)
+function formatDateDayMonth(dateStr: string | null | undefined): string {
+  const p = formatDateParts(dateStr);
+  if (!p) return dateStr || '-';
+  return `${p.day} ${p.month}`;
+}
 
-const selectedFile = ref<File | null>(null)
-const previewUrl = ref('')
-const fileError = ref('')
-const isConfirmed = ref(false)
-const isLoadingSample = ref(false)
-const isSubmitting = ref(false)
-const liveAnnouncement = ref('')
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} MB`;
+}
 
-// Panel foto acuan state (U1)
-const activeRefTab = ref<'baseline' | 'latest'>('baseline')
-const showRefContour = ref(false)
+const route = useRoute();
+const router = useRouter();
+const patientId = computed(() => String(route.params.patientId || ''));
 
-const photoDropzoneRef = ref<InstanceType<typeof PhotoDropzone> | null>(null)
-const ghostOverlayRef = ref<InstanceType<typeof GhostOverlay> | null>(null)
+const serverOnline = ref<boolean | null>(null);
+const isLoading = ref(true);
+const pageError = ref('');
 
-const nextVisitNumber = computed(() => finalVisits.value.length + 1)
-const isFollowUp = computed(() => nextVisitNumber.value >= 2)
+const patient = ref<PatientSummary | null>(null);
+const finalVisits = ref<VisitRecord[]>([]);
+const pendingDraft = ref<VisitRecord | null>(null);
+
+const todayIso = getTodayIso();
+const visitDate = ref(todayIso);
+const isEditingDate = ref(false);
+
+const activeRefTab = ref<'baseline' | 'latest'>('baseline');
+const showRefContour = ref(false);
+
+const selectedFile = ref<File | null>(null);
+const previewUrl = ref('');
+const fileError = ref('');
+
+const ghostActive = ref(false);
+const ghostOpacity = ref(40);
+
+const distanceConfirmed = ref(false);
+const isSubmitting = ref(false);
+const isDiscardingDraft = ref(false);
+const submitError = ref('');
+const liveAnnouncement = ref('');
+
+const isFollowUp = computed(() => finalVisits.value.length > 0);
+const nextVisitIndex = computed(() => finalVisits.value.length + 1);
+const visitBadgeText = computed(() =>
+  isFollowUp.value ? `Kunjungan ke-${nextVisitIndex.value}` : 'Kunjungan pertama',
+);
 
 const baselineVisit = computed<VisitRecord | null>(() => {
-  if (!finalVisits.value.length) return null
-  return finalVisits.value[0] ?? null
-})
+  if (finalVisits.value.length === 0) return null;
+  return finalVisits.value[0];
+});
 
-const latestFinalVisit = computed<VisitRecord | null>(() => {
-  if (!finalVisits.value.length) return null
-  return finalVisits.value[finalVisits.value.length - 1] ?? null
-})
+const latestVisit = computed<VisitRecord | null>(() => {
+  if (finalVisits.value.length === 0) return null;
+  return finalVisits.value[finalVisits.value.length - 1];
+});
 
-const hasDistinctLatestRef = computed(() => {
-  return (
-    finalVisits.value.length >= 2 &&
-    baselineVisit.value !== null &&
-    latestFinalVisit.value !== null &&
-    baselineVisit.value.id !== latestFinalVisit.value.id
-  )
-})
+const hasDistinctLatestRef = computed(
+  () => Boolean(baselineVisit.value && latestVisit.value && baselineVisit.value.id !== latestVisit.value.id),
+);
 
 const activeRefVisit = computed<VisitRecord | null>(() => {
-  if (!isFollowUp.value) return null
   if (activeRefTab.value === 'latest' && hasDistinctLatestRef.value) {
-    return latestFinalVisit.value
+    return latestVisit.value;
   }
-  return baselineVisit.value
-})
+  return baselineVisit.value;
+});
 
-const activeRefImageUrl = computed(() => {
-  if (!activeRefVisit.value?.image_path) return ''
-  return resolveStorageUrl(activeRefVisit.value.image_path)
-})
+const activeRefImageUrl = computed(() => resolveStorageUrl(activeRefVisit.value?.image_path) || null);
+const activeRefOverlayUrl = computed(() => resolveStorageUrl(activeRefVisit.value?.overlay_path) || null);
+const activeRefDateLabel = computed(() => formatDateShort(activeRefVisit.value?.visit_date));
+const latestShortDate = computed(() => formatDateDayMonth(latestVisit.value?.visit_date));
 
-const activeRefOverlayUrl = computed(() => {
-  if (!activeRefVisit.value?.overlay_path) return ''
-  return resolveStorageUrl(activeRefVisit.value.overlay_path)
-})
+const latestFinalDate = computed(() => latestVisit.value?.visit_date?.slice(0, 10) || '');
+const minDate = computed(() => latestFinalDate.value || '2020-01-01');
+const maxDate = todayIso;
 
-const activeRefDisplayUrl = computed(() => {
-  if (showRefContour.value && activeRefOverlayUrl.value) {
-    return activeRefOverlayUrl.value
-  }
-  return activeRefImageUrl.value
-})
-
-const latestFinalDate = computed(() => latestFinalVisit.value?.visit_date ?? '')
-
-const visitBadgeText = computed(() => {
-  if (!isFollowUp.value) {
-    return 'Kunjungan awal (baseline)'
-  }
-  const lastDateStr = latestFinalDate.value
-    ? formatDateID(latestFinalDate.value)
-    : (patient.value?.terakhir ?? '-')
-  return `Kunjungan ke-${nextVisitNumber.value} · Kunjungan terakhir: ${lastDateStr}`
-})
-
-const patientAttrs = computed(() => {
-  const p = patient.value
-  if (!p) return []
-  const items: string[] = []
-  if (p.umur !== null && p.umur !== undefined) items.push(`${p.umur} tahun`)
-  if (p.jk) items.push(p.jk)
-  if (p.lokasi) items.push(p.lokasi)
-  return items
-})
+const visitDateDisplay = computed(() => {
+  const formatted = formatDateShort(visitDate.value);
+  return visitDate.value === todayIso ? `Hari ini, ${formatted}` : formatted;
+});
 
 const dateError = computed(() => {
-  if (!visitDate.value) return 'Isi tanggal pemeriksaan.'
-  if (visitDate.value > todayISO) {
-    return 'Tanggal pemeriksaan tidak boleh melebihi hari ini.'
-  }
+  if (!visitDate.value) return 'Tanggal kunjungan wajib diisi.';
+  if (visitDate.value > maxDate) return 'Tanggal kunjungan tidak boleh melebihi hari ini.';
   if (latestFinalDate.value && visitDate.value < latestFinalDate.value) {
-    return `Tanggal pemeriksaan tidak boleh lebih awal dari kunjungan terakhir (${formatDateID(latestFinalDate.value)}).`
+    return 'Tanggal kunjungan tidak boleh lebih awal dari kunjungan sebelumnya.';
   }
-  return ''
-})
+  return '';
+});
 
-const isDateValid = computed(() => dateError.value === '')
-
-const canRunDetection = computed(() => {
-  return (
-    selectedFile.value !== null &&
-    isDateValid.value &&
-    isConfirmed.value &&
-    !isSubmitting.value &&
-    !loadError.value
-  )
-})
+const canRunDetection = computed(
+  () => Boolean(selectedFile.value) && !dateError.value && distanceConfirmed.value && !isSubmitting.value,
+);
 
 const statusReasonText = computed(() => {
-  if (isSubmitting.value) return 'Mohon tunggu, jangan tutup halaman ini.'
-  if (!selectedFile.value) {
-    return isFollowUp.value
-      ? 'Unggah foto luka terlebih dahulu, lalu bandingkan dengan foto acuan.'
-      : 'Unggah foto luka terlebih dahulu untuk menjalankan deteksi.'
+  if (isSubmitting.value) return 'Sedang menganalisis. Jangan tutup halaman ini.';
+  if (!selectedFile.value) return 'Unggah foto luka terlebih dahulu.';
+  if (dateError.value) return dateError.value;
+  if (!distanceConfirmed.value) return 'Centang konfirmasi di atas.';
+  return 'Siap dianalisis.';
+});
+
+const confirmLabel = computed(() => {
+  if (!isFollowUp.value) return 'Foto sudah sesuai panduan.';
+  if (activeRefTab.value === 'latest' && hasDistinctLatestRef.value) {
+    return 'Jarak dan sudut foto sudah sama dengan foto terakhir.';
   }
-  if (!isDateValid.value) return dateError.value
-  if (!isConfirmed.value) return 'Centang konfirmasi jarak dan sudut foto untuk melanjutkan.'
-  return 'Foto siap diproses.'
-})
+  return 'Jarak dan sudut foto sudah sama dengan foto awal.';
+});
 
-const confirmLabelText = computed(() => {
-  return isFollowUp.value
-    ? 'Saya sudah membandingkan foto dengan foto acuan; jarak dan sudut sudah sama.'
-    : 'Foto diambil sesuai panduan pengambilan foto.'
-})
+const serverLabel = computed(() => {
+  if (serverOnline.value === true) return 'Server terhubung';
+  if (serverOnline.value === false) return 'Server tidak terhubung';
+  return 'Memeriksa server...';
+});
 
-function revokePreview() {
+function revokePreviewUrl() {
   if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value)
-    previewUrl.value = ''
+    URL.revokeObjectURL(previewUrl.value);
+    previewUrl.value = '';
   }
 }
 
-function isAllowedImageFile(file: File): boolean {
-  const mime = (file.type || '').toLowerCase()
-  const ext = file.name.toLowerCase().split('.').pop() ?? ''
-  if (mime === 'image/jpeg' || mime === 'image/png') return true
-  if (!mime && (ext === 'jpg' || ext === 'jpeg' || ext === 'png')) return true
-  return false
-}
+function handleSelectedFile(file: File) {
+  const lowerName = file.name.toLowerCase();
+  const isAllowedType =
+    file.type === 'image/jpeg' ||
+    file.type === 'image/png' ||
+    lowerName.endsWith('.jpg') ||
+    lowerName.endsWith('.jpeg') ||
+    lowerName.endsWith('.png');
 
-function handleSelectedFile(file: File | null | undefined) {
-  if (!file) return
-  submitError.value = ''
-  if (!isAllowedImageFile(file)) {
-    fileError.value = 'Berkas harus berupa gambar JPG atau PNG.'
-    return
+  if (!isAllowedType) {
+    fileError.value = 'Format foto harus JPG atau PNG.';
+    return;
   }
-  if (file.size > MAX_FILE_SIZE) {
-    fileError.value = 'Ukuran berkas melebihi 10 MB. Pilih foto yang lebih kecil.'
-    return
-  }
-  if (file.size === 0) {
-    fileError.value = 'Berkas foto luka tidak boleh kosong.'
-    return
+  if (file.size > 10 * 1024 * 1024) {
+    fileError.value = 'Ukuran foto maksimal 10 MB.';
+    return;
   }
 
-  revokePreview()
-  previewUrl.value = URL.createObjectURL(file)
-  selectedFile.value = file
-  fileError.value = ''
-  liveAnnouncement.value = `Foto ${file.name} berhasil dimuat.`
-  nextTick(() => {
-    ghostOverlayRef.value?.focusReplace()
-  })
+  revokePreviewUrl();
+  selectedFile.value = file;
+  previewUrl.value = URL.createObjectURL(file);
+  fileError.value = '';
+  submitError.value = '';
+  liveAnnouncement.value = `Foto ${file.name} siap dianalisis.`;
 }
 
 function clearPhoto() {
-  revokePreview()
-  selectedFile.value = null
-  isConfirmed.value = false
-  fileError.value = ''
-  submitError.value = ''
-  nextTick(() => {
-    photoDropzoneRef.value?.resetAndFocus()
-  })
+  revokePreviewUrl();
+  selectedFile.value = null;
+  fileError.value = '';
+  ghostActive.value = false;
+  distanceConfirmed.value = false;
+  submitError.value = '';
 }
 
 async function loadDemoSamplePhoto() {
-  if (!patient.value?.is_demo || isLoadingSample.value) return
-  isLoadingSample.value = true
-  fileError.value = ''
-  submitError.value = ''
+  if (!patient.value) return;
+  fileError.value = '';
   try {
-    const sampleFile = await fetchDemoSamplePhoto(patientId.value)
-    handleSelectedFile(sampleFile)
+    const file = await fetchDemoSamplePhoto(patient.value.id);
+    handleSelectedFile(file);
   } catch (err) {
-    if (err instanceof ApiError) {
-      if (err.status === 403) {
-        fileError.value =
-          err.message || 'Foto sampel hanya tersedia untuk pasien mode demo.'
-      } else if (err.status === 404) {
-        fileError.value =
-          err.message || 'Pasien atau berkas foto sampel demo tidak ditemukan di server.'
-      } else if (err.status === 0) {
-        fileError.value =
-          'Tidak dapat terhubung ke server backend untuk memuat foto sampel.'
-      } else {
-        fileError.value = err.message
-      }
-    } else {
-      fileError.value = 'Tidak dapat terhubung ke server backend untuk memuat foto sampel.'
-    }
-  } finally {
-    isLoadingSample.value = false
+    fileError.value = err instanceof Error ? err.message : 'Gagal memuat foto sampel demo.';
   }
 }
 
 async function handleDiscardDraft() {
-  if (!pendingDraft.value || isDiscardingDraft.value) return
-  isDiscardingDraft.value = true
-  submitError.value = ''
+  if (!pendingDraft.value || isDiscardingDraft.value) return;
+  isDiscardingDraft.value = true;
+  submitError.value = '';
   try {
-    await deleteVisit(pendingDraft.value.id)
-    pendingDraft.value = null
-    liveAnnouncement.value = 'Draf lama telah dibuang. Silakan unggah foto baru.'
-    nextTick(() => {
-      photoDropzoneRef.value?.resetAndFocus()
-    })
+    await deleteVisit(pendingDraft.value.id);
+    pendingDraft.value = null;
+    liveAnnouncement.value = 'Pemeriksaan yang belum disimpan telah dibuang.';
   } catch (err) {
-    if (err instanceof ApiError) {
-      submitError.value = err.message
-    } else {
-      submitError.value = 'Gagal membuang draf kunjungan.'
-    }
+    submitError.value = err instanceof Error ? err.message : 'Gagal membuang draf pemeriksaan.';
   } finally {
-    isDiscardingDraft.value = false
+    isDiscardingDraft.value = false;
   }
 }
 
 async function handleRunDetection() {
-  if (!canRunDetection.value || !selectedFile.value) return
-  isSubmitting.value = true
-  fileError.value = ''
-  submitError.value = ''
-  liveAnnouncement.value = 'Menganalisis area luka.'
-
+  if (!patient.value || !selectedFile.value || dateError.value || !distanceConfirmed.value || isSubmitting.value) {
+    return;
+  }
+  isSubmitting.value = true;
+  submitError.value = '';
+  liveAnnouncement.value = 'Sedang menganalisis foto luka.';
   try {
-    const createdVisit = await createDraftVisit(
-      patientId.value,
+    const created = await createDraftVisit(
+      patient.value.id,
       visitDate.value,
       selectedFile.value,
-      isConfirmed.value,
-    )
-    pendingDraft.value = null
-    liveAnnouncement.value = 'Analisis selesai. Mengalihkan ke halaman hasil kunjungan.'
-    await router.push(`/kunjungan/${createdVisit.id}`)
+      distanceConfirmed.value,
+    );
+    await router.push({ name: 'hasil-kunjungan', params: { visitId: created.id } });
   } catch (err) {
-    if (err instanceof ApiError) {
-      submitError.value = err.message
-    } else {
-      submitError.value = 'Terjadi kesalahan saat memproses foto luka.'
-    }
-    isSubmitting.value = false
+    submitError.value = err instanceof Error ? err.message : 'Gagal menganalisis foto luka.';
+    liveAnnouncement.value = 'Analisis foto gagal.';
+  } finally {
+    isSubmitting.value = false;
   }
-}
-
-function handleWindowDragOver(e: DragEvent) {
-  e.preventDefault()
-}
-
-function handleWindowDrop(e: DragEvent) {
-  e.preventDefault()
 }
 
 async function loadPageData() {
-  isLoadingPatient.value = true
-  loadError.value = ''
-  submitError.value = ''
-
-  checkServerHealth()
-    .then((h) => {
-      serverOnline.value = h.status === 'ok'
-      healthLabel.value = h.label
-    })
-    .catch(() => {
-      serverOnline.value = false
-      healthLabel.value = 'Server Lokal Tidak Terhubung'
-    })
+  isLoading.value = true;
+  pageError.value = '';
+  clearPhoto();
+  activeRefTab.value = 'baseline';
+  showRefContour.value = false;
+  isEditingDate.value = false;
+  visitDate.value = getTodayIso();
 
   try {
-    const [p, finals, drafts] = await Promise.all([
+    try {
+      await checkServerHealth();
+      serverOnline.value = true;
+    } catch {
+      serverOnline.value = false;
+    }
+
+    const [patientData, allVisits] = await Promise.all([
       fetchPatient(patientId.value),
-      fetchPatientVisits(patientId.value, 'final'),
-      fetchPatientVisits(patientId.value, 'draft'),
-    ])
-    patient.value = p
-    finalVisits.value = finals
-    pendingDraft.value = drafts[0] ?? null
-    activeRefTab.value = 'baseline'
-    if (finals.length > 0) {
-      const lastDate = finals[finals.length - 1]?.visit_date
-      if (lastDate && lastDate > visitDate.value) {
-        visitDate.value = lastDate
-      }
-    }
+      fetchPatientVisits(patientId.value, 'all'),
+    ]);
+
+    patient.value = patientData;
+    const sortedFinals = allVisits
+      .filter((v) => v.status === 'final')
+      .sort((a, b) => (a.visit_index ?? a.id) - (b.visit_index ?? b.id));
+    finalVisits.value = sortedFinals;
+
+    const drafts = allVisits
+      .filter((v) => v.status === 'draft')
+      .sort((a, b) => b.id - a.id);
+    pendingDraft.value = drafts[0] ?? null;
   } catch (err) {
-    if (err instanceof ApiError) {
-      loadError.value = err.message
-    } else {
-      loadError.value = 'Gagal memuat data pasien.'
-    }
+    pageError.value = err instanceof Error ? err.message : 'Gagal memuat data pasien.';
   } finally {
-    isLoadingPatient.value = false
+    isLoading.value = false;
   }
 }
 
+watch(patientId, () => {
+  void loadPageData();
+});
+
 onMounted(() => {
-  window.addEventListener('dragover', handleWindowDragOver)
-  window.addEventListener('drop', handleWindowDrop)
-  loadPageData()
-})
+  void loadPageData();
+});
 
 onBeforeUnmount(() => {
-  window.removeEventListener('dragover', handleWindowDragOver)
-  window.removeEventListener('drop', handleWindowDrop)
-  revokePreview()
-})
+  revokePreviewUrl();
+});
 </script>
 
 <template>
@@ -363,237 +311,277 @@ onBeforeUnmount(() => {
 
     <header class="topbar">
       <div class="topbar-in">
-        <RouterLink class="brand" to="/" aria-label="Dokumentasi Luka, ke Beranda">
+        <RouterLink class="brand" :to="{ name: 'beranda' }">
           <span class="brand-mark" aria-hidden="true">+</span>
           <span>
-            <span class="brand-name">Dokumentasi Luka</span>
-            <span class="brand-sub">Pemantauan Berkala</span>
+            <span class="brand-name">WoundAI</span>
+            <span class="brand-sub">Pemantauan Ulkus Kusta</span>
           </span>
         </RouterLink>
+
         <div class="topright">
-          <div class="sys" role="status">
-            <span
-              class="dot"
-              :class="{ offline: serverOnline === false }"
-              aria-hidden="true"
-            ></span>
-            <span>{{ healthLabel }}</span>
-          </div>
           <nav class="topnav" aria-label="Navigasi utama">
-            <RouterLink to="/">Beranda</RouterLink>
-            <RouterLink to="/pemeriksaan" aria-current="page">Pemeriksaan</RouterLink>
+            <RouterLink :to="{ name: 'beranda' }">Beranda</RouterLink>
+            <RouterLink :to="{ name: 'pilih-pasien' }" aria-current="page">Pemeriksaan</RouterLink>
           </nav>
+
+          <span class="server-pill" :class="{ offline: serverOnline === false }">
+            <span class="dot" aria-hidden="true"></span>
+            <span>{{ serverLabel }}</span>
+          </span>
         </div>
       </div>
     </header>
 
     <main id="main-content" class="main-container">
-      <RouterLink id="back-link" class="back" to="/pemeriksaan">
-        <span aria-hidden="true">←&nbsp;</span>Ganti pasien (Kembali ke Pemilihan Pasien)
+      <RouterLink id="back-link" class="back" :to="{ name: 'pilih-pasien' }">
+        ← Ganti pasien
       </RouterLink>
-      <h1>Unggah Foto dan Deteksi</h1>
 
-      <div v-if="loadError" id="load-error-banner" class="error-banner" role="alert">
-        <div>
-          <strong>Gagal terhubung ke server atau memuat data pasien</strong>
-          <p>{{ loadError }}</p>
-        </div>
-        <div class="banner-actions">
-          <button id="btn-retry-load" class="btn btn-primary" type="button" @click="loadPageData">
-            Coba lagi
-          </button>
-          <RouterLink class="btn btn-secondary" to="/pemeriksaan">
-            Pilih Pasien Lain
-          </RouterLink>
-        </div>
+      <div class="title-row">
+        <h1>Foto Luka</h1>
+        <span v-if="!isLoading && patient" id="badge" class="badge">{{ visitBadgeText }}</span>
       </div>
 
-      <template v-else>
-        <section class="patient" aria-label="Pasien yang diperiksa">
-          <div>
-            <div class="p-label">Pasien yang diperiksa</div>
-            <div class="p-line">
-              <span class="p-rm">{{ patient?.id || patientId }}</span>
-              <span v-if="patient?.nama" class="p-name">{{ patient.nama }}</span>
-            </div>
-            <div v-if="patientAttrs.length" class="p-attrs">
-              <span v-for="(attr, idx) in patientAttrs" :key="idx">{{ attr }}</span>
-            </div>
+      <div v-if="isLoading" class="card loading-card">
+        <p class="muted">Memuat data pasien...</p>
+      </div>
+
+      <div v-else-if="pageError" class="error-banner" role="alert">
+        <div>
+          <strong>Data pasien tidak dapat dimuat</strong>
+          <p>{{ pageError }}</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" @click="loadPageData">Muat Ulang</button>
+      </div>
+
+      <template v-else-if="patient">
+        <section class="patient" aria-label="Identitas pasien">
+          <div class="p-line">
+            <span class="p-rm">{{ patient.id }}</span>
+            <span class="p-name">{{ patient.nama || 'Tanpa nama' }}</span>
+            <span class="p-attrs">
+              <span v-if="patient.umur !== null">{{ patient.umur }} th</span>
+              <span v-if="patient.jk">{{ patient.jk }}</span>
+              <span v-if="patient.lokasi">{{ patient.lokasi }}</span>
+            </span>
           </div>
-          <div class="p-side">
-            <p class="p-note">
-              Pastikan nomor RM sesuai dengan pasien di hadapan Anda sebelum mengunggah foto.
-            </p>
-            <RouterLink
-              id="link-patient-history"
-              class="btn btn-secondary btn-sm"
-              :to="`/pasien/${encodeURIComponent(patient?.id || patientId)}`"
-            >
-              Lihat Riwayat Pasien
-            </RouterLink>
-          </div>
+          <RouterLink
+            id="link-patient-history"
+            class="btn btn-secondary btn-sm"
+            :to="{ name: 'riwayat-pasien', params: { patientId: patient.id } }"
+          >
+            Riwayat
+          </RouterLink>
         </section>
 
-        <!-- Peringatan draf yang menggantung (10.2 butir 3) -->
         <section
           v-if="pendingDraft"
           id="draft-warning"
           class="draft-banner"
           role="region"
-          aria-label="Peringatan draf belum disimpan"
+          aria-label="Pemeriksaan belum disimpan"
         >
           <div class="draft-banner-text">
-            <strong>Ada draf belum disimpan ({{ formatDateID(pendingDraft.visit_date) }})</strong>
+            <strong>Pemeriksaan {{ formatDateShort(pendingDraft.visit_date) }} belum disimpan</strong>
             <p>
-              Luas relatif terdeteksi sementara:
-              <strong>{{ formatDecimalID(pendingDraft.area_pct) }}%</strong> kanvas. Pilih untuk
-              melanjutkan evaluasi draf tersebut atau buang draf untuk mengunggah foto baru.
+              Foto sudah dianalisis tapi belum dikonfirmasi. Lanjutkan untuk meninjau hasilnya, atau
+              buang untuk mulai dari foto baru.
             </p>
           </div>
           <div class="draft-banner-actions">
-            <RouterLink
+            <button
               id="btn-resume-draft"
+              type="button"
               class="btn btn-primary"
-              :to="`/kunjungan/${pendingDraft.id}`"
+              @click="router.push({ name: 'hasil-kunjungan', params: { visitId: pendingDraft.id } })"
             >
-              Lanjutkan draf
-            </RouterLink>
+              Lanjutkan
+            </button>
             <button
               id="btn-discard-draft"
-              class="btn btn-secondary"
               type="button"
+              class="btn btn-secondary"
               :disabled="isDiscardingDraft"
               @click="handleDiscardDraft"
             >
-              {{ isDiscardingDraft ? 'Membuang draf...' : 'Buang draf dan unggah baru' }}
+              {{ isDiscardingDraft ? 'Membuang...' : 'Buang dan mulai baru' }}
             </button>
           </div>
         </section>
 
-        <!-- Banner error saat submit / 422 / 5xx / backend mati (10.1) -->
-        <div v-if="submitError" id="submit-error-banner" class="error-banner" role="alert">
-          <div>
-            <strong>Deteksi tidak dapat diselesaikan</strong>
-            <p>{{ submitError }}</p>
-          </div>
-          <div class="banner-actions">
-            <button
-              v-if="selectedFile && isDateValid && isConfirmed"
-              id="btn-retry-submit"
-              class="btn btn-secondary"
-              type="button"
-              :disabled="isSubmitting"
-              @click="handleRunDetection"
-            >
-              Coba lagi
-            </button>
-          </div>
-        </div>
-
-        <div class="grid" :data-mode="isFollowUp ? '3' : '1'">
-          <section class="card" aria-labelledby="t-form">
-            <h2 id="t-form" class="sr">Formulir pemeriksaan</h2>
-            <div class="status-row">
-              <span id="badge" class="badge">{{ visitBadgeText }}</span>
-            </div>
-
-            <div class="field">
-              <label class="lbl" for="tgl">Tanggal Pemeriksaan</label>
-              <input
-                id="tgl"
-                v-model="visitDate"
-                type="date"
-                :max="todayISO"
-                :min="latestFinalDate || undefined"
-                aria-describedby="tgl-hint"
-              />
-              <p id="tgl-hint" class="hint">
-                <template v-if="latestFinalDate">
-                  Rentang valid: {{ formatDateID(latestFinalDate) }} s.d. hari ini.
-                </template>
-                <template v-else>Tidak dapat memilih tanggal setelah hari ini.</template>
-              </p>
+        <template v-else>
+          <section class="card" aria-label="Formulir unggah foto luka">
+            <div class="date-row">
+              <div class="date-summary">
+                <span class="date-label">Tanggal:</span>
+                <strong>{{ visitDateDisplay }}</strong>
+                <button
+                  type="button"
+                  class="btn-text"
+                  @click="isEditingDate = !isEditingDate"
+                >
+                  {{ isEditingDate || dateError ? 'Tutup' : 'Ubah' }}
+                </button>
+              </div>
+              <div v-if="isEditingDate || dateError" class="date-input-wrap">
+                <label class="sr-only" for="tgl">Tanggal pemeriksaan</label>
+                <input
+                  id="tgl"
+                  v-model="visitDate"
+                  type="date"
+                  :min="minDate"
+                  :max="maxDate"
+                />
+              </div>
               <p v-if="dateError" id="tgl-err" class="error" role="alert">{{ dateError }}</p>
             </div>
 
-            <!-- Panel Foto Acuan (U1) -->
-            <ReferencePanel
-              v-model:active-tab="activeRefTab"
-              v-model:show-contour="showRefContour"
-              :is-follow-up="isFollowUp"
-              :has-distinct-latest="hasDistinctLatestRef"
-              :active-visit="activeRefVisit"
-              :active-image-url="activeRefImageUrl"
-              :active-overlay-url="activeRefOverlayUrl"
-              :active-display-url="activeRefDisplayUrl"
-            />
+            <p v-if="!isFollowUp" class="baseline-note">
+              Foto ini menjadi foto awal untuk kunjungan berikutnya.
+            </p>
 
-            <PhotoDropzone
-              ref="photoDropzoneRef"
-              :has-file="Boolean(selectedFile)"
-              :is-demo="Boolean(patient?.is_demo)"
-              :is-loading-sample="isLoadingSample"
-              :error-message="fileError"
-              @select-file="handleSelectedFile"
-              @load-sample="loadDemoSamplePhoto"
-            />
+            <div v-if="isFollowUp" class="columns">
+              <div class="col">
+                <ReferencePanel
+                  v-model:active-ref-tab="activeRefTab"
+                  v-model:show-contour="showRefContour"
+                  :has-distinct-latest="hasDistinctLatestRef"
+                  :active-date-label="activeRefDateLabel"
+                  :latest-short-date="latestShortDate"
+                  :active-image-url="activeRefImageUrl"
+                  :active-overlay-url="activeRefOverlayUrl"
+                />
+              </div>
+              <div class="col">
+                <PhotoDropzone
+                  v-if="!selectedFile"
+                  :error="fileError"
+                  :show-sample-button="patient.is_demo"
+                  @select="handleSelectedFile"
+                  @sample="loadDemoSamplePhoto"
+                />
+                <GhostOverlay
+                  v-else
+                  :preview-url="previewUrl"
+                  :file-name="selectedFile.name"
+                  :file-size-text="formatFileSize(selectedFile.size)"
+                  :ref-image-url="activeRefImageUrl"
+                  :ghost-active="ghostActive"
+                  :ghost-opacity="ghostOpacity"
+                  :disabled="isSubmitting"
+                  @replace="clearPhoto"
+                />
+              </div>
+            </div>
 
-            <GhostOverlay
-              v-if="selectedFile"
-              ref="ghostOverlayRef"
-              :file="selectedFile"
-              :preview-url="previewUrl"
-              :is-follow-up="isFollowUp"
-              :next-visit-number="nextVisitNumber"
-              :visit-date="visitDate"
-              :ref-image-url="activeRefDisplayUrl"
-              :ref-label="activeRefTab === 'latest' && hasDistinctLatestRef ? 'Kunjungan Terakhir' : 'Baseline A₀'"
-              :ref-visit-date="activeRefVisit?.visit_date ?? ''"
-              :is-submitting="isSubmitting"
-              @replace="clearPhoto"
-              @announce="liveAnnouncement = $event"
-            />
+            <div v-else class="single-col">
+              <PhotoDropzone
+                v-if="!selectedFile"
+                :error="fileError"
+                :show-sample-button="patient.is_demo"
+                @select="handleSelectedFile"
+                @sample="loadDemoSamplePhoto"
+              />
+              <GhostOverlay
+                v-else
+                :preview-url="previewUrl"
+                :file-name="selectedFile.name"
+                :file-size-text="formatFileSize(selectedFile.size)"
+                :ref-image-url="null"
+                :ghost-active="false"
+                :ghost-opacity="ghostOpacity"
+                :disabled="isSubmitting"
+                @replace="clearPhoto"
+              />
+            </div>
+
+            <div v-if="selectedFile && isFollowUp && activeRefImageUrl" id="ghostCtl" class="ghost-ctl">
+              <button
+                id="gsw"
+                type="button"
+                role="switch"
+                :aria-checked="ghostActive"
+                class="swbtn"
+                @click="ghostActive = !ghostActive"
+              >
+                <span class="track" aria-hidden="true"></span>
+                <span>Tumpuk foto awal</span>
+              </button>
+
+              <label v-if="ghostActive" class="op" for="gop">
+                <span>Transparansi</span>
+                <input
+                  id="gop"
+                  v-model.number="ghostOpacity"
+                  type="range"
+                  min="0"
+                  max="80"
+                  step="5"
+                />
+                <output id="gout">{{ ghostOpacity }}%</output>
+              </label>
+
+              <p id="ghost-note" class="ghost-note">
+                Samakan lebar pergelangan atau sisi kaki, bukan tepi luka. Foto yang dianalisis tetap asli.
+              </p>
+            </div>
+
+            <div v-if="submitError" id="submit-error-banner" class="error-banner" role="alert">
+              <div>
+                <strong>Foto belum bisa dianalisis</strong>
+                <p>{{ submitError }}</p>
+              </div>
+              <button
+                id="btn-retry-submit"
+                type="button"
+                class="btn btn-secondary btn-sm"
+                :disabled="isSubmitting"
+                @click="handleRunDetection"
+              >
+                Coba Lagi
+              </button>
+            </div>
 
             <div id="confirm" class="confirm">
               <input
                 id="chk"
-                v-model="isConfirmed"
+                v-model="distanceConfirmed"
                 type="checkbox"
                 :disabled="isSubmitting"
               />
-              <label id="chk-lbl" for="chk">{{ confirmLabelText }}</label>
+              <label id="chk-lbl" for="chk">{{ confirmLabel }}</label>
             </div>
 
             <div class="action">
-              <p id="reason" class="reason" role="status" aria-live="polite" aria-atomic="true">
+              <p
+                id="reason"
+                class="reason"
+                :class="{ 'sr-only': canRunDetection }"
+                aria-live="polite"
+              >
                 {{ statusReasonText }}
               </p>
               <button
                 id="run"
-                class="btn btn-primary"
                 type="button"
-                :disabled="!canRunDetection"
-                :aria-busy="isSubmitting"
-                aria-describedby="reason"
+                class="btn btn-primary"
+                :disabled="!canRunDetection || isSubmitting"
                 @click="handleRunDetection"
               >
-                <template v-if="isSubmitting">
-                  <span class="spinner" aria-hidden="true"></span>
-                  <span>Menganalisis area luka...</span>
-                </template>
-                <template v-else>
-                  <span id="run-txt">Jalankan Deteksi</span>
-                </template>
+                <span v-if="isSubmitting" class="spinner" aria-hidden="true"></span>
+                <span id="run-txt">{{ isSubmitting ? 'Menganalisis foto...' : 'Analisis Foto' }}</span>
               </button>
             </div>
-            <p id="live" class="sr" role="status" aria-live="polite">{{ liveAnnouncement }}</p>
           </section>
 
-          <PhotoGuideCard />
-        </div>
+          <PhotoGuideCard :is-follow-up="isFollowUp" />
+        </template>
       </template>
+
+      <div id="live" class="sr-only" aria-live="polite">{{ liveAnnouncement }}</div>
     </main>
   </div>
 </template>
 
-<style scoped src="../assets/h3_unggah.css"></style>
+<style scoped src="@/assets/h3_unggah.css"></style>

@@ -1,138 +1,112 @@
+<script setup lang="ts">
+defineProps<{
+  isFollowUp: boolean;
+}>();
+</script>
+
 <template>
-  <aside id="guide" class="card guide guide-wrap" aria-labelledby="t-guide">
-    <h2 id="t-guide">Panduan Pengambilan Foto</h2>
-    <p class="sub">Lima prinsip agar foto antarkunjungan dapat dibandingkan.</p>
-    <ol>
-      <li>
-        <span class="num" aria-hidden="true">1</span>
-        <div>
-          <h3>Jarak konsisten</h3>
-          <p>
-            Gunakan jarak yang sama pada setiap kunjungan (misalnya dengan tali atau penggaris
-            pengatur jarak) dan jangan memakai zoom digital.
-          </p>
-        </div>
-      </li>
-      <li>
-        <span class="num" aria-hidden="true">2</span>
-        <div>
-          <h3>Kamera tegak lurus</h3>
-          <p>Posisikan kamera 90° terhadap permukaan luka.</p>
-        </div>
-      </li>
-      <li>
-        <span class="num" aria-hidden="true">3</span>
-        <div>
-          <h3>Pencahayaan cukup</h3>
-          <p>Hindari bayangan gelap dan pantulan cahaya.</p>
-        </div>
-      </li>
-      <li>
-        <span class="num" aria-hidden="true">4</span>
-        <div>
-          <h3>Tanpa filter</h3>
-          <p>Gunakan foto alami tanpa modifikasi warna.</p>
-        </div>
-      </li>
-      <li>
-        <span class="num" aria-hidden="true">5</span>
-        <div>
-          <h3>Sertakan penggaris</h3>
-          <p>Bila tersedia, letakkan penggaris di dekat luka dan sebidang dengan permukaannya.</p>
-        </div>
-      </li>
-    </ol>
-    <p class="calib">
-      <svg
-        viewBox="0 0 20 20"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.7"
-        stroke-linecap="round"
-        aria-hidden="true"
-      >
-        <circle cx="10" cy="10" r="7.5" />
-        <path d="M10 9v5M10 6.2v.1" />
-      </svg>
-      <span>
-        <strong>Catatan:</strong> Luas dihitung relatif terhadap citra. Jika foto memuat penggaris
-        sebidang luka, kalibrasi opsional tersedia di halaman hasil.
-      </span>
-    </p>
-  </aside>
+  <details id="guide" class="guide-card" :open="!isFollowUp">
+    <summary class="guide-summary">
+      <span>Panduan foto</span>
+      <span class="guide-chevron" aria-hidden="true">▾</span>
+    </summary>
+    <div class="guide-body">
+      <ol class="guide-list">
+        <li>
+          <strong>Jarak sama</strong>
+          <span>Ambil dari jarak yang sama dengan foto sebelumnya.</span>
+        </li>
+        <li>
+          <strong>Kamera tegak lurus</strong>
+          <span>Arahkan lensa sejajar dengan permukaan luka, tidak miring.</span>
+        </li>
+        <li>
+          <strong>Cahaya cukup</strong>
+          <span>Pastikan luka terlihat jelas, tanpa bayangan gelap.</span>
+        </li>
+        <li>
+          <strong>Tanpa filter</strong>
+          <span>Gunakan kamera biasa tanpa efek atau pemotongan.</span>
+        </li>
+        <li>
+          <strong>Sertakan penggaris</strong>
+          <span>Letakkan penggaris di dekat luka bila ingin mengukur dalam cm².</span>
+        </li>
+      </ol>
+    </div>
+  </details>
 </template>
 
 <style scoped>
-.card {
+.guide-card {
+  margin-top: 20px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 22px 24px;
+  overflow: hidden;
 }
-.guide h2 {
-  font-size: 16px;
-  font-weight: 650;
-  color: var(--navy);
-  margin: 0 0 4px;
-}
-.guide .sub {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin: 0 0 14px;
-}
-.guide ol {
+.guide-summary {
   list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 14px;
-}
-.guide li {
-  display: grid;
-  grid-template-columns: 28px 1fr;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-}
-.num {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--teal-soft);
-  color: var(--teal);
-  font-weight: 700;
-  font-size: 13px;
-  display: grid;
-  place-items: center;
-}
-.guide h3 {
+  padding: 14px 20px;
+  min-height: 44px;
   font-size: 14px;
   font-weight: 650;
-  margin: 0;
+  color: var(--navy);
+  cursor: pointer;
+  user-select: none;
 }
-.guide li p {
-  font-size: 13px;
-  color: var(--text-2);
-  margin: 2px 0 0;
+.guide-summary::-webkit-details-marker {
+  display: none;
 }
-.calib {
-  margin: 18px 0 0;
-  padding-top: 14px;
+.guide-summary:hover {
+  background: var(--bg);
+}
+.guide-summary:focus-visible {
+  outline: 2px solid var(--navy);
+  outline-offset: -2px;
+}
+.guide-chevron {
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: transform var(--dur);
+}
+.guide-card[open] .guide-chevron {
+  transform: rotate(180deg);
+}
+.guide-body {
+  padding: 0 20px 18px;
   border-top: 1px solid var(--border);
+}
+.guide-list {
+  margin: 14px 0 0;
+  padding-left: 20px;
   display: grid;
-  grid-template-columns: 18px 1fr;
-  gap: 8px;
-  font-size: 12.5px;
-  line-height: 1.5;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px 20px;
+  font-size: 13.5px;
+  line-height: 1.45;
   color: var(--text-2);
 }
-.calib svg {
-  width: 18px;
-  height: 18px;
-  color: var(--teal);
-  margin-top: 1px;
+.guide-list li strong {
+  display: block;
+  color: var(--navy);
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide-chevron {
+    transition: none;
+  }
 }
 @media (max-width: 640px) {
-  .card {
-    padding: 18px 16px;
+  .guide-summary {
+    padding: 12px 16px;
+  }
+  .guide-body {
+    padding: 0 16px 16px;
   }
 }
 </style>

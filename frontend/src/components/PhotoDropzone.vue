@@ -1,201 +1,144 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref } from 'vue';
 
-interface Props {
-  hasFile: boolean
-  isDemo: boolean
-  isLoadingSample: boolean
-  errorMessage: string
-}
-
-defineProps<Props>()
+defineProps<{
+  error?: string;
+  showSampleButton?: boolean;
+}>();
 
 const emit = defineEmits<{
-  'select-file': [file: File]
-  'load-sample': []
-}>()
+  (e: 'select', file: File): void;
+  (e: 'sample'): void;
+}>();
 
-const isDragging = ref(false)
-const fileInputRef = ref<HTMLInputElement | null>(null)
-const pickBtnRef = ref<HTMLButtonElement | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const isDragging = ref(false);
 
 function openPicker() {
-  fileInputRef.value?.click()
+  fileInputRef.value?.click();
 }
 
-function onDropzoneKeydown(e: KeyboardEvent) {
-  if (e.target !== e.currentTarget) return
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault()
-    openPicker()
+function handleFileChange(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (file) {
+    emit('select', file);
+  }
+  target.value = '';
+}
+
+function handleDragOver(event: DragEvent) {
+  event.preventDefault();
+  isDragging.value = true;
+}
+
+function handleDragLeave() {
+  isDragging.value = false;
+}
+
+function handleDrop(event: DragEvent) {
+  event.preventDefault();
+  isDragging.value = false;
+  const file = event.dataTransfer?.files?.[0];
+  if (file) {
+    emit('select', file);
   }
 }
-
-function onFileInputChange(e: Event) {
-  const target = e.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (file) emit('select-file', file)
-}
-
-function onDragOver(e: DragEvent) {
-  e.preventDefault()
-  isDragging.value = true
-}
-
-function onDragLeave(e: DragEvent) {
-  e.preventDefault()
-  isDragging.value = false
-}
-
-function onDrop(e: DragEvent) {
-  e.preventDefault()
-  isDragging.value = false
-  const file = e.dataTransfer?.files?.[0]
-  if (file) emit('select-file', file)
-}
-
-function resetAndFocus() {
-  if (fileInputRef.value) {
-    fileInputRef.value.value = ''
-  }
-  pickBtnRef.value?.focus()
-}
-
-defineExpose({ resetAndFocus })
 </script>
 
 <template>
-  <label id="foto-lbl" class="lbl" for="file">Foto Luka</label>
-
-  <div
-    v-if="!hasFile"
-    id="drop"
-    class="drop"
-    :class="{ over: isDragging }"
-    tabindex="0"
-    role="button"
-    aria-labelledby="foto-lbl drop-desc"
-    @keydown="onDropzoneKeydown"
-    @dragenter="onDragOver"
-    @dragover="onDragOver"
-    @dragleave="onDragLeave"
-    @drop="onDrop"
-  >
-    <svg
-      viewBox="0 0 48 48"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
+  <div class="drop-wrap">
+    <div
+      id="drop"
+      class="drop"
+      :class="{ dragging: isDragging }"
+      @dragover="handleDragOver"
+      @dragleave="handleDragLeave"
+      @drop="handleDrop"
     >
-      <rect x="6" y="10" width="36" height="28" rx="4" />
-      <circle cx="17" cy="20" r="3.5" />
-      <path d="m6 33 10-9 8 7 7-6 11 9" />
-      <path d="M36 4v8M32 8h8" />
-    </svg>
-    <p id="drop-desc">Seret foto ulkus ke area ini atau pilih dari perangkat</p>
-    <div class="drop-actions">
-      <button
-        id="pick"
-        ref="pickBtnRef"
-        class="btn btn-secondary"
-        type="button"
-        @click.stop="openPicker"
-      >
-        Pilih Berkas Foto
-      </button>
-      <button
-        v-if="isDemo"
-        id="sample"
-        class="btn btn-ghost"
-        type="button"
-        :disabled="isLoadingSample"
-        @click.stop="emit('load-sample')"
-      >
-        {{ isLoadingSample ? 'Memuat Foto Sampel...' : 'Gunakan Foto Sampel (Mode demo)' }}
-      </button>
+      <input
+        id="file"
+        ref="fileInputRef"
+        type="file"
+        accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+        class="sr-only"
+        @change="handleFileChange"
+      />
+      <p class="drop-title">Seret foto luka ke sini atau pilih dari perangkat</p>
+      <div class="drop-actions">
+        <button id="pick" type="button" class="btn btn-secondary" @click="openPicker">
+          Pilih Foto
+        </button>
+        <button
+          v-if="showSampleButton"
+          id="sample"
+          type="button"
+          class="btn btn-ghost"
+          @click="emit('sample')"
+        >
+          Pakai foto sampel (mode demo)
+        </button>
+      </div>
+      <p class="drop-hint">JPG atau PNG, maksimal 10 MB.</p>
     </div>
-    <p class="hint" style="margin: 0">Format JPG atau PNG, maksimal 10 MB.</p>
+    <p v-if="error" id="ferr" class="error" role="alert">{{ error }}</p>
   </div>
-
-  <input
-    id="file"
-    ref="fileInputRef"
-    type="file"
-    accept="image/jpeg,image/png"
-    class="sr"
-    tabindex="-1"
-    @change="onFileInputChange"
-  />
-
-  <p v-if="errorMessage" id="ferr" class="error" role="alert">{{ errorMessage }}</p>
 </template>
 
 <style scoped>
-.sr {
+.drop-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.drop {
+  flex: 1;
+  min-height: 155px;
+  max-height: 170px;
+  border: 2px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+  transition:
+    background-color var(--dur),
+    border-color var(--dur);
+}
+.drop.dragging {
+  border-color: var(--teal);
+  background: var(--teal-soft);
+}
+.drop-title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--navy);
+  max-width: 280px;
+}
+.drop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+}
+.drop-hint {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
-}
-.lbl {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-.hint {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin: 6px 0 0;
-}
-.drop {
-  min-height: 220px;
-  background: var(--bg);
-  border: 1.5px dashed #64748b;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 10px;
-  padding: 28px 20px;
-  cursor: pointer;
-  transition:
-    border-color var(--dur),
-    background-color var(--dur);
-}
-.drop:focus-visible {
-  outline: 2px solid var(--navy);
-  outline-offset: 2px;
-  border-color: var(--navy);
-}
-.drop.over {
-  border-color: var(--teal);
-  background: var(--teal-soft);
-}
-.drop svg {
-  width: 44px;
-  height: 44px;
-  color: var(--teal);
-}
-.drop p {
-  font-size: 14px;
-  color: var(--text-2);
-  max-width: 320px;
-  margin: 0;
-}
-.drop-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 4px;
 }
 .btn {
   display: inline-flex;
@@ -237,7 +180,7 @@ defineExpose({ resetAndFocus })
   text-decoration: underline;
 }
 .error {
-  margin-top: 10px;
+  margin: 10px 0 0;
   font-size: 13px;
   color: var(--error);
   font-weight: 500;
