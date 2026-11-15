@@ -183,7 +183,7 @@ const visibleError = computed(() => {
 })
 
 const statusText = computed(() => {
-  if (isPanelDisabled.value) return 'Panel kalibrasi tidak aktif karena kunjungan sudah final.'
+  if (isPanelDisabled.value) return 'Kalibrasi tidak dapat diubah karena kunjungan sudah tersimpan.'
   if (!p1.value) return 'Belum ada titik. Klik foto penggaris atau isi koordinat untuk menetapkan Titik 1.'
   if (!p2.value) return `Titik 1 di (${formatDecimalID(p1.value.x, 1)}, ${formatDecimalID(p1.value.y, 1)}) px. Klik foto untuk Titik 2.`
   if (!validation.value.ok) {
@@ -208,7 +208,7 @@ function handleImageClick(e: MouseEvent) {
 
   apiError.value = ''
   if (!conv.ok || !conv.point) {
-    clickError.value = 'Klik berada di luar area citra (bidang kosong). Klik tepat pada gambar penggaris.'
+    clickError.value = 'Klik berada di luar foto. Klik tepat pada gambar penggaris.'
     return
   }
 
@@ -315,7 +315,7 @@ async function handleDeleteCalibration() {
     lengthCm.value = 2
     attemptedSubmit.value = false
     emit('updated', updated)
-    emit('notify', 'Kalibrasi dihapus. Pengukuran kembali memakai basis relatif (%).')
+    emit('notify', 'Kalibrasi dihapus. Pengukuran kembali memakai luas foto.')
   } catch (err) {
     if (err instanceof ApiError) {
       apiError.value = err.message
@@ -339,7 +339,7 @@ async function handleDeleteCalibration() {
       <span id="calChip" class="cal-chip" :class="{ on: isApplied }">
         {{
           isApplied && visit.area_cm2 !== null
-            ? `Diterapkan · ${formatDecimalID(visit.area_cm2)} cm²`
+            ? `Diterapkan · ${formatDecimalID(visit.area_cm2, 1)} cm²`
             : 'Belum diterapkan'
         }}
       </span>
@@ -359,7 +359,7 @@ async function handleDeleteCalibration() {
         class="cal-stage"
         tabindex="0"
         role="region"
-        aria-label="Kanvas citra asli untuk memilih dua titik kalibrasi. Gunakan tombol panah untuk menggeser titik aktif, Shift untuk langkah 10 piksel."
+        aria-label="Foto asli untuk memilih dua titik kalibrasi. Gunakan tombol panah untuk menggeser titik aktif, Shift untuk langkah 10 piksel."
         @keydown="onStageKeydown"
       >
         <img
@@ -397,7 +397,7 @@ async function handleDeleteCalibration() {
         </svg>
       </div>
 
-      <p class="cal-meta">Dimensi citra asli: <code>{{ imgWidthPx }} × {{ imgHeightPx }} px</code></p>
+      <p class="cal-meta">Ukuran foto asli: <code>{{ imgWidthPx }} × {{ imgHeightPx }} px</code></p>
       <p id="calStatus" class="cal-status" role="status" aria-live="polite">{{ statusText }}</p>
 
       <div class="cal-pts" role="group" aria-label="Pilih titik aktif dan alternatif papan ketik">
@@ -451,13 +451,13 @@ async function handleDeleteCalibration() {
             </dd>
           </div>
           <div>
-            <dt>Estimasi luas</dt>
+            <dt>Luas luka</dt>
             <dd id="oArea">
               {{
                 isApplied && visit.area_cm2 !== null
-                  ? `${formatDecimalID(visit.area_cm2)} cm²`
+                  ? `${formatDecimalID(visit.area_cm2, 1)} cm²`
                   : validation.areaCm2 !== null
-                    ? `${formatDecimalID(validation.areaCm2)} cm²`
+                    ? `${formatDecimalID(validation.areaCm2, 1)} cm²`
                     : '–'
               }}
             </dd>

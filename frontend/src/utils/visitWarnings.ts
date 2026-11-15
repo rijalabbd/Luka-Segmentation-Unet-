@@ -1,3 +1,5 @@
+import { formatDecimalID } from './formatters.ts'
+
 export interface WarningMeta {
   code: string
   title: string
@@ -6,28 +8,31 @@ export interface WarningMeta {
   role: 'alert' | 'status'
 }
 
+const DISTANCE_WARNING_BODY =
+  'Foto tanpa penggaris: beda jarak bisa menggeser angka ini. Cek ulang dengan overlay.'
+
 export const WARNING_DEFINITIONS: Record<string, Omit<WarningMeta, 'code'>> = {
   DISTANCE_SENSITIVE: {
-    title: 'Perhatikan variasi jarak pemotretan',
-    text: 'Perubahan sekecil ini dapat dipengaruhi variasi jarak pemotretan (±1 cm). Jika foto memuat penggaris, gunakan kalibrasi. Konfirmasi dengan pemeriksaan klinis langsung.',
+    title: 'Peka terhadap jarak foto',
+    text: DISTANCE_WARNING_BODY,
     strong: false,
     role: 'status',
   },
   DISTANCE_LARGE: {
-    title: 'Perubahan besar pada foto tanpa kalibrasi',
-    text: 'Pada foto tanpa kalibrasi, selisih jarak pemotretan dapat menimbulkan perubahan luas semu yang besar (misalnya selisih 5 cm pada jarak 20 cm setara sekitar 36%). Periksa kembali jarak foto dengan overlay, atau gunakan kalibrasi jika ada penggaris.',
+    title: 'Peka terhadap jarak foto',
+    text: DISTANCE_WARNING_BODY,
     strong: true,
     role: 'alert',
   },
   MIXED_BASIS: {
-    title: 'PAC memakai luas relatif',
-    text: 'PAC dihitung dengan luas relatif karena kunjungan awal tidak terkalibrasi. Kunjungan awal (baseline A₀) tidak memiliki data kalibrasi penggaris, sehingga perbandingan longitudinal tetap menggunakan basis persentase area citra (%).',
+    title: 'Mode ukur berbeda dengan pemeriksaan pertama',
+    text: 'Perubahan luas dihitung dari luas foto karena pemeriksaan pertama belum memakai penggaris.',
     strong: false,
     role: 'status',
   },
   LOW_BASELINE: {
     title: 'Luas awal sangat kecil',
-    text: 'Luas awal kurang dari 1% dari citra, sehingga PAC sangat sensitif terhadap selisih kecil jumlah piksel.',
+    text: 'Luas pemeriksaan pertama kurang dari 1% foto, sehingga angka perubahan luas sangat peka terhadap selisih kecil.',
     strong: false,
     role: 'status',
   },
@@ -35,19 +40,19 @@ export const WARNING_DEFINITIONS: Record<string, Omit<WarningMeta, 'code'>> = {
 
 /**
  * Filter dan petakan kode peringatan sesuai basis PAC:
- * peringatan variasi jarak (DISTANCE_SENSITIVE / DISTANCE_LARGE) hanya berlaku pada pac_basis === 'relative'.
+ * peringatan variasi jarak hanya berlaku pada pac_basis === 'relative'
+ * dan ditampilkan maksimal satu kali agar tidak berulang.
  */
 export function buildActiveWarnings(
   warnings: string[] | null | undefined,
   pacBasis: 'relative' | 'calibrated' | null | undefined,
 ): WarningMeta[] {
   const list: WarningMeta[] = []
+  let hasDistanceWarning = false
   for (const code of warnings ?? []) {
-    if (
-      (code === 'DISTANCE_SENSITIVE' || code === 'DISTANCE_LARGE') &&
-      pacBasis !== 'relative'
-    ) {
-      continue
+    if (code === 'DISTANCE_SENSITIVE' || code === 'DISTANCE_LARGE') {
+      if (pacBasis !== 'relative' || hasDistanceWarning) continue
+      hasDistanceWarning = true
     }
     const def = WARNING_DEFINITIONS[code]
     if (def) {
@@ -59,10 +64,102 @@ export function buildActiveWarnings(
 
 export type TrendClass = 'down' | 'up' | 'flat' | 'na'
 
+export interface TrendSummary {
+  cssClass: TrendClass
+  arrow: string
+  label: string
+  unsignedPctText: string
+  headline: string
+}
+
 export function getTrendCssClass(trendStatus: string | null | undefined): TrendClass {
   const txt = (trendStatus || '').toLowerCase()
   if (txt.includes('tidak dapat dihitung')) return 'na'
-  if (txt.includes('menurun')) return 'down'
-  if (txt.includes('meningkat')) return 'up'
+  if (txt.includes('menurun') || txt.includes('mengecil')) return 'down'
+  if (txt.includes('meningkat') || txt.includes('membesar')) return 'up'
   return 'flat'
+}
+
+export function formatTrendSummary(
+  trendStatus: string | null | undefined,
+  pac: number | null | undefined,
+): TrendSummary {
+  const cssClass = getTrendCssClass(trendStatus)
+  if (cssClass === 'na' || pac === null || pac === undefined || Number.isNaN(pac)) {
+    return {
+      cssClass: 'na',
+      arrow: '·',
+      label: 'Perubahan belum dapat dihitung',
+      unsignedPctText: '',
+      headline: 'Perubahan belum dapat dihitung',
+    }
+  }
+
+  const label =
+    cssClass === 'down'
+      ? 'Terlihat mengecil'
+      : cssClass === 'up'
+        ? 'Terlihat membesar'
+        : 'Relatif sama'
+  const arrow = cssClass === 'down' ? '↓' : cssClass === 'up' ? '↑' : '→'
+  const unsignedPctText = `${formatDecimalID(Math.abs(pac), 1)}%`
+  return {
+    cssClass,
+    arrow,
+    label,
+    unsignedPctText,
+    headline: `${label} ${unsignedPctText}`,
+  }
+}
+
+export interface AreaBarItem {
+  key: 'awal' | 'sekarang'
+  label: string
+  value: number
+  widthPct: number
+  valueText: string
+}
+
+export function buildAreaComparisonBars(params: {
+  awal: number | null | undefined
+  sekarang: number | null | undefined
+  unit: '%' | ' cm²'
+}): AreaBarItem[] {
+  const { awal, sekarang, unit } = params
+  if (
+    awal === null ||
+    awal === undefined ||
+    Number.isNaN(awal) ||
+    sekarang === null ||
+    sekarang === undefined ||
+    Number.isNaN(sekarang)
+  ) {
+    return []
+  }
+
+  const safeAwal = Math.max(0, awal)
+  const safeSekarang = Math.max(0, sekarang)
+  const scaleMax = Math.max(safeAwal, safeSekarang, 0.1)
+
+  const toWidth = (v: number): number => {
+    if (v <= 0) return 0
+    return Math.min(100, Math.max(4, (v / scaleMax) * 100))
+  }
+
+  return [
+    {
+      key: 'awal',
+      label: 'Awal',
+      value: safeAwal,
+      widthPct: toWidth(safeAwal),
+      valueText: `${formatDecimalID(safeAwal, 1)}${unit}`,
+    },
+    {
+      key: 'sekarang',
+      label: 'Sekarang',
+      value: safeSekarang,
+      widthPct: toWidth(safeSekarang),
+      valueText: `${formatDecimalID(safeSekarang, 1)}${unit}`,
+    },
+  ]
 }

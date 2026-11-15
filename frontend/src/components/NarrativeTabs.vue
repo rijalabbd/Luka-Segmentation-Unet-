@@ -17,24 +17,14 @@ const activeTab = ref<'clinician' | 'patient'>('clinician')
 const tabClinRef = ref<HTMLButtonElement | null>(null)
 const tabPatRef = ref<HTMLButtonElement | null>(null)
 
-const sourceTitle = computed(() => {
+const sourceLineText = computed(() => {
   if (props.visit.narrative_source === 'llm') {
-    return 'AI generatif tervalidasi (llm)'
+    return 'Sumber narasi: Gemini'
   }
   if (props.visit.narrative_source === 'template_fallback') {
-    return 'Templat deterministik sistem (template_fallback)'
+    return 'Sumber narasi: templat sistem'
   }
-  return 'Belum tersedia'
-})
-
-const sourceDescription = computed(() => {
-  if (props.visit.narrative_source === 'llm') {
-    return 'Disusun otomatis dari parameter numerik terhitung (A₀, Aₜ, ΔA, PAC, status tren) tanpa mengirimkan foto luka maupun identitas pasien.'
-  }
-  if (props.visit.narrative_source === 'template_fallback') {
-    return 'Disusun otomatis menggunakan templat baku terverifikasi dari parameter numerik terhitung (A₀, Aₜ, ΔA, PAC, status tren).'
-  }
-  return 'Narasi belum dibuat untuk kunjungan ini.'
+  return 'Sumber narasi: belum tersedia'
 })
 
 function selectTab(tab: 'clinician' | 'patient', moveFocus = false) {
@@ -75,32 +65,7 @@ async function copyNarrative(text: string | null | undefined, successMsg: string
 </script>
 
 <template>
-  <section
-    v-if="isBaseline"
-    id="narrBaseline"
-    class="panel narr-base"
-    role="region"
-    aria-label="Informasi narasi kunjungan awal"
-  >
-    <h2>Kunjungan Awal (Baseline A₀) — Tanpa Narasi Perbandingan</h2>
-    <p class="base-desc">
-      Kunjungan pertama digunakan untuk menetapkan luas acuan awal (A₀). Catatan klinis
-      longitudinal dan penjelasan perkembangan luka untuk pasien baru disusun mulai kunjungan kedua
-      setelah perhitungan PAC tersedia.
-    </p>
-    <div id="staticWoundCareGuide" class="care-guide">
-      <b>Panduan Umum Perawatan Luka</b>
-      <p>
-        Jaga balutan luka tetap bersih dan kering, kurangi tumpuan atau tekanan berlebih pada area
-        ulkus, serta patuhi jadwal kontrol rutin bersama perawat atau dokter.
-      </p>
-    </div>
-    <p class="base-disclaimer">
-      Catatan: Hasil merupakan estimasi sistem berbasis citra visual, bukan diagnosis medis.
-    </p>
-  </section>
-
-  <section v-else id="tabsCard" class="panel tabs-card" aria-label="Narasi hasil pemeriksaan">
+  <section v-if="!isBaseline" id="tabsCard" class="panel tabs-card" aria-label="Narasi hasil pemeriksaan">
     <div class="tablist" role="tablist" aria-label="Narasi hasil pemeriksaan">
       <button
         id="tab-catatan"
@@ -192,33 +157,12 @@ async function copyNarrative(text: string | null | undefined, successMsg: string
       </div>
     </div>
 
-    <div class="source">
-      <div class="source-head">
-        <span><b>Sumber narasi:</b> {{ sourceTitle }}</span>
-        <span
-          v-if="visit.narrative_source"
-          id="narrativeSourceBadge"
-          class="src-badge"
-          :class="visit.narrative_source === 'llm' ? 'llm' : 'fallback'"
-        >
-          {{ visit.narrative_source }}
-        </span>
-      </div>
-      <p>{{ sourceDescription }}</p>
-      <p class="src-disclaimer">
-        Hasil merupakan estimasi sistem berbasis citra visual, bukan diagnosis medis. Periksa kembali
-        sebelum dijadikan catatan resmi.
-      </p>
-    </div>
+    <p id="narrativeSourceLine" class="source-muted">{{ sourceLineText }}</p>
   </section>
 </template>
 
 <style scoped>
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
-.narr-base { margin-top: 24px; padding: 20px 22px; }
-.narr-base h2 { margin: 0; font-size: 16px; font-weight: 650; color: var(--navy); }
-.base-desc { margin: 8px 0 0; font-size: 14.5px; line-height: 1.65; color: var(--text-2); max-width: 880px; }
-.base-disclaimer { margin: 12px 0 0; font-size: 12.5px; color: var(--muted); }
 .tabs-card { margin-top: 24px; overflow: hidden; }
 .tablist { display: flex; gap: 24px; padding: 0 22px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .tab {
@@ -235,29 +179,26 @@ async function copyNarrative(text: string | null | undefined, successMsg: string
   margin-top: 14px; padding: 12px 14px; background: var(--teal-soft);
   border: 1px solid #bfdcdc; border-radius: 8px; max-width: 880px;
 }
-.care-guide b { display: block; font-size: 13px; color: var(--navy); margin-bottom: 3px; }
-.care-guide p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--text-2); }
+.care-guide b { display: block; font-size: 14px; color: var(--navy); margin-bottom: 4px; }
+.care-guide p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-2); }
 .copy-row { margin-top: 14px; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
-  min-height: 40px; padding: 0 14px; font: inherit; font-size: 13px; font-weight: 600;
+  min-height: 40px; padding: 0 14px; font: inherit; font-size: 14px; font-weight: 600;
   border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface);
   color: var(--navy); cursor: pointer;
 }
 .btn:hover { border-color: var(--navy); background: var(--bg); }
-.source { margin: 0 22px 20px; padding-top: 14px; border-top: 1px solid var(--border); max-width: 880px; }
-.source-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--text); }
-.src-badge {
-  font-family: var(--mono); font-size: 11.5px; font-weight: 700; padding: 2px 8px;
-  border-radius: 999px; border: 1px solid;
+.source-muted {
+  margin: 0 22px 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--muted);
 }
-.src-badge.llm { color: var(--green); background: var(--green-bg); border-color: var(--green-bd); }
-.src-badge.fallback { color: var(--navy); background: #f1f5f9; border-color: var(--border-strong); }
-.source p { margin: 6px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--text-2); }
-.source .src-disclaimer { color: var(--muted); }
 @media (max-width: 760px) {
   .tablist { padding: 0 16px; gap: 16px; }
   .tabpanel { padding: 16px 16px 14px; }
-  .source { margin: 0 16px 16px; }
+  .source-muted { margin: 0 16px 16px; }
 }
 </style>

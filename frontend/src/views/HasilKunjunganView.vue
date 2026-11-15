@@ -25,7 +25,7 @@ const router = useRouter()
 const visitId = computed(() => Number(route.params.visitId))
 
 const serverOnline = ref<boolean | null>(null)
-const healthLabel = ref('Server Lokal Terhubung · Data Terisolasi')
+const healthLabel = ref('Server Lokal Terhubung')
 
 const visit = ref<VisitRecord | null>(null)
 const patient = ref<PatientSummary | null>(null)
@@ -55,8 +55,7 @@ const displayVisitNumber = computed(() => {
 
 const statusChipLabel = computed(() => {
   if (!visit.value) return ''
-  if (visit.value.status === 'draft') return 'Draf — Belum Disimpan'
-  return isBaselineVisit.value ? 'Final · Baseline' : 'Final — Tersimpan'
+  return visit.value.status === 'draft' ? 'Belum disimpan' : 'Tersimpan'
 })
 
 const statusChipClass = computed(() => {
@@ -64,27 +63,21 @@ const statusChipClass = computed(() => {
   return isBaselineVisit.value ? 'base' : 'final'
 })
 
-const bannerInfo = computed(() => {
-  if (!visit.value) return { cls: 'draft', title: '', text: '' }
-  if (visit.value.status === 'draft') {
+const guidanceBanner = computed(() => {
+  if (!visit.value) return null
+  if (isDraft.value) {
     return {
       cls: 'draft',
-      title: 'Draf — Belum Disimpan',
-      text: 'Hasil pemeriksaan masih berupa draf dan belum disimpan ke riwayat pasien. Periksa kembali batas masker segmentasi. Jika foto memuat penggaris sebidang luka, kalibrasi opsional tersedia di bawah foto. Jika masker tidak sesuai dengan luka, pilih Foto Ulang.',
+      text: 'Periksa garis hijau batas luka pada foto, lalu pilih Setujui dan Simpan.',
     }
   }
   if (isBaselineVisit.value) {
     return {
       cls: 'base',
-      title: 'Baseline — Kunjungan Pertama',
-      text: 'Kunjungan pertama digunakan sebagai baseline (A₀). Perhitungan PAC baru tersedia mulai kunjungan kedua.',
+      text: 'Tersimpan sebagai pemeriksaan awal. Perhitungan perubahan luas tersedia mulai pemeriksaan kedua.',
     }
   }
-  return {
-    cls: 'final',
-    title: 'Final — Terkonfirmasi dan Tersimpan',
-    text: 'Hasil pemeriksaan telah dikonfirmasi dan tersimpan sebagai rekam kunjungan pasien.',
-  }
+  return null
 })
 
 const patientAttrs = computed(() => {
@@ -96,6 +89,10 @@ const patientAttrs = computed(() => {
   return items
 })
 
+const baselineFinalVisit = computed<VisitRecord | null>(
+  () => finalVisits.value.find((v) => v.visit_index === 1) ?? finalVisits.value[0] ?? null,
+)
+
 const originalImageUrl = computed(() => resolveStorageUrl(visit.value?.image_path))
 const segmentationDisplayUrl = computed(() => {
   if (!visit.value) return ''
@@ -103,38 +100,38 @@ const segmentationDisplayUrl = computed(() => {
   return resolveStorageUrl(visit.value.overlay_path || visit.value.image_path)
 })
 
-const baselineFinalVisit = computed<VisitRecord | null>(
-  () => finalVisits.value.find((v) => v.visit_index === 1) ?? finalVisits.value[0] ?? null,
-)
+const baselinePhotoDisplayUrl = computed(() => {
+  const base = baselineFinalVisit.value
+  if (!base) return ''
+  if (!showMaskOverlay.value) return resolveStorageUrl(base.image_path)
+  return resolveStorageUrl(base.overlay_path || base.image_path)
+})
+
+const woundPixelsText = computed(() => {
+  const n = visit.value?.n_wound_px ?? 0
+  return Math.round(n).toLocaleString('id-ID')
+})
 
 const toastMessage = ref('')
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 
 const showSaveModal = ref(false)
 const showDiscardModal = ref(false)
-const chkMaskChecked = ref(false)
 const saveModalError = ref('')
 const discardModalError = ref('')
 const isConfirming = ref(false)
 const isDiscarding = ref(false)
 
-const modalsRef = ref<InstanceType<typeof VisitActionModals> | null>(null)
 const saveOpenerRef = ref<HTMLButtonElement | null>(null)
 const discardOpenerRef = ref<HTMLButtonElement | null>(null)
 let lastModalOpener: HTMLButtonElement | null = null
 
 const saveModalDescription = computed(() => {
   if (!visit.value) return ''
-  const modeTxt = isCalibrated.value ? 'terkalibrasi (cm²)' : 'berbasis luas relatif (%)'
-  const mixedNote =
-    isCalibrated.value && visit.value.preview?.pac_basis === 'relative'
-      ? ', dengan PAC memakai luas relatif karena kunjungan awal tidak terkalibrasi'
-      : ''
-  return (
-    `Hasil kunjungan ke-${displayVisitNumber.value} (${formatDateID(visit.value.visit_date)}) ` +
-    `akan dikonfirmasi dan disimpan sebagai rekam kunjungan final pasien ${visit.value.patient_id} ` +
-    `dengan pengukuran ${modeTxt}${mixedNote}. Setelah disimpan, hasil dan kalibrasi tidak dapat diubah.`
-  )
+  if (isBaselineVisit.value) {
+    return `Pemeriksaan pertama (${formatDateID(visit.value.visit_date)}) akan disimpan sebagai acuan awal pasien ${visit.value.patient_id}.`
+  }
+  return `Hasil kunjungan ke-${displayVisitNumber.value} (${formatDateID(visit.value.visit_date)}) dan perhitungan perubahan luas akan disimpan ke riwayat pasien ${visit.value.patient_id}.`
 })
 
 function showToast(msg: string) {
@@ -155,7 +152,6 @@ function handleCalibrationConflict(msg: string) {
 function openSaveModal() {
   if (!isDraft.value) return
   lastModalOpener = saveOpenerRef.value
-  chkMaskChecked.value = false
   saveModalError.value = ''
   showSaveModal.value = true
 }
@@ -176,11 +172,6 @@ function closeModals() {
 
 async function handleConfirmAndSave() {
   if (!visit.value || isConfirming.value) return
-  if (!chkMaskChecked.value) {
-    saveModalError.value = 'Centang pernyataan ini setelah memeriksa masker, lalu simpan.'
-    modalsRef.value?.focusCheckbox()
-    return
-  }
 
   saveModalError.value = ''
   isConfirming.value = true
@@ -189,14 +180,15 @@ async function handleConfirmAndSave() {
     const confirmed = await confirmVisit(visit.value.id, confirmZero)
     visit.value = confirmed
     showSaveModal.value = false
-    showToast('Hasil kunjungan berhasil dikonfirmasi dan disimpan.')
+    showToast('Hasil pemeriksaan berhasil disimpan.')
     try {
       finalVisits.value = await fetchPatientVisits(confirmed.patient_id, 'final')
     } catch {
       // Abaikan jika pemuatan ulang daftar final gagal; kunjungan utama sudah tersimpan
     }
   } catch (err) {
-    saveModalError.value = err instanceof ApiError ? err.message : 'Terjadi kesalahan saat mengonfirmasi kunjungan.'
+    saveModalError.value =
+      err instanceof ApiError ? err.message : 'Terjadi kesalahan saat menyimpan kunjungan.'
   } finally {
     isConfirming.value = false
   }
@@ -212,7 +204,8 @@ async function handleDiscardAndRetake() {
     showDiscardModal.value = false
     await router.push(`/pemeriksaan/${encodeURIComponent(targetPatientId)}/unggah`)
   } catch (err) {
-    discardModalError.value = err instanceof ApiError ? err.message : 'Gagal membuang draf kunjungan.'
+    discardModalError.value =
+      err instanceof ApiError ? err.message : 'Gagal menghapus pemeriksaan yang belum disimpan.'
     isDiscarding.value = false
   }
 }
@@ -256,7 +249,6 @@ async function loadPageData() {
 onMounted(() => loadPageData())
 onBeforeUnmount(() => { if (toastTimer) clearTimeout(toastTimer) })
 watch(() => route.params.visitId, () => loadPageData())
-watch(chkMaskChecked, (val) => { if (val) saveModalError.value = '' })
 </script>
 
 <template>
@@ -345,12 +337,9 @@ watch(chkMaskChecked, (val) => { if (val) saveModalError.value = '' })
           </div>
         </section>
 
-        <div id="bannerBox">
-          <div class="banner" :class="bannerInfo.cls" role="status">
-            <div>
-              <b>{{ bannerInfo.title }}</b>
-              <span>{{ bannerInfo.text }}</span>
-            </div>
+        <div v-if="guidanceBanner" id="bannerBox">
+          <div class="banner" :class="guidanceBanner.cls" role="status">
+            <span>{{ guidanceBanner.text }}</span>
           </div>
         </div>
 
@@ -358,52 +347,81 @@ watch(chkMaskChecked, (val) => { if (val) saveModalError.value = '' })
           <div>
             <section class="panel viz" aria-labelledby="t-viz">
               <div class="viz-head">
-                <h2 id="t-viz">Foto Asli dan Hasil Segmentasi</h2>
+                <div class="viz-title-row">
+                  <h2 id="t-viz">Foto dan Batas Luka</h2>
+                  <details class="info-pop">
+                    <summary aria-label="Info piksel foto">?</summary>
+                    <div class="info-pop-body" role="note">
+                      Terdeteksi {{ woundPixelsText }} piksel luka dari 65.536 piksel foto
+                      (256×256).
+                    </div>
+                  </details>
+                </div>
                 <div class="viz-controls">
                   <div class="legend">
                     <span class="sw" aria-hidden="true"></span>
-                    <span>Area luka (masker segmentasi)</span>
+                    <span>Batas luka (garis hijau)</span>
                   </div>
                   <label class="overlay-toggle" for="toggle-mask-overlay">
                     <input id="toggle-mask-overlay" v-model="showMaskOverlay" type="checkbox" />
-                    <span>Tampilkan overlay masker</span>
+                    <span>Tampilkan garis luka</span>
                   </label>
                 </div>
               </div>
 
-              <div class="pair">
-                <figure class="fig">
-                  <div class="fig-label">Foto Asli <small>Sebelum segmentasi</small></div>
+              <div v-if="!isBaselineVisit" class="pair">
+                <figure id="figAwal" class="fig">
+                  <div class="fig-label">Pemeriksaan pertama (Awal)</div>
                   <div class="fig-frame">
                     <img
-                      v-if="originalImageUrl"
-                      id="imgOriginal"
-                      :src="originalImageUrl"
-                      alt="Foto asli luka sebelum overlay segmentasi"
+                      v-if="baselinePhotoDisplayUrl"
+                      id="imgBaseline"
+                      :src="baselinePhotoDisplayUrl"
+                      alt="Foto luka pada pemeriksaan pertama sebagai pembanding awal"
                     />
-                    <span v-else class="m-sub">Citra asli tidak tersedia</span>
+                    <span v-else class="m-sub">Foto pemeriksaan pertama tidak tersedia</span>
                   </div>
                 </figure>
-                <figure class="fig">
-                  <div class="fig-label">
-                    Hasil Segmentasi
-                    <small>{{ showMaskOverlay ? 'Foto dengan overlay masker' : 'Overlay disembunyikan' }}</small>
-                  </div>
+                <figure id="figSekarang" class="fig">
+                  <div class="fig-label">Sekarang (Kunjungan ke-{{ displayVisitNumber }})</div>
                   <div class="fig-frame">
                     <img
                       v-if="segmentationDisplayUrl"
                       id="imgSegmentation"
                       :src="segmentationDisplayUrl"
-                      alt="Hasil segmentasi luka dengan overlay masker hijau transparan pada area luka"
+                      alt="Foto luka pemeriksaan sekarang dengan garis hijau batas luka"
                     />
-                    <span v-else class="m-sub">Citra segmentasi tidak tersedia</span>
+                    <span v-else class="m-sub">Foto pemeriksaan tidak tersedia</span>
                   </div>
                 </figure>
               </div>
-              <p class="viz-note">
-                Estimasi visual berbasis segmentasi otomatis ({{ visit.n_wound_px }} piksel luka dari
-                65.536 piksel peta masker 256×256).
-              </p>
+
+              <div v-else class="pair">
+                <figure class="fig">
+                  <div class="fig-label">Foto Asli</div>
+                  <div class="fig-frame">
+                    <img
+                      v-if="originalImageUrl"
+                      id="imgOriginal"
+                      :src="originalImageUrl"
+                      alt="Foto asli luka pada pemeriksaan pertama"
+                    />
+                    <span v-else class="m-sub">Foto asli tidak tersedia</span>
+                  </div>
+                </figure>
+                <figure class="fig">
+                  <div class="fig-label">Batas Luka</div>
+                  <div class="fig-frame">
+                    <img
+                      v-if="segmentationDisplayUrl"
+                      id="imgSegmentation"
+                      :src="segmentationDisplayUrl"
+                      alt="Foto luka dengan garis hijau batas luka"
+                    />
+                    <span v-else class="m-sub">Foto batas luka tidak tersedia</span>
+                  </div>
+                </figure>
+              </div>
             </section>
 
             <RulerCalibration
@@ -417,25 +435,38 @@ watch(chkMaskChecked, (val) => { if (val) saveModalError.value = '' })
           </div>
 
           <div class="metrics">
+            <PacPreviewCard
+              v-if="isDraft && visit.preview"
+              :preview="visit.preview"
+              :baseline-visit="baselineFinalVisit"
+              :current-area-pct="visit.area_pct"
+              :current-area-cm2="visit.area_cm2"
+            />
+            <PacFinalCard
+              v-else-if="!isDraft"
+              :visit="visit"
+              :baseline-visit="baselineFinalVisit"
+            />
+
             <section class="panel metric" aria-labelledby="m1">
               <div class="m-head">
-                <div id="m1" class="m-label">Estimasi Luas Area Luka</div>
+                <div id="m1" class="m-label">Luas luka</div>
                 <span id="modeBadge" class="modebadge" :class="isCalibrated ? 'cal' : 'rel'">
-                  {{ isCalibrated ? 'Terkalibrasi · cm²' : 'Basis Relatif · %' }}
+                  {{ isCalibrated ? 'Terkalibrasi cm²' : 'Dari foto' }}
                 </span>
               </div>
               <div id="areaVal" class="m-value">
                 {{
                   isCalibrated && visit.area_cm2 !== null
-                    ? `${formatDecimalID(visit.area_cm2)} cm²`
-                    : `${formatDecimalID(visit.area_pct)}%`
+                    ? `${formatDecimalID(visit.area_cm2, 1)} cm²`
+                    : `${formatDecimalID(visit.area_pct, 1)}%`
                 }}
               </div>
               <div id="areaSub" class="m-sub">
                 {{
                   isCalibrated
-                    ? `setara ${formatDecimalID(visit.area_pct)}% dari luas citra`
-                    : 'Persentase area luka pada citra'
+                    ? `setara ${formatDecimalID(visit.area_pct, 1)}% dari luas foto`
+                    : 'dari luas foto'
                 }}
               </div>
               <div
@@ -443,55 +474,24 @@ watch(chkMaskChecked, (val) => { if (val) saveModalError.value = '' })
                 id="areaScale"
                 class="m-sub m-scale"
               >
-                Skala s = {{ formatDecimalID(visit.scale_cm_per_px, 4) }} cm/px<template
+                Skala {{ formatDecimalID(visit.scale_cm_per_px, 4) }} cm/px<template
                   v-if="visit.calib_length_cm !== null"
                 >
                   (penggaris {{ formatDecimalID(visit.calib_length_cm, 1) }} cm)
                 </template>
               </div>
-              <p id="areaLimit" class="m-limit">
-                {{
-                  isCalibrated
-                    ? 'Luas dihitung dari kalibrasi penggaris dua titik pada bidang penggaris. Tidak mengoreksi perbedaan sudut pandang.'
-                    : 'Estimasi relatif terhadap luas citra (% kanvas), tanpa penanda kalibrasi fisik. Bukan ukuran dalam cm².'
-                }}
-              </p>
-              <p v-if="!isDraft && isBaselineVisit" id="baseNote" class="m-note">
-                Hasil ini menjadi acuan baseline A₀. Nilai PAC dan grafik tren baru tersedia
-                mulai kunjungan kedua.
-              </p>
             </section>
-
-            <PacPreviewCard
-              v-if="isDraft && visit.preview"
-              :preview="visit.preview"
-              :baseline-visit="baselineFinalVisit"
-            />
-            <PacFinalCard
-              v-else-if="!isDraft"
-              :visit="visit"
-              :baseline-visit="baselineFinalVisit"
-            />
           </div>
         </div>
 
-        <section v-if="isDraft" id="narrWait" class="panel narr-wait">
-          <b>Narasi dibuat setelah hasil dikonfirmasi.</b> Catatan klinis dan ringkasan pasien
-          disusun setelah hasil dikonfirmasi dan disimpan.
-        </section>
-
         <NarrativeTabs
-          v-else
+          v-if="!isDraft"
           :visit="visit"
           :is-baseline="isBaselineVisit"
           @notify="showToast"
         />
 
-        <div v-if="isDraft" id="actions" class="actions sticky">
-          <p class="hint">
-            Periksa batas masker segmentasi pada foto. Jika sesuai, setujui dan simpan. Jika memilih
-            Foto Ulang, draf beserta kalibrasi pada kunjungan ini akan dibuang.
-          </p>
+        <div v-if="isDraft" id="actions" class="actions">
           <div class="btn-row">
             <button
               id="bDiscard"
@@ -515,29 +515,27 @@ watch(chkMaskChecked, (val) => { if (val) saveModalError.value = '' })
         </div>
 
         <div v-else id="actions" class="actions">
-          <p class="hint">Hasil ini sudah dikonfirmasi dan tersimpan dalam riwayat pasien.</p>
           <div class="btn-row">
+            <RouterLink id="btnNextPatient" class="btn btn-secondary" to="/pemeriksaan">
+              Pasien berikutnya
+            </RouterLink>
             <RouterLink
+              id="btnHistory"
               class="btn btn-primary"
               :to="`/pasien/${encodeURIComponent(visit.patient_id)}`"
             >
-              Lihat Riwayat Pasien
+              Lihat riwayat
             </RouterLink>
           </div>
         </div>
 
         <div class="disclaimer">
-          <p>
-            Hasil segmentasi dan pengukuran merupakan alat bantu dokumentasi serta pemantauan
-            visual. Hasil tidak dimaksudkan sebagai pengganti penilaian klinis tenaga medis.
-          </p>
+          <p>Hasil ini merupakan estimasi dari foto, bukan diagnosis medis.</p>
         </div>
       </template>
     </main>
 
     <VisitActionModals
-      ref="modalsRef"
-      v-model:chk-mask="chkMaskChecked"
       :show-save="showSaveModal"
       :show-discard="showDiscardModal"
       :save-description="saveModalDescription"
