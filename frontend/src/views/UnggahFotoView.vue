@@ -15,6 +15,13 @@ import PhotoDropzone from '@/components/PhotoDropzone.vue';
 import PhotoGuideCard from '@/components/PhotoGuideCard.vue';
 import ReferencePanel from '@/components/ReferencePanel.vue';
 import type { PatientSummary, VisitRecord } from '@/types/patient';
+import {
+  GHOST_DEFAULT_OPACITY,
+  GHOST_DEFAULT_SCALE,
+  GHOST_SCALE_MAX,
+  GHOST_SCALE_MIN,
+  isGhostModified,
+} from '@/utils/ghostTransform';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
 
@@ -78,7 +85,25 @@ const previewUrl = ref('');
 const fileError = ref('');
 
 const ghostActive = ref(false);
-const ghostOpacity = ref(40);
+const ghostOpacity = ref(GHOST_DEFAULT_OPACITY);
+const ghostScale = ref(GHOST_DEFAULT_SCALE);
+const ghostX = ref(0);
+const ghostY = ref(0);
+
+const canResetGhost = computed(() =>
+  isGhostModified(ghostScale.value, ghostX.value, ghostY.value, ghostOpacity.value),
+);
+
+function resetGhostPositionAndScale() {
+  ghostScale.value = GHOST_DEFAULT_SCALE;
+  ghostX.value = 0;
+  ghostY.value = 0;
+}
+
+function resetGhostAll() {
+  ghostOpacity.value = GHOST_DEFAULT_OPACITY;
+  resetGhostPositionAndScale();
+}
 
 const distanceConfirmed = ref(false);
 const isSubmitting = ref(false);
@@ -149,7 +174,7 @@ const statusReasonText = computed(() => {
 });
 
 const confirmLabel = computed(() => {
-  if (!isFollowUp.value) return 'Foto sudah sesuai panduan.';
+  if (!isFollowUp.value || !activeRefImageUrl.value) return 'Foto sudah sesuai panduan.';
   if (activeRefTab.value === 'latest' && hasDistinctLatestRef.value) {
     return 'Jarak dan sudut foto sudah sama dengan foto terakhir.';
   }
@@ -200,6 +225,7 @@ function clearPhoto() {
   selectedFile.value = null;
   fileError.value = '';
   ghostActive.value = false;
+  resetGhostPositionAndScale();
   distanceConfirmed.value = false;
   submitError.value = '';
 }
@@ -292,6 +318,10 @@ async function loadPageData() {
   }
 }
 
+watch(activeRefTab, () => {
+  resetGhostPositionAndScale();
+});
+
 watch(patientId, () => {
   void loadPageData();
 });
@@ -325,9 +355,13 @@ onBeforeUnmount(() => {
             <RouterLink :to="{ name: 'pilih-pasien' }" aria-current="page">Pemeriksaan</RouterLink>
           </nav>
 
-          <span class="server-pill" :class="{ offline: serverOnline === false }">
+          <span
+            class="server-pill"
+            :class="{ online: serverOnline === true, offline: serverOnline === false }"
+            role="status"
+          >
             <span class="dot" aria-hidden="true"></span>
-            <span>{{ serverLabel }}</span>
+            <span class="server-text">{{ serverLabel }}</span>
           </span>
         </div>
       </div>
@@ -463,6 +497,9 @@ onBeforeUnmount(() => {
                 />
                 <GhostOverlay
                   v-else
+                  v-model:ghost-x="ghostX"
+                  v-model:ghost-y="ghostY"
+                  v-model:ghost-scale="ghostScale"
                   :preview-url="previewUrl"
                   :file-name="selectedFile.name"
                   :file-size-text="formatFileSize(selectedFile.size)"
@@ -485,6 +522,9 @@ onBeforeUnmount(() => {
               />
               <GhostOverlay
                 v-else
+                v-model:ghost-x="ghostX"
+                v-model:ghost-y="ghostY"
+                v-model:ghost-scale="ghostScale"
                 :preview-url="previewUrl"
                 :file-name="selectedFile.name"
                 :file-size-text="formatFileSize(selectedFile.size)"
@@ -497,33 +537,60 @@ onBeforeUnmount(() => {
             </div>
 
             <div v-if="selectedFile && isFollowUp && activeRefImageUrl" id="ghostCtl" class="ghost-ctl">
-              <button
-                id="gsw"
-                type="button"
-                role="switch"
-                :aria-checked="ghostActive"
-                class="swbtn"
-                @click="ghostActive = !ghostActive"
-              >
-                <span class="track" aria-hidden="true"></span>
-                <span>Tumpuk foto awal</span>
-              </button>
+              <div class="ghost-row">
+                <button
+                  id="gsw"
+                  type="button"
+                  role="switch"
+                  :aria-checked="ghostActive"
+                  class="swbtn"
+                  @click="ghostActive = !ghostActive"
+                >
+                  <span class="track" aria-hidden="true"></span>
+                  <span>Tumpuk foto awal</span>
+                </button>
 
-              <label v-if="ghostActive" class="op" for="gop">
-                <span>Transparansi</span>
-                <input
-                  id="gop"
-                  v-model.number="ghostOpacity"
-                  type="range"
-                  min="0"
-                  max="80"
-                  step="5"
-                />
-                <output id="gout">{{ ghostOpacity }}%</output>
-              </label>
+                <template v-if="ghostActive">
+                  <label class="op" for="gop">
+                    <span>Transparansi</span>
+                    <input
+                      id="gop"
+                      v-model.number="ghostOpacity"
+                      type="range"
+                      min="0"
+                      max="80"
+                      step="5"
+                    />
+                    <output id="gout">{{ ghostOpacity }}%</output>
+                  </label>
+
+                  <label class="op" for="gscale">
+                    <span>Ukuran</span>
+                    <input
+                      id="gscale"
+                      v-model.number="ghostScale"
+                      type="range"
+                      :min="GHOST_SCALE_MIN"
+                      :max="GHOST_SCALE_MAX"
+                      step="1"
+                    />
+                    <output id="gscale-out">{{ ghostScale }}%</output>
+                  </label>
+
+                  <button
+                    id="greset"
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    :disabled="!canResetGhost"
+                    @click="resetGhostAll"
+                  >
+                    Atur ulang
+                  </button>
+                </template>
+              </div>
 
               <p id="ghost-note" class="ghost-note">
-                Samakan lebar pergelangan atau sisi kaki, bukan tepi luka. Foto yang dianalisis tetap asli.
+                Seret foto awal untuk menggeser. Samakan lebar pergelangan atau sisi kaki, bukan tepi luka. Foto yang dianalisis tetap asli.
               </p>
             </div>
 
@@ -543,39 +610,41 @@ onBeforeUnmount(() => {
               </button>
             </div>
 
-            <div id="confirm" class="confirm">
-              <input
-                id="chk"
-                v-model="distanceConfirmed"
-                type="checkbox"
-                :disabled="isSubmitting"
-              />
-              <label id="chk-lbl" for="chk">{{ confirmLabel }}</label>
-            </div>
+            <div class="sticky-action-bar">
+              <div id="confirm" class="confirm">
+                <input
+                  id="chk"
+                  v-model="distanceConfirmed"
+                  type="checkbox"
+                  :disabled="isSubmitting"
+                />
+                <label id="chk-lbl" for="chk">{{ confirmLabel }}</label>
+              </div>
 
-            <div class="action">
-              <p
-                id="reason"
-                class="reason"
-                :class="{ 'sr-only': canRunDetection }"
-                aria-live="polite"
-              >
-                {{ statusReasonText }}
-              </p>
-              <button
-                id="run"
-                type="button"
-                class="btn btn-primary"
-                :disabled="!canRunDetection || isSubmitting"
-                @click="handleRunDetection"
-              >
-                <span v-if="isSubmitting" class="spinner" aria-hidden="true"></span>
-                <span id="run-txt">{{ isSubmitting ? 'Menganalisis foto...' : 'Analisis Foto' }}</span>
-              </button>
+              <div class="action">
+                <p
+                  id="reason"
+                  class="reason"
+                  :class="{ 'sr-only': canRunDetection }"
+                  aria-live="polite"
+                >
+                  {{ statusReasonText }}
+                </p>
+                <button
+                  id="run"
+                  type="button"
+                  class="btn btn-primary"
+                  :disabled="!canRunDetection || isSubmitting"
+                  @click="handleRunDetection"
+                >
+                  <span v-if="isSubmitting" class="spinner" aria-hidden="true"></span>
+                  <span id="run-txt">{{ isSubmitting ? 'Menganalisis foto...' : 'Analisis Foto' }}</span>
+                </button>
+              </div>
             </div>
           </section>
 
-          <PhotoGuideCard :is-follow-up="isFollowUp" />
+          <PhotoGuideCard :open-by-default="!isFollowUp || !activeRefImageUrl" />
         </template>
       </template>
 

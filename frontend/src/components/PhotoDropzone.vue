@@ -93,8 +93,7 @@ function handleDrop(event: DragEvent) {
 }
 .drop {
   flex: 1;
-  min-height: 155px;
-  max-height: 170px;
+  height: 200px;
   border: 2px dashed var(--border-strong);
   border-radius: 8px;
   background: var(--bg);
@@ -184,6 +183,11 @@ function handleDrop(event: DragEvent) {
   font-size: 13px;
   color: var(--error);
   font-weight: 500;
+}
+@media (min-width: 760px) {
+  .drop {
+    height: clamp(240px, 42vh, 380px);
+  }
 }
 @media (max-width: 640px) {
   .drop-actions .btn {

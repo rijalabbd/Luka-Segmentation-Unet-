@@ -1,11 +1,11 @@
 <script setup lang="ts">
 defineProps<{
-  isFollowUp: boolean;
+  openByDefault: boolean;
 }>();
 </script>
 
 <template>
-  <details id="guide" class="guide-card" :open="!isFollowUp">
+  <details id="guide" class="guide-card" :open="openByDefault">
     <summary class="guide-summary">
       <span>Panduan foto</span>
       <span class="guide-chevron" aria-hidden="true">▾</span>

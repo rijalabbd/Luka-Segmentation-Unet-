@@ -137,14 +137,18 @@ onBeforeUnmount(() => {
 .ref-thumb {
   position: relative;
   width: 100%;
-  height: 155px;
-  max-height: 170px;
+  height: 200px;
   padding: 0;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   overflow: hidden;
   cursor: zoom-in;
   background: #f8fafc;
+}
+@media (min-width: 760px) {
+  .ref-thumb {
+    height: clamp(240px, 42vh, 380px);
+  }
 }
 .ref-thumb:focus-visible {
   outline: 2px solid var(--navy);
