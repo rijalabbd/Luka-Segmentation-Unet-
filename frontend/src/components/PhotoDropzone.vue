@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { COARSE_POINTER_QUERY, isCoarsePointerDevice } from '@/utils/touchDevice';
 
 defineProps<{
   error?: string;
@@ -12,7 +13,37 @@ const emit = defineEmits<{
 }>();
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const cameraInputRef = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
+const isTouchDevice = ref(isCoarsePointerDevice());
+
+let mediaQueryList: MediaQueryList | null = null;
+
+function updatePointerMode(matches: boolean) {
+  isTouchDevice.value = matches;
+}
+
+function handleMediaChange(event: MediaQueryListEvent) {
+  updatePointerMode(event.matches);
+}
+
+onMounted(() => {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    mediaQueryList = window.matchMedia(COARSE_POINTER_QUERY);
+    updatePointerMode(mediaQueryList.matches);
+    mediaQueryList.addEventListener('change', handleMediaChange);
+  }
+});
+
+onBeforeUnmount(() => {
+  mediaQueryList?.removeEventListener('change', handleMediaChange);
+  mediaQueryList = null;
+});
+
+// Tahap 2 akan mengganti isi onTakePhoto() untuk membuka kamera langsung (getUserMedia + bayangan foto awal).
+function onTakePhoto() {
+  cameraInputRef.value?.click();
+}
 
 function openPicker() {
   fileInputRef.value?.click();
@@ -28,6 +59,7 @@ function handleFileChange(event: Event) {
 }
 
 function handleDragOver(event: DragEvent) {
+  if (isTouchDevice.value) return;
   event.preventDefault();
   isDragging.value = true;
 }
@@ -37,6 +69,7 @@ function handleDragLeave() {
 }
 
 function handleDrop(event: DragEvent) {
+  if (isTouchDevice.value) return;
   event.preventDefault();
   isDragging.value = false;
   const file = event.dataTransfer?.files?.[0];
@@ -57,18 +90,46 @@ function handleDrop(event: DragEvent) {
       @drop="handleDrop"
     >
       <input
-        id="file"
-        ref="fileInputRef"
+        id="file-camera"
+        ref="cameraInputRef"
         type="file"
-        accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+        accept="image/jpeg,image/png"
+        capture="environment"
         class="sr-only"
         @change="handleFileChange"
       />
-      <p class="drop-title">Seret foto luka ke sini atau pilih dari perangkat</p>
+      <input
+        id="file"
+        ref="fileInputRef"
+        type="file"
+        accept="image/jpeg,image/png"
+        class="sr-only"
+        @change="handleFileChange"
+      />
+
+      <p class="drop-title">
+        {{
+          isTouchDevice
+            ? 'Ambil foto luka atau pilih dari galeri.'
+            : 'Seret foto luka ke sini atau pilih dari perangkat'
+        }}
+      </p>
+
       <div class="drop-actions">
-        <button id="pick" type="button" class="btn btn-secondary" @click="openPicker">
-          Pilih Foto
+        <button
+          v-if="isTouchDevice"
+          id="take-photo"
+          type="button"
+          class="btn btn-primary"
+          @click="onTakePhoto"
+        >
+          Ambil Foto
         </button>
+
+        <button id="pick" type="button" class="btn btn-secondary" @click="openPicker">
+          {{ isTouchDevice ? 'Dari galeri' : 'Pilih Foto' }}
+        </button>
+
         <button
           v-if="showSampleButton"
           id="sample"
@@ -79,6 +140,7 @@ function handleDrop(event: DragEvent) {
           Pakai foto sampel (mode demo)
         </button>
       </div>
+
       <p class="drop-hint">JPG atau PNG, maksimal 10 MB.</p>
     </div>
     <p v-if="error" id="ferr" class="error" role="alert">{{ error }}</p>
@@ -93,11 +155,11 @@ function handleDrop(event: DragEvent) {
 }
 .drop {
   flex: 1;
-  height: 200px;
+  min-height: 200px;
   border: 2px dashed var(--border-strong);
   border-radius: 8px;
   background: var(--bg);
-  padding: 24px 20px;
+  padding: 20px 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -125,6 +187,7 @@ function handleDrop(event: DragEvent) {
   align-items: center;
   justify-content: center;
   gap: 8px 12px;
+  width: 100%;
 }
 .drop-hint {
   margin: 0;
@@ -145,6 +208,7 @@ function handleDrop(event: DragEvent) {
   justify-content: center;
   gap: 10px;
   min-height: 44px;
+  min-width: 44px;
   padding: 0 18px;
   font: inherit;
   font-size: 14px;
@@ -160,6 +224,13 @@ function handleDrop(event: DragEvent) {
 .btn:focus-visible {
   outline: 2px solid var(--navy);
   outline-offset: 2px;
+}
+.btn-primary {
+  background: var(--navy);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--navy-hover);
 }
 .btn-secondary {
   background: var(--surface);

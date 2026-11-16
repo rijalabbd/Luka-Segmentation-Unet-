@@ -204,7 +204,7 @@ function handleSelectedFile(file: File) {
     lowerName.endsWith('.png');
 
   if (!isAllowedType) {
-    fileError.value = 'Format foto harus JPG atau PNG.';
+    fileError.value = 'Berkas harus berupa gambar JPG atau PNG.';
     return;
   }
   if (file.size > 10 * 1024 * 1024) {
