@@ -44,6 +44,10 @@ const isSubmitting = ref(false)
 const clickError = ref('')
 const apiError = ref('')
 const attemptedSubmit = ref(false)
+const isDraggingPoint = ref(false)
+let activePointerId: number | null = null
+let dragPointWhich: 1 | 2 = 1
+let wasP2EmptyOnDown = false
 
 const imgRef = ref<HTMLImageElement | null>(null)
 const boxWidth = ref(0)
@@ -192,15 +196,44 @@ const statusText = computed(() => {
   return `Titik 1 (${formatDecimalID(p1.value.x, 1)}, ${formatDecimalID(p1.value.y, 1)}) & Titik 2 (${formatDecimalID(p2.value.x, 1)}, ${formatDecimalID(p2.value.y, 1)}) px siap diterapkan.`
 })
 
-function handleImageClick(e: MouseEvent) {
-  if (isPanelDisabled.value || isSubmitting.value || !imgRef.value) return
+const LOUPE_SIZE = 112
+const LOUPE_ZOOM = 2.5
+
+const loupeStyle = computed(() => {
+  if (!isDraggingPoint.value || boxWidth.value <= 0 || boxHeight.value <= 0) return null
+  const disp = dragPointWhich === 1 ? dispP1.value : dispP2.value
+  if (!disp) return null
+
+  const half = LOUPE_SIZE / 2
+  const left = Math.max(8, Math.min(boxWidth.value - LOUPE_SIZE - 8, disp.x - half))
+  const preferredTop = disp.y - LOUPE_SIZE - 44
+  const top = preferredTop >= 8 ? preferredTop : Math.min(boxHeight.value - LOUPE_SIZE - 8, disp.y + 44)
+
+  const bgW = boxWidth.value * LOUPE_ZOOM
+  const bgH = boxHeight.value * LOUPE_ZOOM
+  const bgX = half - disp.x * LOUPE_ZOOM
+  const bgY = half - disp.y * LOUPE_ZOOM
+
+  return {
+    width: `${LOUPE_SIZE}px`,
+    height: `${LOUPE_SIZE}px`,
+    left: `${left}px`,
+    top: `${top}px`,
+    backgroundImage: `url("${props.imageUrl}")`,
+    backgroundSize: `${bgW}px ${bgH}px`,
+    backgroundPosition: `${bgX}px ${bgY}px`,
+  }
+})
+
+function applyClientPoint(clientX: number, clientY: number, which: 1 | 2): boolean {
+  if (!imgRef.value) return false
   const rect = imgRef.value.getBoundingClientRect()
   boxWidth.value = rect.width
   boxHeight.value = rect.height
 
   const conv = displayClickToOriginalPoint({
-    clientX: e.clientX,
-    clientY: e.clientY,
+    clientX,
+    clientY,
     boxRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
     imgWidthPx: imgWidthPx.value,
     imgHeightPx: imgHeightPx.value,
@@ -209,19 +242,81 @@ function handleImageClick(e: MouseEvent) {
   apiError.value = ''
   if (!conv.ok || !conv.point) {
     clickError.value = 'Klik berada di luar foto. Klik tepat pada gambar penggaris.'
-    return
+    return false
   }
 
   clickError.value = ''
-  if (!p1.value || (p1.value && p2.value)) {
+  if (which === 1) {
     p1.value = conv.point
-    p2.value = null
-    activePoint.value = 2
-    attemptedSubmit.value = false
   } else {
     p2.value = conv.point
+  }
+  return true
+}
+
+function handlePointerDown(e: PointerEvent) {
+  if (isPanelDisabled.value || isSubmitting.value || !imgRef.value) return
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+
+  wasP2EmptyOnDown = p2.value === null
+  if (!p1.value) {
+    dragPointWhich = 1
+    activePoint.value = 1
+    attemptedSubmit.value = false
+  } else if (!p2.value) {
+    dragPointWhich = 2
+    activePoint.value = 2
+  } else {
+    dragPointWhich = activePoint.value
+  }
+
+  if (!applyClientPoint(e.clientX, e.clientY, dragPointWhich)) return
+
+  isDraggingPoint.value = true
+  activePointerId = e.pointerId
+  try {
+    imgRef.value.setPointerCapture(e.pointerId)
+  } catch {
+    // Abaikan jika event sintetis tidak mendukung pointer capture
+  }
+}
+
+function handlePointerMove(e: PointerEvent) {
+  if (!isDraggingPoint.value) return
+  if (activePointerId !== null && e.pointerId !== activePointerId) return
+  applyClientPoint(e.clientX, e.clientY, dragPointWhich)
+}
+
+function handlePointerEnd(e: PointerEvent) {
+  if (!isDraggingPoint.value) return
+  isDraggingPoint.value = false
+  if (imgRef.value && activePointerId !== null) {
+    try {
+      if (imgRef.value.hasPointerCapture(e.pointerId)) {
+        imgRef.value.releasePointerCapture(e.pointerId)
+      }
+    } catch {
+      // Abaikan jika pointer capture sudah lepas
+    }
+  }
+  activePointerId = null
+  if (dragPointWhich === 1 && wasP2EmptyOnDown && p1.value) {
     activePoint.value = 2
   }
+}
+
+function nudgeActivePoint(dx: number, dy: number) {
+  if (isPanelDisabled.value || isSubmitting.value) return
+  const targetPoint = activePoint.value === 1 ? p1.value : p2.value
+  if (!targetPoint) return
+  const nextPt = {
+    x: Math.min(imgWidthPx.value, Math.max(0, Math.round((targetPoint.x + dx) * 10) / 10)),
+    y: Math.min(imgHeightPx.value, Math.max(0, Math.round((targetPoint.y + dy) * 10) / 10)),
+  }
+  if (activePoint.value === 1) p1.value = nextPt
+  else p2.value = nextPt
+  clickError.value = ''
+  apiError.value = ''
 }
 
 function onStageKeydown(e: KeyboardEvent) {
@@ -367,11 +462,26 @@ async function handleDeleteCalibration() {
           id="calImg"
           ref="imgRef"
           class="cal-img"
+          :class="{ 'cal-img-interactive': !isPanelDisabled && !isSubmitting }"
           :src="imageUrl"
           alt="Foto asli luka untuk penentuan dua titik kalibrasi penggaris"
-          @click="handleImageClick"
+          draggable="false"
+          @pointerdown="handlePointerDown"
+          @pointermove="handlePointerMove"
+          @pointerup="handlePointerEnd"
+          @pointercancel="handlePointerEnd"
           @load="measureBox"
         />
+        <div
+          v-if="loupeStyle"
+          class="cal-loupe"
+          :style="loupeStyle"
+          aria-hidden="true"
+        >
+          <span class="cal-loupe-cross-h"></span>
+          <span class="cal-loupe-cross-v"></span>
+          <span class="cal-loupe-dot"></span>
+        </div>
         <svg
           v-if="boxWidth > 0 && boxHeight > 0 && markerList.length"
           class="cal-overlay"
@@ -400,7 +510,7 @@ async function handleDeleteCalibration() {
       <p class="cal-meta">Ukuran foto asli: <code>{{ imgWidthPx }} × {{ imgHeightPx }} px</code></p>
       <p id="calStatus" class="cal-status" role="status" aria-live="polite">{{ statusText }}</p>
 
-      <div class="cal-pts" role="group" aria-label="Pilih titik aktif dan alternatif papan ketik">
+      <div class="cal-pts" role="group" aria-label="Pilih titik aktif dan geser halus">
         <button
           id="pt1" type="button" class="btn btn-secondary"
           :aria-pressed="activePoint === 1" :disabled="isPanelDisabled || isSubmitting"
@@ -411,6 +521,33 @@ async function handleDeleteCalibration() {
           :aria-pressed="activePoint === 2" :disabled="isPanelDisabled || isSubmitting"
           @click="activePoint = 2"
         >{{ activePoint === 2 ? 'Titik 2 aktif' : 'Pilih Titik 2' }}</button>
+
+        <div class="cal-nudge" role="group" aria-label="Geser halus titik aktif 1 piksel">
+          <button
+            type="button" class="btn btn-secondary cal-nudge-btn"
+            aria-label="Geser titik aktif ke kiri 1 piksel"
+            :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
+            @click="nudgeActivePoint(-1, 0)"
+          >←</button>
+          <button
+            type="button" class="btn btn-secondary cal-nudge-btn"
+            aria-label="Geser titik aktif ke atas 1 piksel"
+            :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
+            @click="nudgeActivePoint(0, -1)"
+          >↑</button>
+          <button
+            type="button" class="btn btn-secondary cal-nudge-btn"
+            aria-label="Geser titik aktif ke bawah 1 piksel"
+            :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
+            @click="nudgeActivePoint(0, 1)"
+          >↓</button>
+          <button
+            type="button" class="btn btn-secondary cal-nudge-btn"
+            aria-label="Geser titik aktif ke kanan 1 piksel"
+            :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
+            @click="nudgeActivePoint(1, 0)"
+          >→</button>
+        </div>
       </div>
 
       <div class="cal-coords-grid" aria-label="Koordinat piksel alternatif tanpa mouse">

@@ -137,18 +137,14 @@ onBeforeUnmount(() => {
 .ref-thumb {
   position: relative;
   width: 100%;
-  height: 200px;
+  height: auto;
+  max-height: 280px;
   padding: 0;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   overflow: hidden;
   cursor: zoom-in;
   background: #f8fafc;
-}
-@media (min-width: 760px) {
-  .ref-thumb {
-    height: clamp(240px, 42vh, 380px);
-  }
 }
 .ref-thumb:focus-visible {
   outline: 2px solid var(--navy);
@@ -157,8 +153,19 @@ onBeforeUnmount(() => {
 .ref-thumb img {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: 280px;
   object-fit: contain;
+}
+@media (min-width: 760px) {
+  .ref-thumb {
+    height: clamp(240px, 42vh, 380px);
+    max-height: none;
+  }
+  .ref-thumb img {
+    height: 100%;
+    max-height: none;
+  }
 }
 .ref-thumb .zoom {
   position: absolute;

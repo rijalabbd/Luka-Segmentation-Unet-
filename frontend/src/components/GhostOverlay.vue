@@ -176,17 +176,13 @@ function handleKeydown(event: KeyboardEvent) {
 .frame {
   position: relative;
   width: 100%;
-  height: 200px;
+  height: auto;
+  max-height: 280px;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   overflow: hidden;
   background: #f8fafc;
   user-select: none;
-}
-@media (min-width: 760px) {
-  .frame {
-    height: clamp(240px, 42vh, 380px);
-  }
 }
 .frame.ghost-interactive {
   cursor: grab;
@@ -202,13 +198,26 @@ function handleKeydown(event: KeyboardEvent) {
 .frame img {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: 280px;
   object-fit: contain;
 }
-.ghost-img {
+.frame img.ghost-img {
   position: absolute;
   inset: 0;
+  height: 100%;
+  max-height: none;
   pointer-events: none;
+}
+@media (min-width: 760px) {
+  .frame {
+    height: clamp(240px, 42vh, 380px);
+    max-height: none;
+  }
+  .frame img {
+    height: 100%;
+    max-height: none;
+  }
 }
 .fileinfo {
   display: flex;
