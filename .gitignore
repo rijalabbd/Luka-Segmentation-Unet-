@@ -54,3 +54,11 @@ backend/storage/overlays/*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Exports, Archives, Certificates & Scratch Mockups
+exports/
+*.zip
+*.crt
+*.pem
+mockups/tahap2a_perbandingan.html
+mockups/varian_*.html
