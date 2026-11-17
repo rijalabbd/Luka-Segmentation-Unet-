@@ -201,10 +201,16 @@ function handleDrop(event: DragEvent) {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .drop {
   flex: 1;
   min-height: 200px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 2px dashed var(--border-strong);
   border-radius: 8px;
   background: var(--bg);
@@ -316,8 +322,15 @@ function handleDrop(event: DragEvent) {
   }
 }
 @media (max-width: 640px) {
+  .drop {
+    padding: 16px 12px;
+  }
   .drop-actions .btn {
     width: 100%;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+    box-sizing: border-box;
   }
 }
 @media (prefers-reduced-motion: reduce) {

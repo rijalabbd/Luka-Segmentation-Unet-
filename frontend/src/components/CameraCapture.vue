@@ -41,7 +41,9 @@ const { opacity: shadowOpacity } = useGhostOpacity(CAMERA_OPACITY_STORAGE_KEY);
 
 // MediaStream disimpan di variabel biasa (non-reaktif) agar tidak dibungkus Proxy Vue
 let activeStream: MediaStream | null = null;
+let previousHtmlOverflow = '';
 let previousBodyOverflow = '';
+let isScrollLocked = false;
 let isUnmounted = false;
 
 const hasRefImage = computed(() => Boolean(props.refImageUrl));
@@ -49,6 +51,22 @@ const effectiveShadowOpacity = computed(() =>
   isShadowHidden.value ? 0 : shadowOpacity.value / 100,
 );
 const shadowBadgeText = computed(() => `Bayangan: foto ${props.refLabel || 'awal'}`);
+
+function lockScroll() {
+  if (isScrollLocked) return;
+  previousHtmlOverflow = document.documentElement.style.overflow;
+  previousBodyOverflow = document.body.style.overflow;
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+  isScrollLocked = true;
+}
+
+function unlockScroll() {
+  if (!isScrollLocked) return;
+  document.documentElement.style.overflow = previousHtmlOverflow;
+  document.body.style.overflow = previousBodyOverflow;
+  isScrollLocked = false;
+}
 
 function stopStream() {
   if (activeStream) {
@@ -214,6 +232,7 @@ function handleConfirmCapture() {
   stopStream();
   revokeCapturedPreview();
   capturedFile.value = null;
+  unlockScroll();
   emit('capture', file);
 }
 
@@ -221,6 +240,7 @@ function handleCancel() {
   stopStream();
   revokeCapturedPreview();
   capturedFile.value = null;
+  unlockScroll();
   emit('cancel');
 }
 
@@ -229,12 +249,12 @@ function handleFallback() {
   stopStream();
   revokeCapturedPreview();
   capturedFile.value = null;
+  unlockScroll();
   emit('fallback', reason);
 }
 
 onMounted(() => {
-  previousBodyOverflow = document.body.style.overflow;
-  document.body.style.overflow = 'hidden';
+  lockScroll();
   document.addEventListener('visibilitychange', handleVisibilityChange);
   void startCamera();
 });
@@ -242,175 +262,185 @@ onMounted(() => {
 onBeforeUnmount(() => {
   isUnmounted = true;
   document.removeEventListener('visibilitychange', handleVisibilityChange);
-  document.body.style.overflow = previousBodyOverflow;
   stopStream();
   revokeCapturedPreview();
+  unlockScroll();
 });
 </script>
 
 <template>
-  <div
-    class="cam-backdrop"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Kamera langsung untuk mengambil foto luka"
-  >
-    <div class="cam-topbar">
-      <p class="cam-instruction">
-        Cocokkan posisi kaki atau tangan dengan bayangan, lalu tekan tombol bulat.
-      </p>
-      <div class="cam-top-actions">
-        <span v-if="hasRefImage && !capturedFile" class="cam-shadow-label">
-          {{ shadowBadgeText }}
-        </span>
-        <button
-          v-if="!capturedFile && !cameraError"
-          type="button"
-          class="cam-chip-btn"
-          :aria-pressed="showGrid"
-          :aria-label="showGrid ? 'Sembunyikan garis bantu tiga kali tiga' : 'Tampilkan garis bantu tiga kali tiga'"
-          @click="showGrid = !showGrid"
-        >
-          {{ showGrid ? 'Matikan garis' : 'Garis 3×3' }}
-        </button>
-      </div>
-    </div>
-
-    <div class="cam-stage">
-      <template v-if="cameraError">
-        <div class="cam-error-box" role="alert">
-          <p class="cam-error-msg">{{ cameraError }}</p>
+  <Teleport to="body">
+    <div
+      class="cam-root"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Kamera langsung untuk mengambil foto luka"
+    >
+      <div class="cam-topbar">
+        <p class="cam-instruction">
+          Cocokkan posisi kaki atau tangan dengan bayangan, lalu tekan tombol bulat.
+        </p>
+        <div class="cam-top-actions">
+          <span v-if="hasRefImage && !capturedFile" class="cam-shadow-label">
+            {{ shadowBadgeText }}
+          </span>
           <button
-            id="cam-fallback-btn"
+            v-if="!capturedFile && !cameraError"
+            id="cam-grid-toggle"
             type="button"
-            class="cam-btn cam-btn-primary"
-            @click="handleFallback"
+            class="cam-chip-btn"
+            :aria-pressed="showGrid"
+            :aria-label="
+              showGrid
+                ? 'Sembunyikan garis bantu tiga kali tiga'
+                : 'Tampilkan garis bantu tiga kali tiga'
+            "
+            @click="showGrid = !showGrid"
           >
-            Pakai kamera bawaan
+            {{ showGrid ? 'Matikan garis' : 'Garis 3×3' }}
           </button>
         </div>
-      </template>
+      </div>
 
-      <template v-else-if="capturedFile && capturedPreviewUrl">
-        <img
-          :src="capturedPreviewUrl"
-          alt="Pratinjau foto hasil kamera"
-          class="cam-captured-img"
-        />
-      </template>
+      <div class="cam-stage">
+        <template v-if="cameraError">
+          <div class="cam-error-box" role="alert">
+            <p class="cam-error-msg">{{ cameraError }}</p>
+            <button
+              id="cam-fallback-btn"
+              type="button"
+              class="cam-btn cam-btn-primary"
+              @click="handleFallback"
+            >
+              Pakai kamera bawaan
+            </button>
+          </div>
+        </template>
 
-      <template v-else>
-        <video
-          ref="videoRef"
-          class="cam-video"
-          autoplay
-          playsinline
-          muted
-          @loadedmetadata="handleLoadedMetadata"
-        ></video>
+        <template v-else-if="capturedFile && capturedPreviewUrl">
+          <img
+            :src="capturedPreviewUrl"
+            alt="Pratinjau foto hasil kamera"
+            class="cam-captured-img"
+          />
+        </template>
 
-        <img
-          v-if="hasRefImage && refImageUrl"
-          :src="refImageUrl"
-          alt=""
-          aria-hidden="true"
-          class="cam-shadow-img"
-          :style="{ opacity: effectiveShadowOpacity }"
-        />
+        <template v-else>
+          <video
+            ref="videoRef"
+            class="cam-video"
+            autoplay
+            playsinline
+            muted
+            @loadedmetadata="handleLoadedMetadata"
+          ></video>
 
-        <div v-if="showGrid" class="cam-grid" aria-hidden="true">
-          <span class="cam-grid-v cam-grid-v1"></span>
-          <span class="cam-grid-v cam-grid-v2"></span>
-          <span class="cam-grid-h cam-grid-h1"></span>
-          <span class="cam-grid-h cam-grid-h2"></span>
-        </div>
+          <img
+            v-if="hasRefImage && refImageUrl"
+            :src="refImageUrl"
+            alt=""
+            aria-hidden="true"
+            class="cam-shadow-img"
+            :style="{ opacity: effectiveShadowOpacity }"
+          />
 
-        <div v-if="isPreparing" class="cam-loading" role="status">
-          Menyiapkan kamera...
-        </div>
-      </template>
+          <div v-if="showGrid" class="cam-grid" aria-hidden="true">
+            <span class="cam-grid-v cam-grid-v1"></span>
+            <span class="cam-grid-v cam-grid-v2"></span>
+            <span class="cam-grid-h cam-grid-h1"></span>
+            <span class="cam-grid-h cam-grid-h2"></span>
+          </div>
+
+          <div v-if="isPreparing" class="cam-loading" role="status">
+            Menyiapkan kamera...
+          </div>
+
+          <div v-if="hasRefImage" class="cam-shadow-ctl">
+            <label class="cam-slider-wrap" for="cam-opacity">
+              <span>Transparansi</span>
+              <input
+                id="cam-opacity"
+                v-model.number="shadowOpacity"
+                type="range"
+                :min="GHOST_OPACITY_MIN"
+                :max="GHOST_OPACITY_MAX"
+                :step="GHOST_OPACITY_STEP"
+                aria-label="Transparansi bayangan foto awal"
+              />
+              <output>{{ isShadowHidden ? 0 : shadowOpacity }}%</output>
+            </label>
+
+            <button
+              id="cam-toggle-shadow"
+              type="button"
+              class="cam-chip-btn"
+              @click="isShadowHidden = !isShadowHidden"
+            >
+              {{ isShadowHidden ? 'Tampilkan bayangan' : 'Sembunyikan bayangan' }}
+            </button>
+          </div>
+        </template>
+
+        <p v-if="captureError" class="cam-capture-err" role="alert">{{ captureError }}</p>
+      </div>
+
+      <div class="cam-controls">
+        <template v-if="capturedFile">
+          <button
+            id="cam-retake"
+            type="button"
+            class="cam-btn cam-btn-left"
+            @click="handleRetake"
+          >
+            Ulangi
+          </button>
+          <span class="cam-spacer" aria-hidden="true"></span>
+          <button
+            id="cam-use-photo"
+            type="button"
+            class="cam-btn cam-btn-primary cam-btn-right"
+            @click="handleConfirmCapture"
+          >
+            Pakai foto ini
+          </button>
+        </template>
+
+        <template v-else>
+          <button
+            id="cam-cancel"
+            type="button"
+            class="cam-btn cam-btn-left"
+            @click="handleCancel"
+          >
+            Batal
+          </button>
+
+          <button
+            v-if="!cameraError"
+            id="cam-shutter"
+            type="button"
+            class="cam-shutter"
+            aria-label="Ambil foto"
+            :disabled="isPreparing"
+            @click="handleTakeSnapshot"
+          ></button>
+          <span v-else class="cam-spacer" aria-hidden="true"></span>
+
+          <button
+            v-if="hasMultipleCameras && !cameraError"
+            id="cam-flip"
+            type="button"
+            class="cam-btn cam-btn-right"
+            aria-label="Balik kamera"
+            @click="handleFlipCamera"
+          >
+            Balik kamera
+          </button>
+          <span v-else class="cam-spacer" aria-hidden="true"></span>
+        </template>
+      </div>
     </div>
-
-    <p v-if="captureError" class="cam-capture-err" role="alert">{{ captureError }}</p>
-
-    <div v-if="hasRefImage && !capturedFile && !cameraError" class="cam-shadow-ctl">
-      <label class="cam-slider-wrap" for="cam-opacity">
-        <span>Transparansi</span>
-        <input
-          id="cam-opacity"
-          v-model.number="shadowOpacity"
-          type="range"
-          :min="GHOST_OPACITY_MIN"
-          :max="GHOST_OPACITY_MAX"
-          :step="GHOST_OPACITY_STEP"
-          aria-label="Transparansi bayangan foto awal"
-        />
-        <output>{{ isShadowHidden ? 0 : shadowOpacity }}%</output>
-      </label>
-
-      <button
-        id="cam-toggle-shadow"
-        type="button"
-        class="cam-chip-btn"
-        @click="isShadowHidden = !isShadowHidden"
-      >
-        {{ isShadowHidden ? 'Tampilkan bayangan' : 'Sembunyikan bayangan' }}
-      </button>
-    </div>
-
-    <div class="cam-controls">
-      <template v-if="capturedFile">
-        <button
-          id="cam-retake"
-          type="button"
-          class="cam-btn cam-btn-secondary"
-          @click="handleRetake"
-        >
-          Ulangi
-        </button>
-        <button
-          id="cam-use-photo"
-          type="button"
-          class="cam-btn cam-btn-primary"
-          @click="handleConfirmCapture"
-        >
-          Pakai foto ini
-        </button>
-      </template>
-
-      <template v-else>
-        <button
-          id="cam-cancel"
-          type="button"
-          class="cam-btn cam-btn-secondary"
-          @click="handleCancel"
-        >
-          Batal
-        </button>
-
-        <button
-          v-if="!cameraError"
-          id="cam-shutter"
-          type="button"
-          class="cam-shutter"
-          aria-label="Ambil foto"
-          :disabled="isPreparing"
-          @click="handleTakeSnapshot"
-        ></button>
-        <span v-else class="cam-spacer" aria-hidden="true"></span>
-
-        <button
-          v-if="hasMultipleCameras && !cameraError"
-          id="cam-flip"
-          type="button"
-          class="cam-btn cam-btn-secondary"
-          aria-label="Balik kamera"
-          @click="handleFlipCamera"
-        >
-          Balik kamera
-        </button>
-        <span v-else class="cam-spacer" aria-hidden="true"></span>
-      </template>
-    </div>
-  </div>
+  </Teleport>
 </template>
+
+<style src="@/assets/h3_unggah.css"></style>

@@ -662,4 +662,4 @@ onBeforeUnmount(() => {
   </div>
 </template>
 
-<style scoped src="@/assets/h3_unggah.css"></style>
+<style src="@/assets/h3_unggah.css"></style>

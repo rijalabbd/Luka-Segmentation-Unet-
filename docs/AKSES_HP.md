@@ -136,9 +136,28 @@ Jika IP laptop berubah saat berpindah jaringan:
 
 ## Uji manual di ponsel (dikerjakan pemilik proyek)
 
+### Tahap 1 (LAN HTTP / kamera bawaan)
+
 1. Nyalakan mode LAN, buka alamat dari Chrome Android. Beranda tampil dan indikator "Server terhubung" hijau.
 2. Pilih pasien, buka H3. "Ambil Foto" membuka kamera belakang. Foto yang diambil muncul di pratinjau.
 3. "Dari galeri" membuka pemilih foto. Foto terpilih muncul di pratinjau.
 4. Analisis foto portrait asli dari ponsel. Overlay di halaman hasil sejajar dengan foto.
 5. Ulangi di iOS Safari bila ada perangkatnya.
 6. Catat ukuran berkas dan waktu analisis.
+
+### Tahap 2b (Kamera langsung & tata letak layar penuh)
+
+Gunakan pasien kunjungan lanjutan yang memiliki foto awal (misalnya `RM-0010`, bukan `RM-0012` yang foto awalnya tidak tersimpan):
+
+- Teks halaman terbaca tanpa mencubit layar, dan kartu unggah selebar layar.
+- Tekan "Ambil Foto": kamera menutupi seluruh layar, tombol bulat terlihat.
+- Halaman tidak bisa digeser ke samping.
+- Pada kunjungan lanjutan, bayangan menutupi seluruh gambar kamera dan slider berfungsi.
+- Putar ke lanskap dan kembali, tata letak tetap utuh.
+- Tekan "Pakai foto ini": foto masuk ke pratinjau, dan halaman unggah bisa digulir lagi.
+
+Contoh tangkapan layar verifikasi emulasi perangkat tersimpan di [docs/img/kamera-mobile/](img/kamera-mobile/):
+- Potret `360×740`: [kamera-360x740.png](img/kamera-mobile/kamera-360x740.png)
+- Potret `390×844`: [kamera-390x844.png](img/kamera-mobile/kamera-390x844.png)
+- Potret `430×932`: [kamera-430x932.png](img/kamera-mobile/kamera-430x932.png)
+- Lanskap `844×390`: [kamera-844x390.png](img/kamera-mobile/kamera-844x390.png)
