@@ -1,3 +1,7 @@
+{
+  default_sni {$LAN_HOST}
+}
+
 https://{$LAN_HOST} {
   tls internal
 
