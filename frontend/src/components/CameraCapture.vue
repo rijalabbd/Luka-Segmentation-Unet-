@@ -7,6 +7,7 @@ import {
   GHOST_OPACITY_STEP,
   useGhostOpacity,
 } from '@/composables/useGhostOpacity';
+import { computeCoverCropRect } from '@/utils/cameraCrop';
 
 const props = withDefaults(
   defineProps<{
@@ -30,6 +31,8 @@ const isPreparing = ref(true);
 const cameraError = ref('');
 const captureError = ref('');
 const hasMultipleCameras = ref(false);
+const supportsTorch = ref(false);
+const isTorchOn = ref(false);
 const facingMode = ref<'environment' | 'user'>('environment');
 const showGrid = ref(false);
 const isShadowHidden = ref(false);
@@ -69,6 +72,8 @@ function unlockScroll() {
 }
 
 function stopStream() {
+  isTorchOn.value = false;
+  supportsTorch.value = false;
   if (activeStream) {
     activeStream.getTracks().forEach((track) => track.stop());
     activeStream = null;
@@ -153,6 +158,15 @@ async function startCamera() {
       return;
     }
     activeStream = stream;
+    const primaryTrack =
+      typeof stream.getVideoTracks === 'function' ? stream.getVideoTracks()[0] : undefined;
+    const caps =
+      primaryTrack && typeof primaryTrack.getCapabilities === 'function'
+        ? (primaryTrack.getCapabilities() as { torch?: boolean })
+        : null;
+    supportsTorch.value = Boolean(caps?.torch);
+    isTorchOn.value = false;
+
     if (videoRef.value) {
       videoRef.value.srcObject = stream;
     }
@@ -184,6 +198,23 @@ function handleFlipCamera() {
   void startCamera();
 }
 
+async function handleToggleTorch() {
+  const track =
+    activeStream && typeof activeStream.getVideoTracks === 'function'
+      ? activeStream.getVideoTracks()[0]
+      : undefined;
+  if (!track || !supportsTorch.value || typeof track.applyConstraints !== 'function') return;
+  const next = !isTorchOn.value;
+  try {
+    await track.applyConstraints({
+      advanced: [{ torch: next } as MediaTrackConstraintSet],
+    });
+    isTorchOn.value = next;
+  } catch {
+    // Abaikan bila perangkat menolak perubahan torch
+  }
+}
+
 function handleTakeSnapshot() {
   const video = videoRef.value;
   if (!video || isPreparing.value || cameraError.value) return;
@@ -191,18 +222,25 @@ function handleTakeSnapshot() {
   captureError.value = '';
   const width = video.videoWidth || 1280;
   const height = video.videoHeight || 720;
+  const stageRect = video.getBoundingClientRect();
+  const { sx, sy, sw, sh } = computeCoverCropRect(
+    width,
+    height,
+    stageRect.width,
+    stageRect.height,
+  );
 
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = sw;
+  canvas.height = sh;
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     captureError.value = 'Gagal mengambil foto. Coba lagi.';
     return;
   }
 
-  // Gambar hanya frame video ke kanvas tanpa elemen bayangan
-  ctx.drawImage(video, 0, 0, width, height);
+  // Gambar hanya area frame video yang tampil di layar (tanpa elemen bayangan)
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
 
   canvas.toBlob(
     (blob) => {
@@ -284,21 +322,35 @@ onBeforeUnmount(() => {
           <span v-if="hasRefImage && !capturedFile" class="cam-shadow-label">
             {{ shadowBadgeText }}
           </span>
-          <button
-            v-if="!capturedFile && !cameraError"
-            id="cam-grid-toggle"
-            type="button"
-            class="cam-chip-btn"
-            :aria-pressed="showGrid"
-            :aria-label="
-              showGrid
-                ? 'Sembunyikan garis bantu tiga kali tiga'
-                : 'Tampilkan garis bantu tiga kali tiga'
-            "
-            @click="showGrid = !showGrid"
-          >
-            {{ showGrid ? 'Matikan garis' : 'Garis 3×3' }}
-          </button>
+          <div v-if="!capturedFile && !cameraError" class="cam-top-btns">
+            <button
+              v-if="supportsTorch"
+              id="cam-torch"
+              type="button"
+              class="cam-chip-btn"
+              :aria-pressed="isTorchOn"
+              :aria-label="
+                isTorchOn ? 'Matikan lampu senter kamera' : 'Nyalakan lampu senter kamera'
+              "
+              @click="handleToggleTorch"
+            >
+              {{ isTorchOn ? 'Senter: Nyala' : 'Senter' }}
+            </button>
+            <button
+              id="cam-grid-toggle"
+              type="button"
+              class="cam-chip-btn"
+              :aria-pressed="showGrid"
+              :aria-label="
+                showGrid
+                  ? 'Sembunyikan garis bantu tiga kali tiga'
+                  : 'Tampilkan garis bantu tiga kali tiga'
+              "
+              @click="showGrid = !showGrid"
+            >
+              {{ showGrid ? 'Matikan garis' : 'Garis 3×3' }}
+            </button>
+          </div>
         </div>
       </div>
 

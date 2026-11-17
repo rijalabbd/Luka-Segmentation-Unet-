@@ -18,13 +18,20 @@ function camQuery<T extends Element = HTMLElement>(selector: string): T | null {
   return document.body.querySelector<T>(selector);
 }
 
-function createMockStream() {
+function createMockStream(options?: { torch?: boolean }) {
   const stop = vi.fn();
-  const track = { stop, kind: 'video' } as unknown as MediaStreamTrack;
+  const applyConstraints = vi.fn().mockResolvedValue(undefined);
+  const track = {
+    stop,
+    kind: 'video',
+    getCapabilities: () => ({ torch: Boolean(options?.torch) }),
+    applyConstraints,
+  } as unknown as MediaStreamTrack;
   const stream = {
     getTracks: () => [track],
+    getVideoTracks: () => [track],
   } as unknown as MediaStream;
-  return { stream, stop };
+  return { stream, stop, applyConstraints };
 }
 
 function mockMatchMedia(coarseMatches: boolean) {
@@ -366,5 +373,69 @@ describe('CameraCapture, PhotoDropzone & GhostOverlay (Tahap 2 & 2b)', () => {
     );
     expect(camVueText).not.toMatch(/<style[^>]*\bscoped\b/);
     expect(unggahVueText).not.toMatch(/<style[^>]*\bscoped\b[^>]*h3_unggah\.css/);
+  });
+
+  it('12. Senter (torch) hanya muncul bila didukung dan memanggil applyConstraints saat ditekan', async () => {
+    const noTorch = createMockStream({ torch: false });
+    mockMediaDevices(vi.fn().mockResolvedValue(noTorch.stream));
+    const w1 = trackMount(mount(CameraCapture));
+    await flushPromises();
+    expect(camQuery('#cam-torch')).toBeNull();
+    w1.unmount();
+
+    const withTorch = createMockStream({ torch: true });
+    mockMediaDevices(vi.fn().mockResolvedValue(withTorch.stream));
+    trackMount(mount(CameraCapture));
+    await flushPromises();
+
+    const torchBtn = camQuery<HTMLButtonElement>('#cam-torch');
+    expect(torchBtn).not.toBeNull();
+    expect(torchBtn?.textContent?.trim()).toBe('Senter');
+
+    torchBtn?.click();
+    await flushPromises();
+    expect(withTorch.applyConstraints).toHaveBeenCalledWith({
+      advanced: [{ torch: true }],
+    });
+    expect(torchBtn?.textContent?.trim()).toBe('Senter: Nyala');
+  });
+
+  it('13. Tangkapan kanvas memotong sesuai rasio layar stage (object-fit: cover)', async () => {
+    const { stream } = createMockStream();
+    mockMediaDevices(vi.fn().mockResolvedValue(stream));
+
+    const drawImage = vi.fn();
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage,
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((cb) => {
+      cb(new Blob(['jpeg-bytes'], { type: 'image/jpeg' }));
+    });
+
+    trackMount(mount(CameraCapture));
+    await flushPromises();
+
+    const videoEl = camQuery<HTMLVideoElement>('video')!;
+    Object.defineProperty(videoEl, 'videoWidth', { value: 1600, configurable: true });
+    Object.defineProperty(videoEl, 'videoHeight', { value: 1200, configurable: true });
+    vi.spyOn(videoEl, 'getBoundingClientRect').mockReturnValue({
+      width: 360,
+      height: 540,
+      top: 0,
+      left: 0,
+      right: 360,
+      bottom: 540,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    videoEl.dispatchEvent(new Event('loadedmetadata'));
+    await nextTick();
+
+    camQuery<HTMLButtonElement>('#cam-shutter')?.click();
+    await flushPromises();
+
+    expect(drawImage).toHaveBeenCalledWith(videoEl, 400, 0, 800, 1200, 0, 0, 800, 1200);
   });
 });
