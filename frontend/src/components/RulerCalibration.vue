@@ -443,11 +443,10 @@ async function handleDeleteCalibration() {
     <div class="cal-in">
       <ol>
         <li>
-          Klik dua titik pada garis skala penggaris, sebaiknya garis angka yang jelas (misalnya 1
-          ke 3 cm), bukan tepi penggaris.
+          Sentuh atau seret pada foto untuk menandai <b>2 garis angka</b> di penggaris (bukan tepi penggaris).
         </li>
-        <li>Isi panjang nyata antara kedua titik (cm), lalu tekan <b>Terapkan kalibrasi</b>.</li>
-        <li>Penggaris harus dekat dan sebidang dengan permukaan luka.</li>
+        <li>Pilih jarak kedua titik (cm), lalu tekan <b>Terapkan kalibrasi</b>.</li>
+        <li>Pastikan penggaris dekat dan sejajar dengan permukaan luka.</li>
       </ol>
 
       <div
@@ -507,7 +506,6 @@ async function handleDeleteCalibration() {
         </svg>
       </div>
 
-      <p class="cal-meta">Ukuran foto asli: <code>{{ imgWidthPx }} × {{ imgHeightPx }} px</code></p>
       <p id="calStatus" class="cal-status" role="status" aria-live="polite">{{ statusText }}</p>
 
       <div class="cal-pts" role="group" aria-label="Pilih titik aktif dan geser halus">
@@ -550,20 +548,20 @@ async function handleDeleteCalibration() {
         </div>
       </div>
 
-      <div class="cal-coords-grid" aria-label="Koordinat piksel alternatif tanpa mouse">
-        <div v-for="f in coordFields" :key="f.id">
-          <label :for="f.id">{{ f.label }}</label>
-          <input
-            :id="f.id" type="number" step="any" :min="0" :max="f.max"
-            :value="f.val" :disabled="isPanelDisabled || isSubmitting" placeholder="0"
-            @input="updatePointCoord(f.which, f.axis, ($event.target as HTMLInputElement).value)"
-          />
-        </div>
-      </div>
-
       <div class="cal-form">
-        <div>
-          <label for="calLen">Panjang fisik segmen (cm)</label>
+        <div class="cal-len-group">
+          <label for="calLen">Jarak dua titik di penggaris (cm)</label>
+          <div class="cal-presets" role="group" aria-label="Pilih cepat jarak penggaris">
+            <button
+              v-for="preset in [1, 2, 3, 5]"
+              :key="preset"
+              type="button"
+              class="btn btn-secondary cal-preset-btn"
+              :aria-pressed="lengthCm === preset"
+              :disabled="isPanelDisabled || isSubmitting"
+              @click="lengthCm = preset"
+            >{{ preset }} cm</button>
+          </div>
           <input
             id="calLen" v-model.number="lengthCm" type="number"
             min="0.1" max="50" step="0.1" inputmode="decimal"
@@ -571,24 +569,8 @@ async function handleDeleteCalibration() {
           />
         </div>
         <dl class="cal-out" aria-live="polite">
-          <div>
-            <dt>Jarak titik (Δpx)</dt>
-            <dd id="oDpx">{{ validation.deltaPx !== null ? `${formatDecimalID(validation.deltaPx, 1)} px` : '–' }}</dd>
-          </div>
-          <div>
-            <dt>Skala s</dt>
-            <dd id="oScale">
-              {{
-                isApplied && visit.scale_cm_per_px !== null
-                  ? `${visit.scale_cm_per_px.toFixed(6).replace('.', ',')} cm/px`
-                  : validation.scaleCmPerPx !== null
-                    ? `${validation.scaleCmPerPx.toFixed(6).replace('.', ',')} cm/px`
-                    : '–'
-              }}
-            </dd>
-          </div>
-          <div>
-            <dt>Luas luka</dt>
+          <div class="cal-area-card">
+            <dt>{{ isApplied ? 'Luas luka terkalibrasi' : 'Perkiraan luas luka' }}</dt>
             <dd id="oArea">
               {{
                 isApplied && visit.area_cm2 !== null
@@ -619,11 +601,48 @@ async function handleDeleteCalibration() {
         >Hapus kalibrasi</button>
       </div>
 
-      <p class="cal-limit">
-        Kalibrasi mengoreksi perbedaan jarak kamera pada bidang penggaris. Kalibrasi tidak
-        mengoreksi perbedaan sudut pandang 3D atau lengkungan permukaan anatomi, sehingga penggaris
-        harus dekat dan sebidang dengan permukaan luka.
-      </p>
+      <details class="cal-tech">
+        <summary>Atur koordinat &amp; detail teknis</summary>
+        <div class="cal-tech-body">
+          <p class="cal-meta">Ukuran foto asli: <code>{{ imgWidthPx }} × {{ imgHeightPx }} px</code></p>
+
+          <div class="cal-coords-grid" aria-label="Koordinat piksel alternatif tanpa mouse">
+            <div v-for="f in coordFields" :key="f.id">
+              <label :for="f.id">{{ f.label }}</label>
+              <input
+                :id="f.id" type="number" step="any" :min="0" :max="f.max"
+                :value="f.val" :disabled="isPanelDisabled || isSubmitting" placeholder="0"
+                @input="updatePointCoord(f.which, f.axis, ($event.target as HTMLInputElement).value)"
+              />
+            </div>
+          </div>
+
+          <dl class="cal-out cal-out-tech" aria-live="polite">
+            <div>
+              <dt>Jarak titik (Δpx)</dt>
+              <dd id="oDpx">{{ validation.deltaPx !== null ? `${formatDecimalID(validation.deltaPx, 1)} px` : '–' }}</dd>
+            </div>
+            <div>
+              <dt>Skala s</dt>
+              <dd id="oScale">
+                {{
+                  isApplied && visit.scale_cm_per_px !== null
+                    ? `${visit.scale_cm_per_px.toFixed(6).replace('.', ',')} cm/px`
+                    : validation.scaleCmPerPx !== null
+                      ? `${validation.scaleCmPerPx.toFixed(6).replace('.', ',')} cm/px`
+                      : '–'
+                }}
+              </dd>
+            </div>
+          </dl>
+
+          <p class="cal-limit">
+            Kalibrasi mengoreksi perbedaan jarak kamera pada bidang penggaris. Kalibrasi tidak
+            mengoreksi perbedaan sudut pandang 3D atau lengkungan permukaan anatomi, sehingga penggaris
+            harus dekat dan sebidang dengan permukaan luka.
+          </p>
+        </div>
+      </details>
     </div>
   </details>
 </template>
