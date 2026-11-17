@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { clampGhostOpacity } from '@/composables/useGhostOpacity';
 import { clampGhostPosition, clampGhostScale } from '@/utils/ghostTransform';
 
 const props = defineProps<{
@@ -33,7 +34,7 @@ let dragStartGhostY = 0;
 const isInteractive = computed(() => props.ghostActive && Boolean(props.refImageUrl));
 
 const ghostStyle = computed(() => ({
-  opacity: props.ghostOpacity / 100,
+  opacity: clampGhostOpacity(props.ghostOpacity) / 100,
   transform: `translate(${props.ghostX}px, ${props.ghostY}px) scale(${props.ghostScale / 100})`,
   transformOrigin: 'center',
 }));

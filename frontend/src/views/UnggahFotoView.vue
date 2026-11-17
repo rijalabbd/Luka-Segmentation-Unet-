@@ -16,6 +16,10 @@ import PhotoGuideCard from '@/components/PhotoGuideCard.vue';
 import ReferencePanel from '@/components/ReferencePanel.vue';
 import type { PatientSummary, VisitRecord } from '@/types/patient';
 import {
+  STAGE1_OPACITY_STORAGE_KEY,
+  useGhostOpacity,
+} from '@/composables/useGhostOpacity';
+import {
   GHOST_DEFAULT_OPACITY,
   GHOST_DEFAULT_SCALE,
   GHOST_SCALE_MAX,
@@ -85,7 +89,7 @@ const previewUrl = ref('');
 const fileError = ref('');
 
 const ghostActive = ref(false);
-const ghostOpacity = ref(GHOST_DEFAULT_OPACITY);
+const { opacity: ghostOpacity } = useGhostOpacity(STAGE1_OPACITY_STORAGE_KEY, GHOST_DEFAULT_OPACITY);
 const ghostScale = ref(GHOST_DEFAULT_SCALE);
 const ghostX = ref(0);
 const ghostY = ref(0);
@@ -492,6 +496,9 @@ onBeforeUnmount(() => {
                   v-if="!selectedFile"
                   :error="fileError"
                   :show-sample-button="patient.is_demo"
+                  :ref-image-url="activeRefImageUrl"
+                  :ref-label="activeRefTab === 'latest' && hasDistinctLatestRef ? 'terakhir' : 'awal'"
+                  :is-follow-up="isFollowUp"
                   @select="handleSelectedFile"
                   @sample="loadDemoSamplePhoto"
                 />
@@ -517,6 +524,8 @@ onBeforeUnmount(() => {
                 v-if="!selectedFile"
                 :error="fileError"
                 :show-sample-button="patient.is_demo"
+                :ref-image-url="null"
+                :is-follow-up="false"
                 @select="handleSelectedFile"
                 @sample="loadDemoSamplePhoto"
               />

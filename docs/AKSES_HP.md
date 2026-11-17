@@ -68,7 +68,69 @@ Contoh: `http://192.168.1.25:5173`
 Banyak Wi-Fi kampus atau publik mengaktifkan fitur *AP/Client Isolation* sehingga ponsel tidak bisa terhubung ke IP laptop meskipun berada di Wi-Fi yang sama. Solusinya:
 
 - Nyalakan **Mobile Hotspot** bawaan Windows 11/10 di laptop, lalu sambungkan ponsel ke hotspot laptop tersebut (IP laptop biasanya menjadi `192.168.137.1`, sehingga alamat di ponsel adalah `http://192.168.137.1:5173`), **atau**
-- Gunakan router Wi-Fi lokal kecil (off-grid tanpa perlu internet).
+- Gunakan router Wi-Fi lokal kecil (off-grid tanpa perlu internet), disarankan dengan **IP statis/tetap** untuk laptop saat demo agar `LAN_HOST` tidak berubah.
+
+## 7. Mode HTTPS LAN (Tahap 2 — Kamera Langsung dengan Bayangan)
+
+Kamera langsung (`getUserMedia`) di browser ponsel hanya diizinkan pada konteks aman (`https://`). Tahap 2 menyediakan reverse proxy **Caddy** (`docker-compose.https.yml` + `Caddyfile`) pada port **443** (atau `8443` jika port `443` bentrok).
+
+### Menyalakan mode HTTPS
+
+1. Setel `LAN_HOST` di `.env` (atau di PowerShell) sesuai IP laptop dari `ipconfig`:
+   ```env
+   LAN_HOST=192.168.11.119
+   ```
+2. Izinkan port `443` di Windows Firewall (profil Private):
+   ```powershell
+   New-NetFirewallRule -DisplayName "WoundAI LAN HTTPS 443" -Direction Inbound -LocalPort 443 -Protocol TCP -Action Allow -Profile Private
+   ```
+3. Jalankan stack HTTPS:
+   ```powershell
+   docker compose -f docker-compose.yml -f docker-compose.lan.yml -f docker-compose.https.yml up -d
+   ```
+   *(Jika port 443 dipakai aplikasi lain, jalankan dengan `HTTPS_PORT=8443` di `.env` lalu buka `https://<IP-laptop>:8443`.)*
+4. Buka di ponsel:
+   ```text
+   https://<IP-laptop>
+   ```
+   Contoh: `https://192.168.11.119`
+
+### Melewati peringatan sertifikat di ponsel
+
+Karena Caddy memakai `tls internal` (sertifikat lokal mandiri), browser ponsel akan menampilkan peringatan keamanan pada kunjungan pertama:
+
+- **Chrome (Android):** Tekan **Lanjutan (Advanced) → Lanjutkan ke `<IP-laptop>` (tidak aman)**.
+- **Safari (iOS):** Tekan **Tampilkan Detail (Show Details) → Kunjungi situs web ini (visit this website)** lalu konfirmasi.
+
+### Memasang sertifikat akar Caddy (opsional, agar peringatan hilang)
+
+1. Salin sertifikat akar internal Caddy dari container ke laptop:
+   ```powershell
+   docker cp woundai-caddy:/data/caddy/pki/authorities/local/root.crt .\caddy-root.crt
+   ```
+2. Kirim berkas `caddy-root.crt` ke ponsel:
+   - **Android:** Buka **Setelan → Keamanan / Enkripsi & kredensial → Pasang sertifikat → Sertifikat CA**, pilih `caddy-root.crt`.
+   - **iOS:** Buka berkas `caddy-root.crt` untuk mengunduh profil, lalu **Settings → General → VPN & Device Management** (pasang profil), kemudian aktifkan kepercayaan penuh di **Settings → General → About → Certificate Trust Settings**.
+
+### Memperbarui `LAN_HOST` saat IP laptop berganti
+
+Jika IP laptop berubah saat berpindah jaringan:
+1. Cek IP baru dengan `ipconfig`.
+2. Ubah `LAN_HOST=<IP-baru>` di `.env`.
+3. Jalankan ulang container agar Caddy menerbitkan sertifikat dan Vite memperbarui `allowedHosts`:
+   ```powershell
+   docker compose -f docker-compose.yml -f docker-compose.lan.yml -f docker-compose.https.yml up -d --force-recreate frontend caddy
+   ```
+
+## 8. Tabel Galat Umum
+
+| Gejala / Galat | Penyebab | Solusi |
+| --- | --- | --- |
+| Peringatan sertifikat (`NET::ERR_CERT_AUTHORITY_INVALID`) | Browser belum mengenali CA internal Caddy (`tls internal`). | Lewati peringatan lewat menu *Lanjutan / Advanced*, atau pasang `root.crt` Caddy di ponsel. |
+| Izin kamera ditolak (`NotAllowedError`) | Pengguna menolak izin kamera atau situs dibuka lewat `http://` biasa. | Pastikan membuka alamat `https://`, lalu izinkan kamera di pengaturan situs browser. Jika tetap ditolak, tekan **Pakai kamera bawaan**. |
+| `Blocked request. This host is not allowed.` (`allowedHosts` salah) | `LAN_HOST` yang dikirim ke container `frontend` tidak cocok dengan host/IP di URL browser. | Samakan `LAN_HOST` di `.env` dengan IP laptop yang diakses, lalu recreate container `frontend`. |
+| Port 443 bentrok (`bind: address already in use`) | Aplikasi lain di Windows memakai port `443`. | Setel `HTTPS_PORT=8443` di `.env` (dan buka firewall TCP `8443`), lalu akses `https://<IP-laptop>:8443`. |
+| IP laptop berganti setelah reconnect Wi-Fi | DHCP router memberi IP baru pada laptop. | Cek IP baru (`ipconfig`), perbarui `LAN_HOST` di `.env`, lalu recreate `frontend` dan `caddy`; atau gunakan Mobile Hotspot / router IP statis saat demo. |
 
 ---
 

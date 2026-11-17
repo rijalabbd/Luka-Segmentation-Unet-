@@ -1,0 +1,24 @@
+services:
+  frontend:
+    environment:
+      LAN_HOST: ${LAN_HOST:-localhost}
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: woundai-caddy
+    restart: unless-stopped
+    environment:
+      LAN_HOST: ${LAN_HOST:-localhost}
+    ports:
+      - "0.0.0.0:${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  caddy_data:
+  caddy_config:

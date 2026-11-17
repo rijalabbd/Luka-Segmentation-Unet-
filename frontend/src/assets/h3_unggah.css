@@ -728,9 +728,248 @@ input[type='date']:focus-visible {
   .skip-link,
   .topnav a,
   .swbtn .track,
-  .swbtn .track::after {
+  .swbtn .track::after,
+  .cam-btn,
+  .cam-chip-btn,
+  .cam-shutter,
+  .cam-slider-wrap input[type='range'] {
     transition: none;
   }
+}
+
+.cam-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #000;
+  color: #fff;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.cam-topbar {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.88);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+.cam-instruction {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #e2e8f0;
+  text-align: center;
+}
+.cam-top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cam-shadow-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(15, 118, 110, 0.85);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.cam-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+.cam-video,
+.cam-shadow-img,
+.cam-captured-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cam-shadow-img {
+  pointer-events: none;
+}
+.cam-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.cam-grid-v,
+.cam-grid-h {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.45);
+}
+.cam-grid-v {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+.cam-grid-v1 {
+  left: 33.333%;
+}
+.cam-grid-v2 {
+  left: 66.666%;
+}
+.cam-grid-h {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+.cam-grid-h1 {
+  top: 33.333%;
+}
+.cam-grid-h2 {
+  top: 66.666%;
+}
+.cam-loading {
+  position: relative;
+  z-index: 2;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.8);
+  font-size: 14px;
+  color: #fff;
+}
+.cam-error-box {
+  position: relative;
+  z-index: 2;
+  max-width: 340px;
+  margin: 16px;
+  padding: 18px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+.cam-error-msg {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #fecaca;
+}
+.cam-capture-err {
+  margin: 0;
+  padding: 8px 14px;
+  background: #7f1d1d;
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+}
+.cam-shadow-ctl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  background: rgba(15, 23, 42, 0.9);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.cam-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #e2e8f0;
+  flex: 1;
+  min-width: 180px;
+}
+.cam-slider-wrap input[type='range'] {
+  flex: 1;
+  min-width: 90px;
+  accent-color: var(--teal);
+  transition: opacity var(--dur);
+}
+.cam-slider-wrap output {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  min-width: 3.2ch;
+  text-align: right;
+  font-weight: 700;
+}
+.cam-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  background: rgba(15, 23, 42, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.cam-btn,
+.cam-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--dur),
+    border-color var(--dur);
+}
+.cam-btn:focus-visible,
+.cam-chip-btn:focus-visible,
+.cam-shutter:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.cam-btn-primary {
+  background: var(--teal);
+  color: #fff;
+}
+.cam-btn-secondary {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.cam-chip-btn {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+  font-size: 13px;
+  padding: 0 12px;
+}
+.cam-shutter {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  min-height: 64px;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  padding: 0;
+  flex: none;
+  transition: transform var(--dur), background-color var(--dur);
+}
+.cam-shutter:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.cam-spacer {
+  min-width: 84px;
 }
 
 .server-pill {

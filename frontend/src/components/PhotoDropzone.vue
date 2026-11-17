@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import CameraCapture from '@/components/CameraCapture.vue';
 import { COARSE_POINTER_QUERY, isCoarsePointerDevice } from '@/utils/touchDevice';
 
-defineProps<{
+const props = defineProps<{
   error?: string;
   showSampleButton?: boolean;
+  refImageUrl?: string | null;
+  refLabel?: string;
+  isFollowUp?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -16,6 +20,8 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const cameraInputRef = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
 const isTouchDevice = ref(isCoarsePointerDevice());
+const showCamera = ref(false);
+const fallbackNotice = ref('');
 
 let mediaQueryList: MediaQueryList | null = null;
 
@@ -40,8 +46,39 @@ onBeforeUnmount(() => {
   mediaQueryList = null;
 });
 
-// Tahap 2 akan mengganti isi onTakePhoto() untuk membuka kamera langsung (getUserMedia + bayangan foto awal).
+function canUseLiveCamera(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  return Boolean(window.isSecureContext && navigator.mediaDevices?.getUserMedia);
+}
+
 function onTakePhoto() {
+  if (canUseLiveCamera()) {
+    fallbackNotice.value = '';
+    showCamera.value = true;
+    return;
+  }
+  if (props.isFollowUp) {
+    fallbackNotice.value =
+      'Bayangan foto awal hanya tersedia lewat HTTPS. Memakai kamera bawaan ponsel.';
+  } else {
+    fallbackNotice.value = '';
+  }
+  cameraInputRef.value?.click();
+}
+
+function handleCameraCapture(file: File) {
+  showCamera.value = false;
+  fallbackNotice.value = '';
+  emit('select', file);
+}
+
+function handleCameraCancel() {
+  showCamera.value = false;
+}
+
+function handleCameraFallback(reason: string) {
+  showCamera.value = false;
+  fallbackNotice.value = reason;
   cameraInputRef.value?.click();
 }
 
@@ -142,8 +179,20 @@ function handleDrop(event: DragEvent) {
       </div>
 
       <p class="drop-hint">JPG atau PNG, maksimal 10 MB.</p>
+      <p v-if="fallbackNotice" id="cam-fallback-note" class="fallback-note" role="status">
+        {{ fallbackNotice }}
+      </p>
     </div>
     <p v-if="error" id="ferr" class="error" role="alert">{{ error }}</p>
+
+    <CameraCapture
+      v-if="showCamera"
+      :ref-image-url="refImageUrl"
+      :ref-label="refLabel"
+      @capture="handleCameraCapture"
+      @cancel="handleCameraCancel"
+      @fallback="handleCameraFallback"
+    />
   </div>
 </template>
 
@@ -193,6 +242,12 @@ function handleDrop(event: DragEvent) {
   margin: 0;
   font-size: 12.5px;
   color: var(--text-muted);
+}
+.fallback-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-2);
+  max-width: 320px;
 }
 .sr-only {
   position: absolute;
