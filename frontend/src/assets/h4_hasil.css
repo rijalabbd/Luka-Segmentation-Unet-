@@ -101,7 +101,12 @@ h1 { margin: 0; font-size: 28px; line-height: 1.2; font-weight: 650; letter-spac
 .btn-secondary:hover:not(:disabled) { border-color: var(--navy); background: var(--bg); }
 .disclaimer { margin-top: 20px; background: #f1f5f9; border: 1px solid var(--border-strong); color: #334155; border-radius: var(--radius); padding: 12px 16px; font-size: 14px; line-height: 1.55; }
 .disclaimer p { margin: 0; }
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--navy); color: #fff; font-size: 14px; font-weight: 500; padding: 12px 18px; border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25); z-index: 60; max-width: calc(100% - 32px); }
+.toast {
+  position: fixed; left: 50%; top: calc(68px + env(safe-area-inset-top, 0px)); bottom: auto;
+  transform: translateX(-50%); background: var(--navy); color: #fff; font-size: 14px; font-weight: 600;
+  padding: 10px 16px; border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+  z-index: 60; max-width: calc(100% - 32px); pointer-events: none;
+}
 @media (max-width: 1000px) { .layout { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 760px) {
   .topbar-in { padding: 10px 16px; }
@@ -116,5 +121,6 @@ h1 { margin: 0; font-size: 28px; line-height: 1.2; font-weight: 650; letter-spac
   .actions { flex-direction: column; align-items: stretch; }
   .btn-row { flex-direction: column-reverse; }
   .btn-row .btn { width: 100%; }
+  .toast { top: calc(108px + env(safe-area-inset-top, 0px)); }
 }
 @media (prefers-reduced-motion: reduce) { .btn, .skip-link, .topnav a { transition: none; } }

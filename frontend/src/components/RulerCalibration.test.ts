@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as patientsApi from '@/api/patients';
 import type { VisitRecord } from '@/types/patient';
 import RulerCalibration from './RulerCalibration.vue';
 
@@ -210,5 +213,49 @@ describe('RulerCalibration', () => {
 
     await wrapper.find('#calZoomReset').trigger('click');
     expect(wrapper.find('#calZoomVal').text()).toBe('1×');
+  });
+
+  it('G: toast memakai teks ringkas, berada di bawah header (top, bukan bottom), dan hilang 2 detik', async () => {
+    const visit = makeDraftVisit();
+    const applied = makeDraftVisit({
+      measure_mode: 'calibrated',
+      calib_x1: 100,
+      calib_y1: 100,
+      calib_x2: 200,
+      calib_y2: 100,
+      calib_length_cm: 2,
+      scale_cm_per_px: 0.02,
+      area_cm2: 5.3,
+    });
+    vi.spyOn(patientsApi, 'putVisitCalibration').mockResolvedValue(applied);
+
+    const wrapper = trackMount(
+      mount(RulerCalibration, {
+        props: { visit, imageUrl: 'http://localhost:8000/api/v1/storage/uploads/P17T_2.jpg' },
+      }),
+    );
+
+    await wrapper.find('#calbox > summary').trigger('click');
+    await nextTick();
+
+    await wrapper.find('#calX1').setValue('100');
+    await wrapper.find('#calY1').setValue('100');
+    await wrapper.find('#calX2').setValue('200');
+    await wrapper.find('#calY2').setValue('100');
+    await nextTick();
+
+    await wrapper.find('#calApply').trigger('click');
+    await Promise.resolve();
+    await nextTick();
+
+    expect(wrapper.emitted('notify')).toEqual([['Kalibrasi diterapkan.']]);
+
+    const h4Css = readFileSync(resolve(process.cwd(), 'src/assets/h4_hasil.css'), 'utf-8');
+    const toastMatch = h4Css.match(/\.toast\s*\{[^}]*\}/);
+    expect(toastMatch?.[0]).toContain('top:');
+    expect(toastMatch?.[0]).toContain('bottom: auto');
+
+    const h4View = readFileSync(resolve(process.cwd(), 'src/views/HasilKunjunganView.vue'), 'utf-8');
+    expect(h4View).toContain('2000');
   });
 });

@@ -137,7 +137,7 @@ const saveModalDescription = computed(() => {
 function showToast(msg: string) {
   toastMessage.value = msg
   if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { toastMessage.value = '' }, 4500)
+  toastTimer = setTimeout(() => { toastMessage.value = '' }, 2000)
 }
 
 function handleVisitUpdated(updated: VisitRecord) {

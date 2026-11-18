@@ -471,7 +471,7 @@ async function handleApplyCalibration() {
       x1: p1.value.x, y1: p1.value.y, x2: p2.value.x, y2: p2.value.y, length_cm: Number(lengthCm.value),
     })
     emit('updated', updated)
-    emit('notify', 'Kalibrasi dua titik berhasil diterapkan pada draf.')
+    emit('notify', 'Kalibrasi diterapkan.')
   } catch (err) {
     if (err instanceof ApiError) {
       apiError.value = err.message
