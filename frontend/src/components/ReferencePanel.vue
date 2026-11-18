@@ -9,6 +9,8 @@ const props = defineProps<{
   activeImageUrl: string | null;
   activeOverlayUrl: string | null;
   showContour: boolean;
+  comparisonSentence?: string;
+  missingPhotoSentence?: string;
 }>();
 
 const emit = defineEmits<{
@@ -80,7 +82,9 @@ onBeforeUnmount(() => {
             {{ activeRefTab === 'latest' ? 'Kembali ke foto awal' : `Lihat foto terakhir (${latestShortDate})` }}
           </button>
         </div>
-        <p class="ref-help">Samakan jarak dan sudut kamera dengan foto ini.</p>
+        <p v-if="comparisonSentence" class="ref-help">{{ comparisonSentence }}</p>
+        <p v-if="missingPhotoSentence" class="ref-missing ref-missing-sub">{{ missingPhotoSentence }}</p>
+        <p v-if="!comparisonSentence" class="ref-help">Samakan jarak dan sudut kamera dengan foto ini.</p>
 
         <label v-if="activeOverlayUrl" class="contour-toggle">
           <input
@@ -96,7 +100,13 @@ onBeforeUnmount(() => {
 
     <template v-else>
       <p class="ref-missing">
-        Foto kunjungan {{ activeDateLabel }} tidak tersimpan, jadi belum ada pembanding. Ikuti panduan foto di bawah.
+        {{
+          comparisonSentence ||
+          'Belum ada foto pembanding dari kunjungan sebelumnya. Ikuti panduan foto di bawah.'
+        }}
+      </p>
+      <p v-if="missingPhotoSentence" class="ref-missing ref-missing-sub">
+        {{ missingPhotoSentence }}
       </p>
       <button
         v-if="hasDistinctLatest"
@@ -132,13 +142,13 @@ onBeforeUnmount(() => {
 .ref-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 .ref-thumb {
   position: relative;
   width: 100%;
   height: auto;
-  max-height: 280px;
+  max-height: 150px;
   padding: 0;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
@@ -154,7 +164,7 @@ onBeforeUnmount(() => {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 280px;
+  max-height: 150px;
   object-fit: contain;
 }
 @media (min-width: 760px) {
@@ -243,6 +253,10 @@ onBeforeUnmount(() => {
   font-size: 13.5px;
   line-height: 1.5;
   color: var(--text-2);
+}
+.ref-missing-sub {
+  margin-top: 4px;
+  color: var(--text-muted);
 }
 .modal-back {
   position: fixed;

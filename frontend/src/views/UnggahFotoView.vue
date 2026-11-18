@@ -26,6 +26,7 @@ import {
   GHOST_SCALE_MIN,
   isGhostModified,
 } from '@/utils/ghostTransform';
+import { buildReferenceComparisonInfo } from '@/utils/referenceMessage';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
 
@@ -121,31 +122,25 @@ const visitBadgeText = computed(() =>
   isFollowUp.value ? `Kunjungan ke-${nextVisitIndex.value}` : 'Kunjungan pertama',
 );
 
-const baselineVisit = computed<VisitRecord | null>(() => {
-  if (finalVisits.value.length === 0) return null;
-  return finalVisits.value[0];
-});
+const refComparison = computed(() =>
+  buildReferenceComparisonInfo(finalVisits.value, activeRefTab.value, formatDateShort),
+);
 
 const latestVisit = computed<VisitRecord | null>(() => {
   if (finalVisits.value.length === 0) return null;
   return finalVisits.value[finalVisits.value.length - 1];
 });
 
-const hasDistinctLatestRef = computed(
-  () => Boolean(baselineVisit.value && latestVisit.value && baselineVisit.value.id !== latestVisit.value.id),
-);
+const hasDistinctLatestRef = computed(() => refComparison.value.hasDistinctLatestWithPhoto);
 
-const activeRefVisit = computed<VisitRecord | null>(() => {
-  if (activeRefTab.value === 'latest' && hasDistinctLatestRef.value) {
-    return latestVisit.value;
-  }
-  return baselineVisit.value;
-});
+const activeRefVisit = computed<VisitRecord | null>(() => refComparison.value.effectiveRefVisit);
 
 const activeRefImageUrl = computed(() => resolveStorageUrl(activeRefVisit.value?.image_path) || null);
 const activeRefOverlayUrl = computed(() => resolveStorageUrl(activeRefVisit.value?.overlay_path) || null);
 const activeRefDateLabel = computed(() => formatDateShort(activeRefVisit.value?.visit_date));
-const latestShortDate = computed(() => formatDateDayMonth(latestVisit.value?.visit_date));
+const latestShortDate = computed(() =>
+  formatDateDayMonth(refComparison.value.latestWithPhotoVisit?.visit_date),
+);
 
 const latestFinalDate = computed(() => latestVisit.value?.visit_date?.slice(0, 10) || '');
 const minDate = computed(() => latestFinalDate.value || '2020-01-01');
@@ -489,6 +484,8 @@ onBeforeUnmount(() => {
                   :latest-short-date="latestShortDate"
                   :active-image-url="activeRefImageUrl"
                   :active-overlay-url="activeRefOverlayUrl"
+                  :comparison-sentence="refComparison.comparisonSentence"
+                  :missing-photo-sentence="refComparison.missingPhotoSentence"
                 />
               </div>
               <div class="col">

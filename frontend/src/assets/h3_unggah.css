@@ -622,15 +622,11 @@
 }
 
 .h3-page .sticky-action-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
+  position: static;
   background: var(--surface);
   border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.06);
-  margin: 12px -18px -12px;
-  padding: 10px 18px 12px;
-  border-radius: 0 0 8px 8px;
+  margin: 14px 0 0;
+  padding: 12px 0 0;
 }
 
 .h3-page .sticky-action-bar .confirm {
@@ -735,7 +731,7 @@
 
 @media (max-width: 640px) {
   .h3-page .topbar-in {
-    padding: 10px 16px;
+    padding: 8px 16px;
   }
 
   .h3-page .topright {
@@ -746,7 +742,7 @@
   }
 
   .h3-page .topnav {
-    height: 44px;
+    height: 40px;
   }
 
   .h3-page .topnav a[aria-current='page']::after {
@@ -758,7 +754,21 @@
   }
 
   .h3-page .main-container {
-    padding: 16px 16px 56px;
+    padding: 8px 16px 32px;
+  }
+
+  .h3-page .patient {
+    padding: 8px 12px;
+    gap: 6px 12px;
+    margin-bottom: 8px;
+  }
+
+  .h3-page .columns {
+    gap: 10px;
+  }
+
+  .h3-page .date-row {
+    margin-bottom: 6px;
   }
 
   .h3-page h1 {
@@ -766,12 +776,12 @@
   }
 
   .h3-page .card {
-    padding: 16px;
+    padding: 14px;
   }
 
   .h3-page .sticky-action-bar {
-    margin: 12px -16px -16px;
-    padding: 10px 16px 12px;
+    margin: 14px 0 0;
+    padding: 12px 0 0;
   }
 
   .h3-page .server-pill {

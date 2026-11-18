@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import CameraCapture from '@/components/CameraCapture.vue';
 import { COARSE_POINTER_QUERY, isCoarsePointerDevice } from '@/utils/touchDevice';
+
+const MOBILE_WIDTH_QUERY = '(max-width: 759px)';
 
 const props = defineProps<{
   error?: string;
@@ -20,30 +22,43 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const cameraInputRef = ref<HTMLInputElement | null>(null);
 const isDragging = ref(false);
 const isTouchDevice = ref(isCoarsePointerDevice());
+const isNarrowViewport = ref(
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? Boolean(window.matchMedia(MOBILE_WIDTH_QUERY)?.matches)
+    : false,
+);
+const isMobileMode = computed(() => isTouchDevice.value || isNarrowViewport.value);
 const showCamera = ref(false);
 const fallbackNotice = ref('');
 
-let mediaQueryList: MediaQueryList | null = null;
+let pointerMql: MediaQueryList | null = null;
+let widthMql: MediaQueryList | null = null;
 
-function updatePointerMode(matches: boolean) {
-  isTouchDevice.value = matches;
+function handlePointerMediaChange(event: MediaQueryListEvent) {
+  isTouchDevice.value = event.matches;
 }
 
-function handleMediaChange(event: MediaQueryListEvent) {
-  updatePointerMode(event.matches);
+function handleWidthMediaChange(event: MediaQueryListEvent) {
+  isNarrowViewport.value = event.matches;
 }
 
 onMounted(() => {
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    mediaQueryList = window.matchMedia(COARSE_POINTER_QUERY);
-    updatePointerMode(mediaQueryList.matches);
-    mediaQueryList.addEventListener('change', handleMediaChange);
+    pointerMql = window.matchMedia(COARSE_POINTER_QUERY);
+    isTouchDevice.value = Boolean(pointerMql?.matches);
+    pointerMql?.addEventListener?.('change', handlePointerMediaChange);
+
+    widthMql = window.matchMedia(MOBILE_WIDTH_QUERY);
+    isNarrowViewport.value = Boolean(widthMql?.matches);
+    widthMql?.addEventListener?.('change', handleWidthMediaChange);
   }
 });
 
 onBeforeUnmount(() => {
-  mediaQueryList?.removeEventListener('change', handleMediaChange);
-  mediaQueryList = null;
+  pointerMql?.removeEventListener?.('change', handlePointerMediaChange);
+  widthMql?.removeEventListener?.('change', handleWidthMediaChange);
+  pointerMql = null;
+  widthMql = null;
 });
 
 function canUseLiveCamera(): boolean {
@@ -118,6 +133,16 @@ function handleDrop(event: DragEvent) {
 
 <template>
   <div class="drop-wrap">
+    <button
+      v-if="isMobileMode"
+      id="take-photo"
+      type="button"
+      class="btn btn-primary btn-camera-main"
+      @click="onTakePhoto"
+    >
+      Ambil foto dengan kamera
+    </button>
+
     <div
       id="drop"
       class="drop"
@@ -144,27 +169,13 @@ function handleDrop(event: DragEvent) {
         @change="handleFileChange"
       />
 
-      <p class="drop-title">
-        {{
-          isTouchDevice
-            ? 'Ambil foto luka atau pilih dari galeri.'
-            : 'Seret foto luka ke sini atau pilih dari perangkat'
-        }}
+      <p v-if="!isMobileMode" class="drop-title">
+        Seret foto luka ke sini atau pilih dari perangkat
       </p>
 
       <div class="drop-actions">
-        <button
-          v-if="isTouchDevice"
-          id="take-photo"
-          type="button"
-          class="btn btn-primary"
-          @click="onTakePhoto"
-        >
-          Ambil Foto
-        </button>
-
         <button id="pick" type="button" class="btn btn-secondary" @click="openPicker">
-          {{ isTouchDevice ? 'Dari galeri' : 'Pilih Foto' }}
+          {{ isMobileMode ? 'Pilih foto dari galeri' : 'Pilih Foto' }}
         </button>
 
         <button
@@ -290,6 +301,10 @@ function handleDrop(event: DragEvent) {
   background: var(--navy);
   color: #fff;
 }
+.btn-camera-main {
+  width: 100%;
+  margin-bottom: 10px;
+}
 .btn-primary:hover:not(:disabled) {
   background: var(--navy-hover);
 }
@@ -321,9 +336,11 @@ function handleDrop(event: DragEvent) {
     height: clamp(240px, 42vh, 380px);
   }
 }
-@media (max-width: 640px) {
+@media (max-width: 759px) {
   .drop {
-    padding: 16px 12px;
+    min-height: 112px;
+    padding: 14px 12px;
+    gap: 10px;
   }
   .drop-actions .btn {
     width: 100%;
