@@ -189,30 +189,65 @@ describe('RulerCalibration', () => {
     expect(wrapper.find('#oArea').text()).toBe('–');
   });
 
-  it('D.3: kontrol zoom memperbesar foto antara 1× hingga 4×', async () => {
+  it('H.1, H.2 & H.3: tombol zoom bergilir 1× → 2× → 4× → 1×, tombol Selesai zoom tampil, dan loupe aktif di zoom 2×', async () => {
+    const visit = makeDraftVisit();
+    const imageUrl = 'http://localhost:8000/api/v1/storage/uploads/P17T_2.jpg';
     const wrapper = trackMount(
       mount(RulerCalibration, {
-        props: { visit: makeDraftVisit(), imageUrl: 'http://localhost:8000/api/v1/storage/uploads/P17T_2.jpg' },
+        props: { visit, imageUrl },
       }),
     );
 
     await wrapper.find('#calbox > summary').trigger('click');
     await nextTick();
 
-    expect(wrapper.find('#calZoomVal').text()).toBe('1×');
-    expect((wrapper.find('#calZoomOut').element as HTMLButtonElement).disabled).toBe(true);
+    const zoomCycleBtn = () => wrapper.find('#calZoomCycle');
+    expect(zoomCycleBtn().text()).toBe('1×');
+    expect(wrapper.find('#calZoomReset').exists()).toBe(false);
 
-    await wrapper.find('#calZoomIn').trigger('click');
-    expect(wrapper.find('#calZoomVal').text()).toBe('1,5×');
+    // Putar 1 -> 2 -> 4 -> 1
+    await zoomCycleBtn().trigger('click');
+    await nextTick();
+    expect(zoomCycleBtn().text()).toBe('2×');
+    expect(wrapper.find('#calZoomReset').text()).toBe('Selesai zoom');
 
-    for (let i = 0; i < 6; i++) {
-      await wrapper.find('#calZoomIn').trigger('click');
-    }
-    expect(wrapper.find('#calZoomVal').text()).toBe('4×');
-    expect((wrapper.find('#calZoomIn').element as HTMLButtonElement).disabled).toBe(true);
+    // Loupe harus aktif saat sentuh & seret pada zoom 2×
+    const imgEl = wrapper.find('#calImg').element as HTMLImageElement;
+    mockImageRect(imgEl, 640, 480);
+    await wrapper.find('#calImg').trigger('load');
+    await nextTick();
 
+    await wrapper.find('#calImg').trigger('pointerdown', {
+      clientX: 200,
+      clientY: 160,
+      pointerId: 1,
+      pointerType: 'touch',
+      button: 0,
+    });
+    await nextTick();
+    const loupeAt2x = wrapper.find('.cal-loupe');
+    expect(loupeAt2x.exists()).toBe(true);
+    expect((loupeAt2x.element as HTMLElement).style.backgroundSize).toBe('1600px 1200px');
+
+    await wrapper.find('#calImg').trigger('pointerup', {
+      clientX: 200,
+      clientY: 160,
+      pointerId: 1,
+      pointerType: 'touch',
+    });
+
+    await zoomCycleBtn().trigger('click');
+    expect(zoomCycleBtn().text()).toBe('4×');
+
+    await zoomCycleBtn().trigger('click');
+    expect(zoomCycleBtn().text()).toBe('1×');
+    expect(wrapper.find('#calZoomReset').exists()).toBe(false);
+
+    // Masuk zoom 2× lagi lalu klik "Selesai zoom" kembali ke 1×
+    await zoomCycleBtn().trigger('click');
+    expect(zoomCycleBtn().text()).toBe('2×');
     await wrapper.find('#calZoomReset').trigger('click');
-    expect(wrapper.find('#calZoomVal').text()).toBe('1×');
+    expect(zoomCycleBtn().text()).toBe('1×');
   });
 
   it('G: toast memakai teks ringkas, berada di bawah header (top, bukan bottom), dan hilang 2 detik', async () => {

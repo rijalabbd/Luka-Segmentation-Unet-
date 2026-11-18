@@ -22,15 +22,11 @@
   position: absolute; top: 8px; right: 8px; z-index: 7;
   display: inline-flex; align-items: center; gap: 6px;
 }
-.cal-zoom-btn {
-  min-width: 44px; min-height: 44px; padding: 0 10px; font-weight: 700;
+.cal-zoom-btn,
+.cal-zoom-reset-btn {
+  min-width: 44px; min-height: 44px; padding: 0 12px; font-weight: 700; font-size: 13.5px;
   background: rgba(255, 255, 255, 0.94); border-color: var(--navy); color: var(--navy);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
-}
-.cal-zoom-val {
-  font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--navy);
-  background: rgba(255, 255, 255, 0.94); border: 1px solid var(--border-strong);
-  border-radius: 6px; padding: 0 8px; min-height: 44px; display: inline-flex; align-items: center;
 }
 .cal-stage { position: relative; width: 100%; background: #e2e8f0; border: 1px solid var(--border-strong); border-radius: 6px; overflow: hidden; }
 .cal-stage.is-zoomed { overflow: auto; max-height: 60vh; }
@@ -39,7 +35,6 @@
 .cal-img { display: block; width: 100%; height: auto; max-height: 75vh; object-fit: contain; cursor: crosshair; user-select: none; }
 .cal-stage.is-zoomed .cal-img { max-height: none; }
 .cal-img-interactive { touch-action: none; }
-.cal-img-zoomed { touch-action: pan-x pan-y; }
 .cal-loupe {
   position: absolute; z-index: 6; border-radius: 50%; border: 3px solid #fff;
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.45), 0 0 0 1px var(--navy);

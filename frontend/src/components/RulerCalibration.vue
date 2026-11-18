@@ -59,9 +59,24 @@ const isDirtySinceApplied = computed(() => {
 const isEffectivelyApplied = computed(() => isApplied.value && !isDirtySinceApplied.value)
 
 function setZoomLevel(next: number) {
-  const clamped = Math.min(4, Math.max(1, Math.round(next * 2) / 2))
-  zoomLevel.value = clamped
-  nextTick(() => requestAnimationFrame(measureBox))
+  zoomLevel.value = next === 2 || next === 4 ? next : 1
+  nextTick(() =>
+    requestAnimationFrame(() => {
+      measureBox()
+      const stage = stageRef.value
+      if (!stage || zoomLevel.value <= 1) return
+      const focusPt = (activePoint.value === 1 ? dispP1.value : dispP2.value) ?? dispP1.value ?? dispP2.value
+      if (focusPt) {
+        stage.scrollLeft = Math.max(0, focusPt.x - stage.clientWidth / 2)
+        stage.scrollTop = Math.max(0, focusPt.y - stage.clientHeight / 2)
+      }
+    }),
+  )
+}
+
+function cycleZoomLevel() {
+  const next = zoomLevel.value === 1 ? 2 : zoomLevel.value === 2 ? 4 : 1
+  setZoomLevel(next)
 }
 
 const isSubmitting = ref(false)
@@ -72,10 +87,9 @@ const isDraggingPoint = ref(false)
 let activePointerId: number | null = null
 let dragPointWhich: 1 | 2 = 1
 let wasP2EmptyOnDown = false
-let pendingTapTouch = false
-let downClientX = 0
-let downClientY = 0
+const touchPointers = new Map<number, { x: number; y: number }>()
 
+const stageRef = ref<HTMLElement | null>(null)
 const imgRef = ref<HTMLImageElement | null>(null)
 const boxWidth = ref(0)
 const boxHeight = ref(0)
@@ -253,10 +267,21 @@ const loupeStyle = computed(() => {
   const disp = dragPointWhich === 1 ? dispP1.value : dispP2.value
   if (!disp) return null
 
+  const stageEl = stageRef.value
+  const scrollL = stageEl?.scrollLeft ?? 0
+  const scrollT = stageEl?.scrollTop ?? 0
+  const viewW = stageEl && stageEl.clientWidth > 0 ? stageEl.clientWidth : boxWidth.value
+  const viewH = stageEl && stageEl.clientHeight > 0 ? stageEl.clientHeight : boxHeight.value
+
   const half = LOUPE_SIZE / 2
-  const left = Math.max(8, Math.min(boxWidth.value - LOUPE_SIZE - 8, disp.x - half))
+  const minLeft = scrollL + 8
+  const maxLeft = Math.max(minLeft, scrollL + viewW - LOUPE_SIZE - 8)
+  const left = Math.max(minLeft, Math.min(maxLeft, disp.x - half))
+
+  const minTop = scrollT + 8
+  const maxTop = Math.max(minTop, scrollT + viewH - LOUPE_SIZE - 8)
   const preferredTop = disp.y - LOUPE_SIZE - 44
-  const top = preferredTop >= 8 ? preferredTop : Math.min(boxHeight.value - LOUPE_SIZE - 8, disp.y + 44)
+  const top = preferredTop >= minTop ? preferredTop : Math.min(maxTop, disp.y + 44)
 
   const contained = getContainedImageRect(
     boxWidth.value,
@@ -318,6 +343,13 @@ function handlePointerDown(e: PointerEvent) {
   if (isPanelDisabled.value || isSubmitting.value || !imgRef.value) return
   if (e.pointerType === 'mouse' && e.button !== 0) return
 
+  touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  if (touchPointers.size >= 2) {
+    isDraggingPoint.value = false
+    activePointerId = null
+    return
+  }
+
   wasP2EmptyOnDown = p2.value === null
   if (!p1.value) {
     dragPointWhich = 1
@@ -330,16 +362,6 @@ function handlePointerDown(e: PointerEvent) {
     dragPointWhich = activePoint.value
   }
 
-  // Saat zoom > 1x pada layar sentuh, biarkan geser menggulir foto dan pasang titik saat ketuk dilepas
-  if (zoomLevel.value > 1 && e.pointerType !== 'mouse') {
-    pendingTapTouch = true
-    activePointerId = e.pointerId
-    downClientX = e.clientX
-    downClientY = e.clientY
-    return
-  }
-
-  pendingTapTouch = false
   if (!applyClientPoint(e.clientX, e.clientY, dragPointWhich)) return
 
   isDraggingPoint.value = true
@@ -352,10 +374,11 @@ function handlePointerDown(e: PointerEvent) {
 }
 
 function handlePointerMove(e: PointerEvent) {
-  if (pendingTapTouch && (activePointerId === null || e.pointerId === activePointerId)) {
-    if (Math.hypot(e.clientX - downClientX, e.clientY - downClientY) > 8) {
-      pendingTapTouch = false
-    }
+  const prev = touchPointers.get(e.pointerId)
+  touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  if (touchPointers.size >= 2 && stageRef.value && prev) {
+    stageRef.value.scrollLeft -= (e.clientX - prev.x) / touchPointers.size
+    stageRef.value.scrollTop -= (e.clientY - prev.y) / touchPointers.size
     return
   }
   if (!isDraggingPoint.value) return
@@ -364,19 +387,7 @@ function handlePointerMove(e: PointerEvent) {
 }
 
 function handlePointerEnd(e: PointerEvent) {
-  if (pendingTapTouch) {
-    pendingTapTouch = false
-    if (activePointerId === null || e.pointerId === activePointerId) {
-      const dist = Math.hypot(e.clientX - downClientX, e.clientY - downClientY)
-      activePointerId = null
-      if (dist <= 8 && applyClientPoint(e.clientX, e.clientY, dragPointWhich)) {
-        if (dragPointWhich === 1 && wasP2EmptyOnDown && p1.value) {
-          activePoint.value = 2
-        }
-      }
-    }
-    return
-  }
+  touchPointers.delete(e.pointerId)
   if (!isDraggingPoint.value) return
   isDraggingPoint.value = false
   if (imgRef.value && activePointerId !== null) {
@@ -531,6 +542,7 @@ async function handleDeleteCalibration() {
 
       <div class="cal-stage-wrap">
         <div
+          ref="stageRef"
           class="cal-stage"
           :class="{ 'is-zoomed': zoomLevel > 1 }"
           tabindex="0"
@@ -544,10 +556,7 @@ async function handleDeleteCalibration() {
               id="calImg"
               ref="imgRef"
               class="cal-img"
-              :class="{
-                'cal-img-interactive': !isPanelDisabled && !isSubmitting && zoomLevel === 1,
-                'cal-img-zoomed': zoomLevel > 1,
-              }"
+              :class="{ 'cal-img-interactive': !isPanelDisabled && !isSubmitting }"
               :src="imageUrl"
               alt="Foto asli luka untuk penentuan dua titik kalibrasi penggaris"
               draggable="false"
@@ -595,29 +604,19 @@ async function handleDeleteCalibration() {
 
         <div class="cal-floating-zoom" role="group" aria-label="Perbesaran foto kalibrasi">
           <button
-            id="calZoomOut"
-            type="button"
-            class="btn btn-secondary cal-zoom-btn"
-            aria-label="Perkecil foto kalibrasi"
-            :disabled="zoomLevel <= 1"
-            @click="setZoomLevel(zoomLevel - 0.5)"
-          >−</button>
-          <span id="calZoomVal" class="cal-zoom-val">{{ String(zoomLevel).replace('.', ',') }}×</span>
-          <button
-            id="calZoomIn"
-            type="button"
-            class="btn btn-secondary cal-zoom-btn"
-            aria-label="Perbesar foto kalibrasi"
-            :disabled="zoomLevel >= 4"
-            @click="setZoomLevel(zoomLevel + 0.5)"
-          >+</button>
-          <button
             v-if="zoomLevel > 1"
             id="calZoomReset"
             type="button"
-            class="btn btn-secondary cal-zoom-btn"
+            class="btn btn-secondary cal-zoom-reset-btn"
             @click="setZoomLevel(1)"
-          >1×</button>
+          >Selesai zoom</button>
+          <button
+            id="calZoomCycle"
+            type="button"
+            class="btn btn-secondary cal-zoom-btn"
+            :aria-label="`Perbesar foto kalibrasi, saat ini ${zoomLevel} kali`"
+            @click="cycleZoomLevel"
+          >{{ zoomLevel }}×</button>
         </div>
       </div>
 
