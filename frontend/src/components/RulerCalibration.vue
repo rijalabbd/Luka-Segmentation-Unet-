@@ -40,6 +40,26 @@ const p1 = ref<Point2D | null>(null)
 const p2 = ref<Point2D | null>(null)
 const lengthCm = ref<number>(2)
 const activePoint = ref<1 | 2>(1)
+const zoomLevel = ref(1)
+
+const isDirtySinceApplied = computed(() => {
+  if (!isApplied.value) return false
+  if (!p1.value || !p2.value) return true
+  return (
+    Math.abs(p1.value.x - (props.visit.calib_x1 ?? 0)) > 1e-4 ||
+    Math.abs(p1.value.y - (props.visit.calib_y1 ?? 0)) > 1e-4 ||
+    Math.abs(p2.value.x - (props.visit.calib_x2 ?? 0)) > 1e-4 ||
+    Math.abs(p2.value.y - (props.visit.calib_y2 ?? 0)) > 1e-4 ||
+    Math.abs(Number(lengthCm.value) - (props.visit.calib_length_cm ?? 0)) > 1e-4
+  )
+})
+const isEffectivelyApplied = computed(() => isApplied.value && !isDirtySinceApplied.value)
+
+function setZoomLevel(next: number) {
+  const clamped = Math.min(4, Math.max(1, Math.round(next * 2) / 2))
+  zoomLevel.value = clamped
+  nextTick(() => requestAnimationFrame(measureBox))
+}
 
 const isSubmitting = ref(false)
 const clickError = ref('')
@@ -49,6 +69,9 @@ const isDraggingPoint = ref(false)
 let activePointerId: number | null = null
 let dragPointWhich: 1 | 2 = 1
 let wasP2EmptyOnDown = false
+let pendingTapTouch = false
+let downClientX = 0
+let downClientY = 0
 
 const imgRef = ref<HTMLImageElement | null>(null)
 const boxWidth = ref(0)
@@ -282,6 +305,16 @@ function handlePointerDown(e: PointerEvent) {
     dragPointWhich = activePoint.value
   }
 
+  // Saat zoom > 1x pada layar sentuh, biarkan geser menggulir foto dan pasang titik saat ketuk dilepas
+  if (zoomLevel.value > 1 && e.pointerType !== 'mouse') {
+    pendingTapTouch = true
+    activePointerId = e.pointerId
+    downClientX = e.clientX
+    downClientY = e.clientY
+    return
+  }
+
+  pendingTapTouch = false
   if (!applyClientPoint(e.clientX, e.clientY, dragPointWhich)) return
 
   isDraggingPoint.value = true
@@ -294,12 +327,31 @@ function handlePointerDown(e: PointerEvent) {
 }
 
 function handlePointerMove(e: PointerEvent) {
+  if (pendingTapTouch && (activePointerId === null || e.pointerId === activePointerId)) {
+    if (Math.hypot(e.clientX - downClientX, e.clientY - downClientY) > 8) {
+      pendingTapTouch = false
+    }
+    return
+  }
   if (!isDraggingPoint.value) return
   if (activePointerId !== null && e.pointerId !== activePointerId) return
   applyClientPoint(e.clientX, e.clientY, dragPointWhich)
 }
 
 function handlePointerEnd(e: PointerEvent) {
+  if (pendingTapTouch) {
+    pendingTapTouch = false
+    if (activePointerId === null || e.pointerId === activePointerId) {
+      const dist = Math.hypot(e.clientX - downClientX, e.clientY - downClientY)
+      activePointerId = null
+      if (dist <= 8 && applyClientPoint(e.clientX, e.clientY, dragPointWhich)) {
+        if (dragPointWhich === 1 && wasP2EmptyOnDown && p1.value) {
+          activePoint.value = 2
+        }
+      }
+    }
+    return
+  }
   if (!isDraggingPoint.value) return
   isDraggingPoint.value = false
   if (imgRef.value && activePointerId !== null) {
@@ -443,12 +495,8 @@ async function handleDeleteCalibration() {
   <details id="calbox" class="calbox" :open="isDetailsOpen" @toggle="onDetailsToggle">
     <summary>
       <span class="sum-l">Kalibrasi penggaris (opsional)</span>
-      <span id="calChip" class="cal-chip" :class="{ on: isApplied }">
-        {{
-          isApplied && visit.area_cm2 !== null
-            ? `Diterapkan · ${formatDecimalID(visit.area_cm2, 1)} cm²`
-            : 'Belum diterapkan'
-        }}
+      <span id="calChip" class="cal-chip" :class="{ on: isEffectivelyApplied }">
+        {{ isEffectivelyApplied ? 'Sudah diterapkan' : 'Belum diterapkan' }}
       </span>
     </summary>
 
@@ -461,61 +509,97 @@ async function handleDeleteCalibration() {
         <li>Pastikan penggaris dekat dan sejajar dengan permukaan luka.</li>
       </ol>
 
+      <div class="cal-zoom-bar" role="group" aria-label="Perbesaran foto kalibrasi">
+        <span class="cal-zoom-label">Perbesar foto</span>
+        <div class="cal-zoom-controls">
+          <button
+            id="calZoomOut"
+            type="button"
+            class="btn btn-secondary cal-zoom-btn"
+            aria-label="Perkecil foto kalibrasi"
+            :disabled="zoomLevel <= 1"
+            @click="setZoomLevel(zoomLevel - 0.5)"
+          >−</button>
+          <span id="calZoomVal" class="cal-zoom-val">{{ String(zoomLevel).replace('.', ',') }}×</span>
+          <button
+            id="calZoomIn"
+            type="button"
+            class="btn btn-secondary cal-zoom-btn"
+            aria-label="Perbesar foto kalibrasi"
+            :disabled="zoomLevel >= 4"
+            @click="setZoomLevel(zoomLevel + 0.5)"
+          >+</button>
+          <button
+            v-if="zoomLevel > 1"
+            id="calZoomReset"
+            type="button"
+            class="btn btn-secondary cal-zoom-btn"
+            @click="setZoomLevel(1)"
+          >1×</button>
+        </div>
+      </div>
+
       <div
         class="cal-stage"
+        :class="{ 'is-zoomed': zoomLevel > 1 }"
         tabindex="0"
         role="region"
         aria-label="Foto asli untuk memilih dua titik kalibrasi. Gunakan tombol panah untuk menggeser titik aktif, Shift untuk langkah 10 piksel."
         @keydown="onStageKeydown"
       >
-        <img
-          v-if="imageUrl"
-          id="calImg"
-          ref="imgRef"
-          class="cal-img"
-          :class="{ 'cal-img-interactive': !isPanelDisabled && !isSubmitting }"
-          :src="imageUrl"
-          alt="Foto asli luka untuk penentuan dua titik kalibrasi penggaris"
-          draggable="false"
-          @pointerdown="handlePointerDown"
-          @pointermove="handlePointerMove"
-          @pointerup="handlePointerEnd"
-          @pointercancel="handlePointerEnd"
-          @load="measureBox"
-        />
-        <div
-          v-if="loupeStyle"
-          class="cal-loupe"
-          :style="loupeStyle"
-          aria-hidden="true"
-        >
-          <span class="cal-loupe-cross-h"></span>
-          <span class="cal-loupe-cross-v"></span>
-          <span class="cal-loupe-dot"></span>
-        </div>
-        <svg
-          v-if="boxWidth > 0 && boxHeight > 0 && markerList.length"
-          class="cal-overlay"
-          :viewBox="`0 0 ${boxWidth} ${boxHeight}`"
-          aria-hidden="true"
-        >
-          <line
-            v-if="dispP1 && dispP2"
-            :x1="dispP1.x" :y1="dispP1.y" :x2="dispP2.x" :y2="dispP2.y"
-            stroke="#0F2942" stroke-width="2.5" stroke-dasharray="6 4"
+        <div class="cal-canvas" :style="{ width: `${zoomLevel * 100}%` }">
+          <img
+            v-if="imageUrl"
+            id="calImg"
+            ref="imgRef"
+            class="cal-img"
+            :class="{
+              'cal-img-interactive': !isPanelDisabled && !isSubmitting && zoomLevel === 1,
+              'cal-img-zoomed': zoomLevel > 1,
+            }"
+            :src="imageUrl"
+            alt="Foto asli luka untuk penentuan dua titik kalibrasi penggaris"
+            draggable="false"
+            @pointerdown="handlePointerDown"
+            @pointermove="handlePointerMove"
+            @pointerup="handlePointerEnd"
+            @pointercancel="handlePointerEnd"
+            @load="measureBox"
           />
-          <g v-for="m in markerList" :key="m.num">
-            <circle
-              :cx="m.pt.x" :cy="m.pt.y" r="11"
-              :fill="activePoint === m.num ? '#1F6368' : '#0F2942'"
-              stroke="#FFFFFF" stroke-width="2.5"
+          <div
+            v-if="loupeStyle"
+            class="cal-loupe"
+            :style="loupeStyle"
+            aria-hidden="true"
+          >
+            <span class="cal-loupe-cross-h"></span>
+            <span class="cal-loupe-cross-v"></span>
+            <span class="cal-loupe-dot"></span>
+          </div>
+          <svg
+            v-if="boxWidth > 0 && boxHeight > 0 && markerList.length"
+            class="cal-overlay"
+            :viewBox="`0 0 ${boxWidth} ${boxHeight}`"
+            aria-hidden="true"
+          >
+            <line
+              v-if="dispP1 && dispP2"
+              :x1="dispP1.x" :y1="dispP1.y" :x2="dispP2.x" :y2="dispP2.y"
+              stroke="#0F2942" stroke-width="2.5" stroke-dasharray="6 4"
             />
-            <text
-              :x="m.pt.x" :y="m.pt.y + 4" text-anchor="middle"
-              fill="#FFFFFF" font-size="12" font-weight="700"
-            >{{ m.num }}</text>
-          </g>
-        </svg>
+            <g v-for="m in markerList" :key="m.num">
+              <circle
+                :cx="m.pt.x" :cy="m.pt.y" r="11"
+                :fill="activePoint === m.num ? '#1F6368' : '#0F2942'"
+                stroke="#FFFFFF" stroke-width="2.5"
+              />
+              <text
+                :x="m.pt.x" :y="m.pt.y + 4" text-anchor="middle"
+                fill="#FFFFFF" font-size="12" font-weight="700"
+              >{{ m.num }}</text>
+            </g>
+          </svg>
+        </div>
       </div>
 
       <p id="calStatus" class="cal-status" role="status" aria-live="polite">{{ statusText }}</p>
@@ -565,7 +649,7 @@ async function handleDeleteCalibration() {
           <label for="calLen">Jarak dua titik di penggaris (cm)</label>
           <div class="cal-presets" role="group" aria-label="Pilih cepat jarak penggaris">
             <button
-              v-for="preset in [1, 2, 3, 5]"
+              v-for="preset in [1, 2, 5, 10]"
               :key="preset"
               type="button"
               class="btn btn-secondary cal-preset-btn"
@@ -582,14 +666,12 @@ async function handleDeleteCalibration() {
         </div>
         <dl class="cal-out" aria-live="polite">
           <div class="cal-area-card">
-            <dt>{{ isApplied ? 'Luas luka terkalibrasi' : 'Perkiraan luas luka' }}</dt>
+            <dt>Perkiraan luas luka</dt>
             <dd id="oArea">
               {{
-                isApplied && visit.area_cm2 !== null
+                isEffectivelyApplied && visit.area_cm2 !== null
                   ? `${formatDecimalID(visit.area_cm2, 1)} cm²`
-                  : validation.areaCm2 !== null
-                    ? `${formatDecimalID(validation.areaCm2, 1)} cm²`
-                    : '–'
+                  : '–'
               }}
             </dd>
           </div>

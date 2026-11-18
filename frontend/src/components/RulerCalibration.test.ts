@@ -119,4 +119,79 @@ describe('RulerCalibration', () => {
     const style2 = (wrapper.find('.cal-loupe').element as HTMLElement).style;
     expect(style2.backgroundPosition).toBe('-344px -244px');
   });
+
+  it('D.1 & D.2: kartu luas tampil "–" sebelum Terapkan, berubah jadi "Sudah diterapkan", dan kembali "–" saat diubah; preset 1/2/5/10 cm', async () => {
+    const visit = makeDraftVisit();
+    const wrapper = trackMount(
+      mount(RulerCalibration, {
+        props: { visit, imageUrl: 'http://localhost:8000/api/v1/storage/uploads/P17T_2.jpg' },
+      }),
+    );
+
+    await wrapper.find('#calbox > summary').trigger('click');
+    await nextTick();
+
+    const presetTexts = wrapper.findAll('.cal-preset-btn').map((b) => b.text());
+    expect(presetTexts).toEqual(['1 cm', '2 cm', '5 cm', '10 cm']);
+
+    // Sebelum diterapkan: isi koordinat tidak langsung mengisi kartu luas
+    await wrapper.find('#calX1').setValue('100');
+    await wrapper.find('#calY1').setValue('100');
+    await wrapper.find('#calX2').setValue('200');
+    await wrapper.find('#calY2').setValue('100');
+    await nextTick();
+
+    expect(wrapper.find('#calChip').text()).toBe('Belum diterapkan');
+    expect(wrapper.find('#oArea').text()).toBe('–');
+
+    // Setelah diterapkan dari server: lencana "Sudah diterapkan" dan angka muncul
+    const appliedVisit = makeDraftVisit({
+      measure_mode: 'calibrated',
+      calib_x1: 100,
+      calib_y1: 100,
+      calib_x2: 200,
+      calib_y2: 100,
+      calib_length_cm: 2,
+      scale_cm_per_px: 0.02,
+      area_cm2: 5.3,
+    });
+    await wrapper.setProps({ visit: appliedVisit });
+    await nextTick();
+
+    expect(wrapper.find('#calChip').text()).toBe('Sudah diterapkan');
+    expect(wrapper.find('#oArea').text()).toBe('5,3 cm²');
+
+    // Saat preset jarak diubah ke 10 cm, lencana kembali Belum diterapkan dan kartu kembali "–"
+    await wrapper.findAll('.cal-preset-btn')[3].trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('#calChip').text()).toBe('Belum diterapkan');
+    expect(wrapper.find('#oArea').text()).toBe('–');
+  });
+
+  it('D.3: kontrol zoom memperbesar foto antara 1× hingga 4×', async () => {
+    const wrapper = trackMount(
+      mount(RulerCalibration, {
+        props: { visit: makeDraftVisit(), imageUrl: 'http://localhost:8000/api/v1/storage/uploads/P17T_2.jpg' },
+      }),
+    );
+
+    await wrapper.find('#calbox > summary').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('#calZoomVal').text()).toBe('1×');
+    expect((wrapper.find('#calZoomOut').element as HTMLButtonElement).disabled).toBe(true);
+
+    await wrapper.find('#calZoomIn').trigger('click');
+    expect(wrapper.find('#calZoomVal').text()).toBe('1,5×');
+
+    for (let i = 0; i < 6; i++) {
+      await wrapper.find('#calZoomIn').trigger('click');
+    }
+    expect(wrapper.find('#calZoomVal').text()).toBe('4×');
+    expect((wrapper.find('#calZoomIn').element as HTMLButtonElement).disabled).toBe(true);
+
+    await wrapper.find('#calZoomReset').trigger('click');
+    expect(wrapper.find('#calZoomVal').text()).toBe('1×');
+  });
 });

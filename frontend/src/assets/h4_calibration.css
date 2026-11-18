@@ -11,10 +11,19 @@
 .cal-chip.on { color: var(--green); background: var(--green-bg); border-color: var(--green-bd); }
 .cal-in { padding: 4px 18px 18px; border-top: 1px solid var(--border); }
 .cal-in ol { margin: 14px 0 12px; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; color: var(--text-2); }
+.cal-zoom-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.cal-zoom-label { font-size: 13px; font-weight: 600; color: var(--navy); }
+.cal-zoom-controls { display: inline-flex; align-items: center; gap: 6px; }
+.cal-zoom-btn { min-width: 40px; min-height: 40px; padding: 0 10px; font-weight: 700; }
+.cal-zoom-val { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--navy); min-width: 3.5ch; text-align: center; }
 .cal-stage { position: relative; width: 100%; background: #e2e8f0; border: 1px solid var(--border-strong); border-radius: 6px; overflow: hidden; }
+.cal-stage.is-zoomed { overflow: auto; max-height: 65vh; }
+.cal-canvas { position: relative; min-width: 100%; }
 .cal-stage:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 .cal-img { display: block; width: 100%; height: auto; max-height: 75vh; object-fit: contain; cursor: crosshair; user-select: none; }
+.cal-stage.is-zoomed .cal-img { max-height: none; }
 .cal-img-interactive { touch-action: none; }
+.cal-img-zoomed { touch-action: pan-x pan-y; }
 .cal-loupe {
   position: absolute; z-index: 6; border-radius: 50%; border: 3px solid #fff;
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.45), 0 0 0 1px var(--navy);
@@ -33,9 +42,9 @@
 .cal-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .cal-meta { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
 .cal-status { margin: 8px 0 0; font-size: 14px; color: var(--text-2); }
-.cal-pts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
-.cal-nudge { display: inline-flex; gap: 4px; margin-left: auto; }
-.cal-nudge-btn { min-width: 40px; min-height: 40px; padding: 0 10px; font-weight: 700; }
+.cal-pts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 10px; }
+.cal-nudge { display: inline-flex; gap: 6px; justify-content: center; width: 100%; margin: 2px auto 0; }
+.cal-nudge-btn { min-width: 44px; min-height: 44px; padding: 0 10px; font-weight: 700; }
 .cal-pts .btn[aria-pressed='true'] { background: var(--teal-soft); border-color: var(--teal); color: var(--navy); }
 .cal-coords-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
 .cal-coords-grid label, .cal-form label { display: block; font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
