@@ -76,6 +76,34 @@ const shadowImageStyle = computed(() => ({
   transform: `translate(${shadowX.value}px, ${shadowY.value}px) scale(${clampGhostScale(shadowScale.value) / 100})`,
 }));
 
+const SHADOW_PANEL_AUTO_CLOSE_MS = 3000;
+let shadowPanelTimer: ReturnType<typeof setTimeout> | undefined;
+
+function clearShadowPanelTimer() {
+  if (shadowPanelTimer) {
+    clearTimeout(shadowPanelTimer);
+    shadowPanelTimer = undefined;
+  }
+}
+
+function scheduleShadowPanelAutoClose() {
+  clearShadowPanelTimer();
+  if (!isShadowPanelOpen.value) return;
+  shadowPanelTimer = setTimeout(() => {
+    isShadowPanelOpen.value = false;
+    shadowPanelTimer = undefined;
+  }, SHADOW_PANEL_AUTO_CLOSE_MS);
+}
+
+function toggleShadowPanel() {
+  isShadowPanelOpen.value = !isShadowPanelOpen.value;
+  if (isShadowPanelOpen.value) {
+    scheduleShadowPanelAutoClose();
+  } else {
+    clearShadowPanelTimer();
+  }
+}
+
 function getStageDimensions(): { width: number; height: number } {
   const rect = stageRef.value?.getBoundingClientRect();
   return {
@@ -89,6 +117,7 @@ function nudgeShadow(dx: number, dy: number) {
   const clamped = clampGhostPosition(shadowX.value + dx, shadowY.value + dy, width, height);
   shadowX.value = clamped.x;
   shadowY.value = clamped.y;
+  scheduleShadowPanelAutoClose();
 }
 
 function resetShadowTransform() {
@@ -96,6 +125,7 @@ function resetShadowTransform() {
   shadowX.value = 0;
   shadowY.value = 0;
   isShadowHidden.value = false;
+  scheduleShadowPanelAutoClose();
 }
 
 function handleStagePointerDown(event: PointerEvent) {
@@ -367,6 +397,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   isUnmounted = true;
+  clearShadowPanelTimer();
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   stopStream();
   revokeCapturedPreview();
@@ -422,7 +453,7 @@ onBeforeUnmount(() => {
               class="cam-chip-btn"
               :aria-expanded="isShadowPanelOpen"
               :aria-pressed="isShadowPanelOpen"
-              @click="isShadowPanelOpen = !isShadowPanelOpen"
+              @click="toggleShadowPanel"
             >
               Bayangan
             </button>
@@ -490,62 +521,74 @@ onBeforeUnmount(() => {
             Menyiapkan kamera...
           </div>
 
-          <div v-if="hasRefImage && isShadowPanelOpen" class="cam-shadow-ctl" role="region" aria-label="Pengaturan bayangan">
-            <label class="cam-slider-wrap" for="cam-opacity">
-              <span>Transparansi</span>
-              <input
-                id="cam-opacity"
-                v-model.number="shadowOpacity"
-                type="range"
-                :min="GHOST_OPACITY_MIN"
-                :max="GHOST_OPACITY_MAX"
-                :step="GHOST_OPACITY_STEP"
-                aria-label="Transparansi bayangan foto awal"
-              />
-              <output>{{ isShadowHidden ? 0 : shadowOpacity }}%</output>
-            </label>
-
-            <label class="cam-slider-wrap" for="cam-scale">
-              <span>Ukuran</span>
-              <input
-                id="cam-scale"
-                v-model.number="shadowScale"
-                type="range"
-                :min="GHOST_SCALE_MIN"
-                :max="GHOST_SCALE_MAX"
-                step="1"
-                aria-label="Ukuran bayangan"
-              />
-              <output>{{ shadowScale }}%</output>
-            </label>
-
-            <div class="cam-shadow-pos-row">
-              <span class="cam-pos-label">Posisi</span>
-              <div class="cam-pos-nudge" role="group" aria-label="Geser posisi bayangan">
-                <button id="cam-nudge-left" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke kiri" @click="nudgeShadow(-8, 0)">←</button>
-                <button id="cam-nudge-up" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke atas" @click="nudgeShadow(0, -8)">↑</button>
-                <button id="cam-nudge-down" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke bawah" @click="nudgeShadow(0, 8)">↓</button>
-                <button id="cam-nudge-right" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke kanan" @click="nudgeShadow(8, 0)">→</button>
-              </div>
-            </div>
-
-            <div class="cam-shadow-panel-actions">
+          <div
+            v-if="hasRefImage && isShadowPanelOpen"
+            class="cam-shadow-ctl"
+            role="region"
+            aria-label="Pengaturan bayangan"
+            @pointerdown="scheduleShadowPanelAutoClose"
+            @input="scheduleShadowPanelAutoClose"
+            @change="scheduleShadowPanelAutoClose"
+            @click="scheduleShadowPanelAutoClose"
+            @keydown="scheduleShadowPanelAutoClose"
+          >
+            <div class="cam-shadow-row">
+              <label class="cam-slider-wrap" for="cam-opacity">
+                <span>Transparansi</span>
+                <input
+                  id="cam-opacity"
+                  v-model.number="shadowOpacity"
+                  type="range"
+                  :min="GHOST_OPACITY_MIN"
+                  :max="GHOST_OPACITY_MAX"
+                  :step="GHOST_OPACITY_STEP"
+                  aria-label="Transparansi bayangan foto awal"
+                />
+                <output>{{ isShadowHidden ? 0 : shadowOpacity }}%</output>
+              </label>
               <button
                 id="cam-toggle-shadow"
                 type="button"
-                class="cam-chip-btn"
+                class="cam-chip-btn cam-panel-btn"
+                :aria-label="isShadowHidden ? 'Tampilkan bayangan' : 'Sembunyikan bayangan'"
                 @click="isShadowHidden = !isShadowHidden"
               >
-                {{ isShadowHidden ? 'Tampilkan bayangan' : 'Sembunyikan bayangan' }}
+                {{ isShadowHidden ? 'Tampil' : 'Sembunyi' }}
               </button>
               <button
                 id="cam-reset-shadow"
                 type="button"
-                class="cam-chip-btn"
+                class="cam-chip-btn cam-panel-btn"
                 @click="resetShadowTransform"
               >
                 Kembalikan
               </button>
+            </div>
+
+            <div class="cam-shadow-row cam-shadow-row-bottom">
+              <label class="cam-slider-wrap cam-slider-compact" for="cam-scale">
+                <span>Ukuran</span>
+                <input
+                  id="cam-scale"
+                  v-model.number="shadowScale"
+                  type="range"
+                  :min="GHOST_SCALE_MIN"
+                  :max="GHOST_SCALE_MAX"
+                  step="1"
+                  aria-label="Ukuran bayangan"
+                />
+                <output>{{ shadowScale }}%</output>
+              </label>
+
+              <div class="cam-pos-compact">
+                <span class="cam-pos-label">Posisi</span>
+                <div class="cam-pos-nudge" role="group" aria-label="Geser posisi bayangan">
+                  <button id="cam-nudge-left" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke kiri" @click="nudgeShadow(-8, 0)">←</button>
+                  <button id="cam-nudge-up" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke atas" @click="nudgeShadow(0, -8)">↑</button>
+                  <button id="cam-nudge-down" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke bawah" @click="nudgeShadow(0, 8)">↓</button>
+                  <button id="cam-nudge-right" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke kanan" @click="nudgeShadow(8, 0)">→</button>
+                </div>
+              </div>
             </div>
           </div>
         </template>

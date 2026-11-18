@@ -459,4 +459,49 @@ describe('CameraCapture, PhotoDropzone & GhostOverlay (Tahap 2 & 2b)', () => {
 
     expect(drawImage).toHaveBeenCalledWith(videoEl, 400, 0, 800, 1200, 0, 0, 800, 1200);
   });
+
+  it('14 (I.2). Panel Bayangan menutup otomatis 3 detik setelah interaksi terakhir dan dapat dibuka kembali', async () => {
+    vi.useFakeTimers();
+    try {
+      const { stream } = createMockStream();
+      mockMediaDevices(vi.fn().mockResolvedValue(stream));
+
+      trackMount(
+        mount(CameraCapture, {
+          props: { refImageUrl: '/api/v1/storage/uploads/ref.jpg', refLabel: 'awal' },
+        }),
+      );
+      await flushPromises();
+
+      const panelBtn = camQuery<HTMLButtonElement>('#cam-shadow-panel-btn')!;
+      panelBtn.click();
+      await nextTick();
+      expect(camQuery('.cam-shadow-ctl')).not.toBeNull();
+
+      // Setelah 2 detik berinteraksi dengan tombol geser -> timer diperpanjang
+      vi.advanceTimersByTime(2000);
+      await nextTick();
+      expect(camQuery('.cam-shadow-ctl')).not.toBeNull();
+
+      camQuery<HTMLButtonElement>('#cam-nudge-right')?.click();
+      await nextTick();
+
+      // 2 detik lagi (total 4s dari buka, tapi baru 2s dari klik terakhir) -> panel masih terbuka
+      vi.advanceTimersByTime(2000);
+      await nextTick();
+      expect(camQuery('.cam-shadow-ctl')).not.toBeNull();
+
+      // 1,1 detik lagi (>= 3 detik sejak klik terakhir) -> panel menutup sendiri
+      vi.advanceTimersByTime(1100);
+      await nextTick();
+      expect(camQuery('.cam-shadow-ctl')).toBeNull();
+
+      // Tombol Bayangan membukanya kembali
+      panelBtn.click();
+      await nextTick();
+      expect(camQuery('.cam-shadow-ctl')).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
