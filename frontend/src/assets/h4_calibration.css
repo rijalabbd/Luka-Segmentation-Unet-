@@ -29,10 +29,10 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
 }
 .cal-stage { position: relative; width: 100%; background: #e2e8f0; border: 1px solid var(--border-strong); border-radius: 6px; overflow: hidden; }
-.cal-stage.is-zoomed { overflow: auto; max-height: 60vh; }
+.cal-stage.is-zoomed { overflow: auto; max-height: min(60vh, 520px); }
 .cal-canvas { position: relative; min-width: 100%; }
 .cal-stage:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
-.cal-img { display: block; width: 100%; height: auto; max-height: 75vh; object-fit: contain; cursor: crosshair; user-select: none; }
+.cal-img { display: block; width: 100%; height: auto; max-height: min(60vh, 520px); object-fit: contain; cursor: crosshair; user-select: none; }
 .cal-stage.is-zoomed .cal-img { max-height: none; }
 .cal-img-interactive { touch-action: none; }
 .cal-loupe {

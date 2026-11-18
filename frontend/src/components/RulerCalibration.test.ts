@@ -293,4 +293,10 @@ describe('RulerCalibration', () => {
     const h4View = readFileSync(resolve(process.cwd(), 'src/views/HasilKunjunganView.vue'), 'utf-8');
     expect(h4View).toContain('2000');
   });
+
+  it('J.1 & J.2: CSS desktop menjaga chip jarak sebaris (nowrap) dan membatasi tinggi foto max-height: min(60vh, 520px)', () => {
+    const calCss = readFileSync(resolve(process.cwd(), 'src/assets/h4_calibration.css'), 'utf-8');
+    expect(calCss).toMatch(/\.cal-presets\s*\{[^}]*flex-wrap:\s*nowrap/);
+    expect(calCss).toMatch(/\.cal-img\s*\{[^}]*max-height:\s*min\(60vh,\s*520px\)/);
+  });
 });
