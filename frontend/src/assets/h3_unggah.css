@@ -872,7 +872,7 @@
 .cam-top-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
 }
@@ -881,18 +881,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
-}
-
-.cam-shadow-label {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #fff;
-  background: rgba(42, 111, 115, 0.9);
-  padding: 4px 10px;
-  border-radius: 999px;
-  max-width: 100%;
-  overflow-wrap: anywhere;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .cam-stage {
@@ -1029,13 +1019,12 @@
   bottom: 12px;
   z-index: 3;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
-  flex-wrap: wrap;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.5);
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .cam-slider-wrap {
@@ -1044,8 +1033,43 @@
   gap: 8px;
   font-size: 13px;
   color: #fff;
-  flex: 1 1 180px;
+  width: 100%;
   min-width: 0;
+}
+
+.cam-slider-wrap > span {
+  min-width: 78px;
+}
+
+.cam-shadow-pos-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cam-pos-label {
+  font-size: 13px;
+  color: #fff;
+}
+
+.cam-pos-nudge {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.cam-nudge-btn {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0 8px;
+}
+
+.cam-shadow-panel-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .cam-slider-wrap input[type='range'] {

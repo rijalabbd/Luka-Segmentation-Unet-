@@ -207,7 +207,7 @@ describe('CameraCapture, PhotoDropzone & GhostOverlay (Tahap 2 & 2b)', () => {
     expect((secondCall.video as MediaTrackConstraints).height).toBeUndefined();
   });
 
-  it('5. refImageUrl kosong: tanpa bayangan, slider, maupun label', async () => {
+  it('5. refImageUrl kosong: tanpa bayangan, tombol Bayangan, maupun panel kontrol', async () => {
     const { stream } = createMockStream();
     mockMediaDevices(vi.fn().mockResolvedValue(stream));
 
@@ -219,11 +219,12 @@ describe('CameraCapture, PhotoDropzone & GhostOverlay (Tahap 2 & 2b)', () => {
     await flushPromises();
 
     expect(camQuery('.cam-shadow-img')).toBeNull();
+    expect(camQuery('#cam-shadow-panel-btn')).toBeNull();
     expect(camQuery('#cam-opacity')).toBeNull();
     expect(camQuery('.cam-shadow-label')).toBeNull();
   });
 
-  it('6. refImageUrl terisi: bayangan, slider, dan label "Bayangan: foto awal" muncul', async () => {
+  it('6. refImageUrl terisi: panel Bayangan tertutup secara bawaan, terbuka saat tombol Bayangan ditekan, dan label Garis bantu konsisten', async () => {
     const { stream } = createMockStream();
     mockMediaDevices(vi.fn().mockResolvedValue(stream));
 
@@ -235,8 +236,25 @@ describe('CameraCapture, PhotoDropzone & GhostOverlay (Tahap 2 & 2b)', () => {
     await flushPromises();
 
     expect(camQuery('.cam-shadow-img')).not.toBeNull();
+    expect(camQuery('.cam-shadow-label')).toBeNull();
+    expect(camQuery('#cam-opacity')).toBeNull();
+
+    const gridBtn = camQuery<HTMLButtonElement>('#cam-grid-toggle');
+    expect(gridBtn?.textContent?.trim()).toBe('Garis bantu: mati');
+    gridBtn?.click();
+    await nextTick();
+    expect(gridBtn?.textContent?.trim()).toBe('Garis bantu: nyala');
+
+    const panelBtn = camQuery<HTMLButtonElement>('#cam-shadow-panel-btn');
+    expect(panelBtn?.textContent?.trim()).toBe('Bayangan');
+    panelBtn?.click();
+    await nextTick();
+
     expect(camQuery('#cam-opacity')).not.toBeNull();
-    expect(camQuery('.cam-shadow-label')?.textContent?.trim()).toBe('Bayangan: foto awal');
+    expect(camQuery('#cam-scale')).not.toBeNull();
+    expect(camQuery('#cam-toggle-shadow')).not.toBeNull();
+    const resetBtn = camQuery<HTMLButtonElement>('#cam-reset-shadow');
+    expect(resetBtn?.textContent?.trim()).toBe('Kembalikan');
   });
 
   it('7. Rana ditekan lalu Pakai foto ini: emit capture(File image/jpeg) dan semua track berhenti', async () => {
@@ -270,6 +288,9 @@ describe('CameraCapture, PhotoDropzone & GhostOverlay (Tahap 2 & 2b)', () => {
     // Selama pratinjau, stream tetap hidup
     expect(stop).not.toHaveBeenCalled();
     expect(camQuery('#cam-use-photo')).not.toBeNull();
+    expect(camQuery('.cam-instruction')?.textContent?.trim()).toBe(
+      'Periksa fokus dan cahaya. Luka harus terlihat jelas.',
+    );
 
     camQuery<HTMLButtonElement>('#cam-use-photo')?.click();
     await nextTick();

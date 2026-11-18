@@ -8,6 +8,13 @@ import {
   useGhostOpacity,
 } from '@/composables/useGhostOpacity';
 import { computeCoverCropRect } from '@/utils/cameraCrop';
+import {
+  clampGhostPosition,
+  clampGhostScale,
+  GHOST_DEFAULT_SCALE,
+  GHOST_SCALE_MAX,
+  GHOST_SCALE_MIN,
+} from '@/utils/ghostTransform';
 
 const props = withDefaults(
   defineProps<{
@@ -26,6 +33,7 @@ const emit = defineEmits<{
   (e: 'fallback', reason: string): void;
 }>();
 
+const stageRef = ref<HTMLElement | null>(null);
 const videoRef = ref<HTMLVideoElement | null>(null);
 const isPreparing = ref(true);
 const cameraError = ref('');
@@ -35,7 +43,17 @@ const supportsTorch = ref(false);
 const isTorchOn = ref(false);
 const facingMode = ref<'environment' | 'user'>('environment');
 const showGrid = ref(false);
+const isShadowPanelOpen = ref(false);
 const isShadowHidden = ref(false);
+const shadowScale = ref(GHOST_DEFAULT_SCALE);
+const shadowX = ref(0);
+const shadowY = ref(0);
+
+let isDraggingShadow = false;
+let dragStartClientX = 0;
+let dragStartClientY = 0;
+let dragStartShadowX = 0;
+let dragStartShadowY = 0;
 
 const capturedFile = ref<File | null>(null);
 const capturedPreviewUrl = ref('');
@@ -53,7 +71,57 @@ const hasRefImage = computed(() => Boolean(props.refImageUrl));
 const effectiveShadowOpacity = computed(() =>
   isShadowHidden.value ? 0 : shadowOpacity.value / 100,
 );
-const shadowBadgeText = computed(() => `Bayangan: foto ${props.refLabel || 'awal'}`);
+const shadowImageStyle = computed(() => ({
+  opacity: effectiveShadowOpacity.value,
+  transform: `translate(${shadowX.value}px, ${shadowY.value}px) scale(${clampGhostScale(shadowScale.value) / 100})`,
+}));
+
+function getStageDimensions(): { width: number; height: number } {
+  const rect = stageRef.value?.getBoundingClientRect();
+  return {
+    width: rect && rect.width > 0 ? rect.width : 360,
+    height: rect && rect.height > 0 ? rect.height : 540,
+  };
+}
+
+function nudgeShadow(dx: number, dy: number) {
+  const { width, height } = getStageDimensions();
+  const clamped = clampGhostPosition(shadowX.value + dx, shadowY.value + dy, width, height);
+  shadowX.value = clamped.x;
+  shadowY.value = clamped.y;
+}
+
+function resetShadowTransform() {
+  shadowScale.value = GHOST_DEFAULT_SCALE;
+  shadowX.value = 0;
+  shadowY.value = 0;
+  isShadowHidden.value = false;
+}
+
+function handleStagePointerDown(event: PointerEvent) {
+  if (!hasRefImage.value || isShadowHidden.value || capturedFile.value || cameraError.value) return;
+  const target = event.target as HTMLElement | null;
+  if (target?.closest('.cam-shadow-ctl')) return;
+  isDraggingShadow = true;
+  dragStartClientX = event.clientX;
+  dragStartClientY = event.clientY;
+  dragStartShadowX = shadowX.value;
+  dragStartShadowY = shadowY.value;
+}
+
+function handleStagePointerMove(event: PointerEvent) {
+  if (!isDraggingShadow) return;
+  const { width, height } = getStageDimensions();
+  const nextX = dragStartShadowX + (event.clientX - dragStartClientX);
+  const nextY = dragStartShadowY + (event.clientY - dragStartClientY);
+  const clamped = clampGhostPosition(nextX, nextY, width, height);
+  shadowX.value = clamped.x;
+  shadowY.value = clamped.y;
+}
+
+function handleStagePointerEnd() {
+  isDraggingShadow = false;
+}
 
 function lockScroll() {
   if (isScrollLocked) return;
@@ -316,13 +384,14 @@ onBeforeUnmount(() => {
     >
       <div class="cam-topbar">
         <p class="cam-instruction">
-          Cocokkan posisi kaki atau tangan dengan bayangan, lalu tekan tombol bulat.
+          {{
+            capturedFile
+              ? 'Periksa fokus dan cahaya. Luka harus terlihat jelas.'
+              : 'Cocokkan posisi kaki atau tangan dengan bayangan, lalu tekan tombol bulat.'
+          }}
         </p>
-        <div class="cam-top-actions">
-          <span v-if="hasRefImage && !capturedFile" class="cam-shadow-label">
-            {{ shadowBadgeText }}
-          </span>
-          <div v-if="!capturedFile && !cameraError" class="cam-top-btns">
+        <div v-if="!capturedFile && !cameraError" class="cam-top-actions">
+          <div class="cam-top-btns">
             <button
               v-if="supportsTorch"
               id="cam-torch"
@@ -341,20 +410,34 @@ onBeforeUnmount(() => {
               type="button"
               class="cam-chip-btn"
               :aria-pressed="showGrid"
-              :aria-label="
-                showGrid
-                  ? 'Sembunyikan garis bantu tiga kali tiga'
-                  : 'Tampilkan garis bantu tiga kali tiga'
-              "
+              aria-label="Garis bantu"
               @click="showGrid = !showGrid"
             >
-              {{ showGrid ? 'Matikan garis' : 'Garis 3×3' }}
+              {{ showGrid ? 'Garis bantu: nyala' : 'Garis bantu: mati' }}
+            </button>
+            <button
+              v-if="hasRefImage"
+              id="cam-shadow-panel-btn"
+              type="button"
+              class="cam-chip-btn"
+              :aria-expanded="isShadowPanelOpen"
+              :aria-pressed="isShadowPanelOpen"
+              @click="isShadowPanelOpen = !isShadowPanelOpen"
+            >
+              Bayangan
             </button>
           </div>
         </div>
       </div>
 
-      <div class="cam-stage">
+      <div
+        ref="stageRef"
+        class="cam-stage"
+        @pointerdown="handleStagePointerDown"
+        @pointermove="handleStagePointerMove"
+        @pointerup="handleStagePointerEnd"
+        @pointercancel="handleStagePointerEnd"
+      >
         <template v-if="cameraError">
           <div class="cam-error-box" role="alert">
             <p class="cam-error-msg">{{ cameraError }}</p>
@@ -393,7 +476,7 @@ onBeforeUnmount(() => {
             alt=""
             aria-hidden="true"
             class="cam-shadow-img"
-            :style="{ opacity: effectiveShadowOpacity }"
+            :style="shadowImageStyle"
           />
 
           <div v-if="showGrid" class="cam-grid" aria-hidden="true">
@@ -407,7 +490,7 @@ onBeforeUnmount(() => {
             Menyiapkan kamera...
           </div>
 
-          <div v-if="hasRefImage" class="cam-shadow-ctl">
+          <div v-if="hasRefImage && isShadowPanelOpen" class="cam-shadow-ctl" role="region" aria-label="Pengaturan bayangan">
             <label class="cam-slider-wrap" for="cam-opacity">
               <span>Transparansi</span>
               <input
@@ -422,14 +505,48 @@ onBeforeUnmount(() => {
               <output>{{ isShadowHidden ? 0 : shadowOpacity }}%</output>
             </label>
 
-            <button
-              id="cam-toggle-shadow"
-              type="button"
-              class="cam-chip-btn"
-              @click="isShadowHidden = !isShadowHidden"
-            >
-              {{ isShadowHidden ? 'Tampilkan bayangan' : 'Sembunyikan bayangan' }}
-            </button>
+            <label class="cam-slider-wrap" for="cam-scale">
+              <span>Ukuran</span>
+              <input
+                id="cam-scale"
+                v-model.number="shadowScale"
+                type="range"
+                :min="GHOST_SCALE_MIN"
+                :max="GHOST_SCALE_MAX"
+                step="1"
+                aria-label="Ukuran bayangan"
+              />
+              <output>{{ shadowScale }}%</output>
+            </label>
+
+            <div class="cam-shadow-pos-row">
+              <span class="cam-pos-label">Posisi</span>
+              <div class="cam-pos-nudge" role="group" aria-label="Geser posisi bayangan">
+                <button id="cam-nudge-left" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke kiri" @click="nudgeShadow(-8, 0)">←</button>
+                <button id="cam-nudge-up" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke atas" @click="nudgeShadow(0, -8)">↑</button>
+                <button id="cam-nudge-down" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke bawah" @click="nudgeShadow(0, 8)">↓</button>
+                <button id="cam-nudge-right" type="button" class="cam-chip-btn cam-nudge-btn" aria-label="Geser bayangan ke kanan" @click="nudgeShadow(8, 0)">→</button>
+              </div>
+            </div>
+
+            <div class="cam-shadow-panel-actions">
+              <button
+                id="cam-toggle-shadow"
+                type="button"
+                class="cam-chip-btn"
+                @click="isShadowHidden = !isShadowHidden"
+              >
+                {{ isShadowHidden ? 'Tampilkan bayangan' : 'Sembunyikan bayangan' }}
+              </button>
+              <button
+                id="cam-reset-shadow"
+                type="button"
+                class="cam-chip-btn"
+                @click="resetShadowTransform"
+              >
+                Kembalikan
+              </button>
+            </div>
           </div>
         </template>
 
