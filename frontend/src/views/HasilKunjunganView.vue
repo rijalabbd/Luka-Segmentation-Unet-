@@ -25,7 +25,7 @@ const router = useRouter()
 const visitId = computed(() => Number(route.params.visitId))
 
 const serverOnline = ref<boolean | null>(null)
-const healthLabel = ref('Server Lokal Terhubung')
+const healthLabel = ref('Memeriksa server...')
 
 const visit = ref<VisitRecord | null>(null)
 const patient = ref<PatientSummary | null>(null)
@@ -223,11 +223,11 @@ async function loadPageData() {
   checkServerHealth()
     .then((h) => {
       serverOnline.value = h.status === 'ok'
-      healthLabel.value = h.label
+      healthLabel.value = h.status === 'ok' ? 'Server terhubung' : 'Server tidak terhubung'
     })
     .catch(() => {
       serverOnline.value = false
-      healthLabel.value = 'Server Lokal Tidak Terhubung'
+      healthLabel.value = 'Server tidak terhubung'
     })
 
   try {
@@ -257,11 +257,11 @@ watch(() => route.params.visitId, () => loadPageData())
 
     <header class="topbar">
       <div class="topbar-in">
-        <RouterLink class="brand" to="/" aria-label="Dokumentasi Luka, ke Beranda">
+        <RouterLink class="brand" to="/" aria-label="WoundAI, ke Beranda">
           <span class="brand-mark" aria-hidden="true">+</span>
           <span>
-            <span class="brand-name">Dokumentasi Luka</span>
-            <span class="brand-sub">Pemantauan Berkala</span>
+            <span class="brand-name">WoundAI</span>
+            <span class="brand-sub">Pemantauan Ulkus Kusta</span>
           </span>
         </RouterLink>
         <div class="topright">
@@ -293,9 +293,7 @@ watch(() => route.params.visitId, () => loadPageData())
           >
             Riwayat {{ visit.patient_id }}
           </RouterLink>
-          <span v-else>{{ visit.patient_id }}</span>
-          <span aria-hidden="true">/</span>
-          <span aria-current="page">Kunjungan ke-{{ displayVisitNumber }}</span>
+          <span v-else aria-current="page">{{ visit.patient_id }}</span>
         </template>
       </nav>
 
@@ -327,9 +325,11 @@ watch(() => route.params.visitId, () => loadPageData())
 
       <template v-else-if="visit">
         <section class="patient" aria-label="Informasi pasien">
-          <div class="p-main">
+          <div class="p-row-id">
             <span class="rm">{{ visit.patient_id }}</span>
-            <span v-if="patient?.nama">{{ patient.nama }}</span>
+            <span v-if="patient?.nama" class="p-name">{{ patient.nama }}</span>
+          </div>
+          <div v-if="patientAttrs.length" class="p-row-attrs">
             <span v-for="(attr, idx) in patientAttrs" :key="idx">{{ attr }}</span>
           </div>
           <div v-if="patient?.lokasi" class="p-loc">
@@ -383,7 +383,7 @@ watch(() => route.params.visitId, () => loadPageData())
                   </div>
                 </figure>
                 <figure id="figSekarang" class="fig">
-                  <div class="fig-label">Sekarang (Kunjungan ke-{{ displayVisitNumber }})</div>
+                  <div class="fig-label">Pemeriksaan sekarang</div>
                   <div class="fig-frame">
                     <img
                       v-if="segmentationDisplayUrl"

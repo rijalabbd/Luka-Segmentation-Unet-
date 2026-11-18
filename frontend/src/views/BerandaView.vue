@@ -27,7 +27,7 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 onMounted(() => {
-  document.title = 'Beranda · Dokumentasi Luka'
+  document.title = 'Beranda · WoundAI'
   document.addEventListener('keydown', handleKeydown)
 
   const targets = rootEl.value?.querySelectorAll('.reveal, .step-grid') ?? []
@@ -62,11 +62,11 @@ onBeforeUnmount(() => {
 
     <header class="site-header">
       <div class="wrap nav">
-        <a class="brand" href="#konten" aria-label="Dokumentasi Luka, ke awal halaman">
+        <a class="brand" href="#konten" aria-label="WoundAI, ke awal halaman">
           <span class="brand-mark" aria-hidden="true">+</span>
           <span>
-            <span class="brand-name">Dokumentasi Luka</span>
-            <span class="brand-sub">Pemantauan Berkala</span>
+            <span class="brand-name">WoundAI</span>
+            <span class="brand-sub">Pemantauan Ulkus Kusta</span>
           </span>
         </a>
 
@@ -340,7 +340,7 @@ onBeforeUnmount(() => {
 
     <footer class="site-footer">
       <div class="wrap footer-inner">
-        <div class="footer-brand">Dokumentasi Luka <span>· Pemantauan berkala</span></div>
+        <div class="footer-brand">WoundAI <span>· Pemantauan ulkus kusta</span></div>
         <div class="footer-note">Alat bantu dokumentasi visual, bukan pengganti penilaian klinis.</div>
       </div>
     </footer>

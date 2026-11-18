@@ -21,7 +21,7 @@ const isSubmitting = ref(false)
 
 // Server health state sourced from GET /api/v1/health
 const serverOnline = ref<boolean | null>(null)
-const healthLabel = ref('Memeriksa Koneksi Server...')
+const healthLabel = ref('Memeriksa server...')
 const healthShortLabel = ref('Memeriksa...')
 
 // Form state
@@ -235,12 +235,12 @@ async function loadData() {
   try {
     const health = await checkServerHealth()
     serverOnline.value = health.status === 'ok'
-    healthLabel.value = health.label
-    healthShortLabel.value = health.short_label
+    healthLabel.value = health.status === 'ok' ? 'Server terhubung' : 'Server tidak terhubung'
+    healthShortLabel.value = health.status === 'ok' ? 'Server terhubung' : 'Terputus'
   } catch {
     serverOnline.value = false
-    healthLabel.value = 'Server Lokal Terputus · Periksa Backend'
-    healthShortLabel.value = 'Offline'
+    healthLabel.value = 'Server tidak terhubung'
+    healthShortLabel.value = 'Terputus'
   }
 
   try {
@@ -311,7 +311,7 @@ async function handleSubmit() {
 }
 
 onMounted(async () => {
-  document.title = 'Pilih Pasien · Dokumentasi Luka'
+  document.title = 'Pilih Pasien · WoundAI'
   window.addEventListener('resize', updateIndicator)
   updateIndicator()
   await loadData()
@@ -333,11 +333,11 @@ onBeforeUnmount(() => {
 
     <header class="topbar">
       <div class="topbar-in">
-        <RouterLink class="brand" to="/" aria-label="Dokumentasi Luka, ke Beranda">
+        <RouterLink class="brand" to="/" aria-label="WoundAI, ke Beranda">
           <span class="brand-mark" aria-hidden="true">+</span>
           <span>
-            <span class="brand-name">Dokumentasi Luka</span>
-            <span class="brand-sub">Pemantauan Berkala</span>
+            <span class="brand-name">WoundAI</span>
+            <span class="brand-sub">Pemantauan Ulkus Kusta</span>
           </span>
         </RouterLink>
 

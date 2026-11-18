@@ -38,10 +38,11 @@ h1 { margin: 0; font-size: 28px; line-height: 1.2; font-weight: 650; letter-spac
 .chip.draft { color: var(--amber); background: var(--amber-bg); border-color: var(--amber-bd); }
 .chip.final { color: var(--green); background: var(--green-bg); border-color: var(--green-bd); }
 .chip.base { color: var(--navy); background: var(--teal-soft); border-color: var(--teal); }
-.patient { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--teal); border-radius: var(--radius); padding: 12px 18px; display: flex; gap: 10px 28px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
-.p-main { font-size: 15px; color: var(--text); display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.patient { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--teal); border-radius: var(--radius); padding: 12px 18px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 16px; }
+.p-row-id { font-size: 15px; color: var(--navy); font-weight: 600; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.p-row-attrs { font-size: 14px; color: var(--text-2); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .rm { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 18px; color: var(--navy); }
-.p-main span + span::before { content: '·'; margin-right: 10px; color: var(--border-strong); }
+.p-row-attrs span + span::before { content: '·'; margin-right: 8px; color: var(--border-strong); }
 .p-loc { font-size: 14px; color: var(--text-2); }
 .banner { display: flex; gap: 12px; align-items: center; padding: 12px 18px; border: 1px solid; border-radius: var(--radius); font-size: 14px; font-weight: 500; line-height: 1.5; }
 .banner.draft { background: var(--amber-bg); border-color: var(--amber-bd); color: var(--amber); }

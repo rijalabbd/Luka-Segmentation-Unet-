@@ -22,7 +22,7 @@ const router = useRouter()
 const patientId = computed(() => String(route.params.patientId ?? '').trim())
 
 const serverOnline = ref<boolean | null>(null)
-const healthLabel = ref('Server Lokal Terhubung · Data Terisolasi')
+const healthLabel = ref('Memeriksa server...')
 
 const patient = ref<PatientSummary | null>(null)
 const finalVisits = ref<VisitRecord[]>([])
@@ -164,11 +164,11 @@ async function loadPageData() {
   checkServerHealth()
     .then((h) => {
       serverOnline.value = h.status === 'ok'
-      healthLabel.value = h.label
+      healthLabel.value = h.status === 'ok' ? 'Server terhubung' : 'Server tidak terhubung'
     })
     .catch(() => {
       serverOnline.value = false
-      healthLabel.value = 'Server Lokal Tidak Terhubung'
+      healthLabel.value = 'Server tidak terhubung'
     })
 
   try {
@@ -178,7 +178,7 @@ async function loadPageData() {
     ])
     patient.value = p
     finalVisits.value = visits
-    document.title = `Riwayat ${p.id} · Dokumentasi Luka`
+    document.title = `Riwayat ${p.id} · WoundAI`
   } catch (err) {
     loadError.value = err instanceof ApiError ? err.message : 'Gagal memuat riwayat pasien.'
   } finally {
@@ -197,11 +197,11 @@ watch(() => route.params.patientId, () => loadPageData())
 
     <header class="topbar">
       <div class="topbar-in">
-        <RouterLink class="brand" to="/" aria-label="Dokumentasi Luka, ke Beranda">
+        <RouterLink class="brand" to="/" aria-label="WoundAI, ke Beranda">
           <span class="brand-mark" aria-hidden="true">+</span>
           <span>
-            <span class="brand-name">Dokumentasi Luka</span>
-            <span class="brand-sub">Pemantauan Berkala</span>
+            <span class="brand-name">WoundAI</span>
+            <span class="brand-sub">Pemantauan Ulkus Kusta</span>
           </span>
         </RouterLink>
         <div class="topright">
