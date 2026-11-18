@@ -30,6 +30,9 @@ const isNarrowViewport = ref(
 const isMobileMode = computed(() => isTouchDevice.value || isNarrowViewport.value);
 const showCamera = ref(false);
 const fallbackNotice = ref('');
+const isDemoSampleVisible = computed(
+  () => Boolean(props.showSampleButton) && String(import.meta.env.VITE_DEMO_MODE || '').toLowerCase() === 'true',
+);
 
 let pointerMql: MediaQueryList | null = null;
 let widthMql: MediaQueryList | null = null;
@@ -179,7 +182,7 @@ function handleDrop(event: DragEvent) {
         </button>
 
         <button
-          v-if="showSampleButton"
+          v-if="isDemoSampleVisible"
           id="sample"
           type="button"
           class="btn btn-ghost"

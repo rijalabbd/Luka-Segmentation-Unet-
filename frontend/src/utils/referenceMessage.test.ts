@@ -99,3 +99,13 @@ test('semua kunjungan punya foto dan berbeda antara awal dan terakhir', () => {
     'Foto terakhir dari 24 Okt 2026 dipakai sebagai pembanding.',
   );
 });
+
+test('K.3: foto awal dan terakhir pada tanggal sama tidak memunculkan tautan lihat foto terakhir', () => {
+  const visits = [
+    makeVisit(52, '2026-11-15', 'uploads/RM-0024_awal.jpg'),
+    makeVisit(53, '2026-11-15', 'uploads/RM-0024_kedua.jpg'),
+  ];
+  const info = buildReferenceComparisonInfo(visits, 'baseline', fmtShort);
+  assert.equal(info.hasDistinctLatestWithPhoto, false);
+  assert.equal(info.latestWithPhotoVisit, null);
+});

@@ -25,8 +25,14 @@ export function buildReferenceComparisonInfo(
 
   const firstWithPhoto = visitsWithPhoto[0] ?? null;
   const lastWithPhoto = visitsWithPhoto[visitsWithPhoto.length - 1] ?? null;
+  const firstDate = firstWithPhoto?.visit_date?.slice(0, 10) ?? '';
+  const lastDate = lastWithPhoto?.visit_date?.slice(0, 10) ?? '';
   const hasDistinctLatestWithPhoto = Boolean(
-    firstWithPhoto && lastWithPhoto && firstWithPhoto.id !== lastWithPhoto.id,
+    firstWithPhoto &&
+      lastWithPhoto &&
+      firstWithPhoto.id !== lastWithPhoto.id &&
+      firstWithPhoto.image_path !== lastWithPhoto.image_path &&
+      firstDate !== lastDate,
   );
 
   const isUsingLatest = activeTab === 'latest' && hasDistinctLatestWithPhoto;

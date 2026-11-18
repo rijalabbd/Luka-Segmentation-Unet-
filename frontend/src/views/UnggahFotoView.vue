@@ -71,6 +71,9 @@ const router = useRouter();
 const patientId = computed(() => String(route.params.patientId || ''));
 
 const serverOnline = ref<boolean | null>(null);
+const isDemoModeEnv = computed(
+  () => String(import.meta.env.VITE_DEMO_MODE || '').toLowerCase() === 'true',
+);
 const isLoading = ref(true);
 const pageError = ref('');
 
@@ -492,7 +495,7 @@ onBeforeUnmount(() => {
                 <PhotoDropzone
                   v-if="!selectedFile"
                   :error="fileError"
-                  :show-sample-button="patient.is_demo"
+                  :show-sample-button="isDemoModeEnv && patient.is_demo"
                   :ref-image-url="activeRefImageUrl"
                   :ref-label="activeRefTab === 'latest' && hasDistinctLatestRef ? 'terakhir' : 'awal'"
                   :is-follow-up="isFollowUp"
@@ -520,7 +523,7 @@ onBeforeUnmount(() => {
               <PhotoDropzone
                 v-if="!selectedFile"
                 :error="fileError"
-                :show-sample-button="patient.is_demo"
+                :show-sample-button="isDemoModeEnv && patient.is_demo"
                 :ref-image-url="null"
                 :is-follow-up="false"
                 @select="handleSelectedFile"

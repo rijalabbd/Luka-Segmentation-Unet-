@@ -22,7 +22,7 @@ const isZoomOpen = ref(false);
 
 const refTitle = computed(() => {
   const prefix = props.activeRefTab === 'latest' && props.hasDistinctLatest ? 'Foto terakhir' : 'Foto awal';
-  return props.activeDateLabel ? `${prefix} · ${props.activeDateLabel}` : prefix;
+  return props.activeDateLabel ? `${prefix} ${props.activeDateLabel}` : prefix;
 });
 
 const displayedImageUrl = computed(() => {
@@ -59,19 +59,16 @@ onBeforeUnmount(() => {
 <template>
   <section id="ref" class="ref-panel" aria-label="Foto pembanding">
     <template v-if="activeImageUrl">
-      <button
-        id="ref-open"
-        type="button"
-        class="ref-thumb"
-        :aria-label="`Perbesar ${refTitle}`"
-        @click="isZoomOpen = true"
-      >
-        <img id="ref-img" :src="displayedImageUrl || activeImageUrl" :alt="refTitle" />
-        <span class="zoom">Perbesar</span>
-      </button>
+      <div class="ref-compact-row">
+        <img
+          id="ref-img"
+          class="ref-thumb-sm"
+          :src="displayedImageUrl || activeImageUrl"
+          :alt="refTitle"
+          @click="isZoomOpen = true"
+        />
 
-      <div class="ref-meta">
-        <div class="ref-head">
+        <div class="ref-compact-body">
           <p class="ref-caption">{{ refTitle }}</p>
           <button
             v-if="hasDistinctLatest"
@@ -79,23 +76,22 @@ onBeforeUnmount(() => {
             class="ref-switch"
             @click="toggleRefSource"
           >
-            {{ activeRefTab === 'latest' ? 'Kembali ke foto awal' : `Lihat foto terakhir (${latestShortDate})` }}
+            {{ activeRefTab === 'latest' ? 'Lihat foto awal' : `Lihat foto terakhir (${latestShortDate})` }}
           </button>
         </div>
-        <p v-if="comparisonSentence" class="ref-help">{{ comparisonSentence }}</p>
-        <p v-if="missingPhotoSentence" class="ref-missing ref-missing-sub">{{ missingPhotoSentence }}</p>
-        <p v-if="!comparisonSentence" class="ref-help">Samakan jarak dan sudut kamera dengan foto ini.</p>
 
-        <label v-if="activeOverlayUrl" class="contour-toggle">
-          <input
-            id="toggle-ref-contour"
-            type="checkbox"
-            :checked="showContour"
-            @change="handleContourChange"
-          />
-          <span>Tampilkan garis tepi luka</span>
-        </label>
+        <button
+          id="ref-open"
+          type="button"
+          class="btn ref-open-btn"
+          :aria-label="`Perbesar ${refTitle}`"
+          @click="isZoomOpen = true"
+        >
+          Perbesar
+        </button>
       </div>
+
+      <p v-if="missingPhotoSentence" class="ref-missing ref-missing-sub">{{ missingPhotoSentence }}</p>
     </template>
 
     <template v-else>
@@ -114,7 +110,7 @@ onBeforeUnmount(() => {
         class="ref-switch"
         @click="toggleRefSource"
       >
-        {{ activeRefTab === 'latest' ? 'Kembali ke foto awal' : `Lihat foto terakhir (${latestShortDate})` }}
+        {{ activeRefTab === 'latest' ? 'Lihat foto awal' : `Lihat foto terakhir (${latestShortDate})` }}
       </button>
     </template>
 
@@ -133,6 +129,15 @@ onBeforeUnmount(() => {
           <button id="z-close" type="button" class="btn" @click="isZoomOpen = false">Tutup</button>
         </div>
         <img :src="displayedImageUrl" :alt="refTitle" />
+        <label v-if="activeOverlayUrl" class="contour-toggle">
+          <input
+            id="toggle-ref-contour"
+            type="checkbox"
+            :checked="showContour"
+            @change="handleContourChange"
+          />
+          <span>Tampilkan garis tepi luka</span>
+        </label>
       </div>
     </div>
   </section>
@@ -144,79 +149,49 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 6px;
 }
-.ref-thumb {
-  position: relative;
-  width: 100%;
-  height: auto;
-  max-height: 150px;
-  padding: 0;
-  border: 1px solid var(--border-strong);
+.ref-compact-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
+  background: var(--bg);
+}
+.ref-thumb-sm {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  flex: none;
   cursor: zoom-in;
-  background: #f8fafc;
 }
-.ref-thumb:focus-visible {
-  outline: 2px solid var(--navy);
-  outline-offset: 2px;
-}
-.ref-thumb img {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: 150px;
-  object-fit: contain;
-}
-@media (min-width: 760px) {
-  .ref-thumb {
-    height: clamp(240px, 42vh, 380px);
-    max-height: none;
-  }
-  .ref-thumb img {
-    height: 100%;
-    max-height: none;
-  }
-}
-.ref-thumb .zoom {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  background: rgba(15, 41, 66, 0.88);
-  color: #fff;
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 4px;
-}
-.ref-meta {
+.ref-compact-body {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-}
-.ref-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px 12px;
-  flex-wrap: wrap;
+  gap: 2px;
 }
 .ref-caption {
   margin: 0;
   font-size: 14px;
   font-weight: 650;
   color: var(--navy);
+  line-height: 1.3;
 }
-.ref-help {
-  margin: 0;
-  font-size: 13px;
-  color: var(--text-2);
+.ref-open-btn {
+  flex: none;
+  padding: 0 12px;
 }
 .contour-toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 2px;
-  font-size: 13px;
+  margin-top: 10px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--navy);
   cursor: pointer;
@@ -255,7 +230,7 @@ onBeforeUnmount(() => {
   color: var(--text-2);
 }
 .ref-missing-sub {
-  margin-top: 4px;
+  margin-top: 2px;
   color: var(--text-muted);
 }
 .modal-back {
@@ -278,7 +253,7 @@ onBeforeUnmount(() => {
 .modal.wide img {
   display: block;
   width: 100%;
-  max-height: 75vh;
+  max-height: 70vh;
   object-fit: contain;
   border-radius: 6px;
   border: 1px solid var(--border);
@@ -300,9 +275,10 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 0 18px;
+  min-width: 44px;
+  padding: 0 14px;
   font: inherit;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   border-radius: var(--radius);
   border: 1px solid var(--border-strong);

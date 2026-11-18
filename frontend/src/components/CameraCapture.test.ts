@@ -504,4 +504,26 @@ describe('CameraCapture, PhotoDropzone & GhostOverlay (Tahap 2 & 2b)', () => {
       vi.useRealTimers();
     }
   });
+
+  it('15 (K.1). Tombol Pakai foto sampel (mode demo) tersembunyi bila VITE_DEMO_MODE bukan true', async () => {
+    vi.stubEnv('VITE_DEMO_MODE', '');
+    try {
+      const hiddenWrapper = trackMount(
+        mount(PhotoDropzone, {
+          props: { showSampleButton: true },
+        }),
+      );
+      expect(hiddenWrapper.find('#sample').exists()).toBe(false);
+
+      vi.stubEnv('VITE_DEMO_MODE', 'true');
+      const shownWrapper = trackMount(
+        mount(PhotoDropzone, {
+          props: { showSampleButton: true },
+        }),
+      );
+      expect(shownWrapper.find('#sample').exists()).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
