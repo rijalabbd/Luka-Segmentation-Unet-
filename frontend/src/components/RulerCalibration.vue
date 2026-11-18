@@ -4,6 +4,7 @@ import { ApiError, deleteVisitCalibration, putVisitCalibration } from '@/api/pat
 import type { VisitRecord } from '@/types/patient'
 import {
   displayClickToOriginalPoint,
+  getContainedImageRect,
   originalToDisplayPoint,
   type Point2D,
   validateAndComputeCalibration,
@@ -209,10 +210,21 @@ const loupeStyle = computed(() => {
   const preferredTop = disp.y - LOUPE_SIZE - 44
   const top = preferredTop >= 8 ? preferredTop : Math.min(boxHeight.value - LOUPE_SIZE - 8, disp.y + 44)
 
-  const bgW = boxWidth.value * LOUPE_ZOOM
-  const bgH = boxHeight.value * LOUPE_ZOOM
-  const bgX = half - disp.x * LOUPE_ZOOM
-  const bgY = half - disp.y * LOUPE_ZOOM
+  const contained = getContainedImageRect(
+    boxWidth.value,
+    boxHeight.value,
+    imgWidthPx.value,
+    imgHeightPx.value,
+  )
+  const renderW = contained.renderedWidth > 0 ? contained.renderedWidth : boxWidth.value
+  const renderH = contained.renderedHeight > 0 ? contained.renderedHeight : boxHeight.value
+  const localX = disp.x - contained.offsetX
+  const localY = disp.y - contained.offsetY
+
+  const bgW = renderW * LOUPE_ZOOM
+  const bgH = renderH * LOUPE_ZOOM
+  const bgX = half - localX * LOUPE_ZOOM
+  const bgY = half - localY * LOUPE_ZOOM
 
   return {
     width: `${LOUPE_SIZE}px`,
