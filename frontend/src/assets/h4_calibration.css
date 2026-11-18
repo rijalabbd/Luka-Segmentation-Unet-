@@ -53,12 +53,12 @@
 .cal-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .cal-short-status { margin: 4px 0 0; font-size: 12.5px; font-weight: 600; color: var(--navy); line-height: 1.25; text-align: center; }
 .cal-pts { display: flex; gap: 6px; flex-wrap: nowrap; align-items: center; justify-content: center; margin-top: 6px; }
-.cal-pt-btn {
+.btn.cal-pt-btn {
   width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0;
   border-radius: 50%; font-weight: 700; font-size: 16px;
   border: 2px solid var(--navy); color: var(--navy); background: var(--surface); flex: none;
 }
-.cal-pt-btn[aria-pressed='true'] { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn.cal-pt-btn[aria-pressed='true'] { background: var(--teal); border-color: var(--teal); color: #fff; }
 .cal-nudge-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; font-weight: 700; font-size: 16px; flex: none; }
 .cal-len-group { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .cal-presets { display: flex; gap: 6px; flex-wrap: nowrap; width: 100%; }

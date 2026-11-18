@@ -316,6 +316,8 @@ async function handleToggleTorch() {
 function handleTakeSnapshot() {
   const video = videoRef.value;
   if (!video || isPreparing.value || cameraError.value) return;
+  clearShadowPanelTimer();
+  isShadowPanelOpen.value = false;
 
   captureError.value = '';
   const width = video.videoWidth || 1280;

@@ -59,6 +59,9 @@ const isDirtySinceApplied = computed(() => {
 const isEffectivelyApplied = computed(() => isApplied.value && !isDirtySinceApplied.value)
 
 function setZoomLevel(next: number) {
+  touchPointers.clear()
+  isDraggingPoint.value = false
+  activePointerId = null
   zoomLevel.value = next === 2 || next === 4 ? next : 1
   nextTick(() =>
     requestAnimationFrame(() => {
@@ -174,6 +177,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  touchPointers.clear()
   resizeObserver?.disconnect()
   window.removeEventListener('resize', measureBox)
   window.visualViewport?.removeEventListener('resize', measureBox)
