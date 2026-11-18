@@ -120,7 +120,7 @@ describe('RulerCalibration', () => {
     expect(style2.backgroundPosition).toBe('-344px -244px');
   });
 
-  it('D.1 & D.2: kartu luas tampil "–" sebelum Terapkan, berubah jadi "Sudah diterapkan", dan kembali "–" saat diubah; preset 1/2/5/10 cm', async () => {
+  it('F.1, F.3 & F.4: petunjuk satu baris, tombol titik 1/2 + geser sebaris, dan chip Lainnya membuka kolom isian', async () => {
     const visit = makeDraftVisit();
     const wrapper = trackMount(
       mount(RulerCalibration, {
@@ -131,8 +131,23 @@ describe('RulerCalibration', () => {
     await wrapper.find('#calbox > summary').trigger('click');
     await nextTick();
 
+    expect(wrapper.find('.cal-hint-short').text()).toBe('Tandai dua garis angka di penggaris.');
+    expect(wrapper.find('#calShortStatus').text()).toBe('Tandai titik 1');
+    expect(wrapper.find('#pt1').text()).toBe('1');
+    expect(wrapper.find('#pt2').text()).toBe('2');
+    expect(wrapper.find('.cal-howto').attributes('open')).toBeUndefined();
+
     const presetTexts = wrapper.findAll('.cal-preset-btn').map((b) => b.text());
-    expect(presetTexts).toEqual(['1 cm', '2 cm', '5 cm', '10 cm']);
+    expect(presetTexts).toEqual(['1 cm', '2 cm', '5 cm', '10 cm', 'Lainnya']);
+
+    // Awalnya 2 cm terpilih dan kolom isian #calLen tersembunyi
+    expect(wrapper.find('#calLen').exists()).toBe(false);
+
+    // Memilih chip Lainnya membuka kolom isian angka #calLen
+    await wrapper.find('#calPresetCustom').trigger('click');
+    await nextTick();
+    expect(wrapper.find('#calLen').exists()).toBe(true);
+    await wrapper.find('#calLen').setValue('3.5');
 
     // Sebelum diterapkan: isi koordinat tidak langsung mengisi kartu luas
     await wrapper.find('#calX1').setValue('100');
@@ -141,6 +156,7 @@ describe('RulerCalibration', () => {
     await wrapper.find('#calY2').setValue('100');
     await nextTick();
 
+    expect(wrapper.find('#calShortStatus').text()).toBe('Dua titik siap');
     expect(wrapper.find('#calChip').text()).toBe('Belum diterapkan');
     expect(wrapper.find('#oArea').text()).toBe('–');
 
@@ -161,10 +177,11 @@ describe('RulerCalibration', () => {
     expect(wrapper.find('#calChip').text()).toBe('Sudah diterapkan');
     expect(wrapper.find('#oArea').text()).toBe('5,3 cm²');
 
-    // Saat preset jarak diubah ke 10 cm, lencana kembali Belum diterapkan dan kartu kembali "–"
+    // Saat preset jarak diubah ke 10 cm, lencana kembali Belum diterapkan dan #calLen tersembunyi lagi
     await wrapper.findAll('.cal-preset-btn')[3].trigger('click');
     await nextTick();
 
+    expect(wrapper.find('#calLen').exists()).toBe(false);
     expect(wrapper.find('#calChip').text()).toBe('Belum diterapkan');
     expect(wrapper.find('#oArea').text()).toBe('–');
   });

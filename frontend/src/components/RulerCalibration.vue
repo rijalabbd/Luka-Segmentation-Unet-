@@ -35,10 +35,13 @@ const isApplied = computed(() => props.visit.measure_mode === 'calibrated')
 const isLocked409 = ref(false)
 const isPanelDisabled = computed(() => props.visit.status !== 'draft' || isLocked409.value)
 
+const PRESET_LENGTHS = [1, 2, 5, 10] as const
 const isDetailsOpen = ref(isApplied.value)
 const p1 = ref<Point2D | null>(null)
 const p2 = ref<Point2D | null>(null)
 const lengthCm = ref<number>(2)
+const isCustomLength = ref(false)
+const customLenInputRef = ref<HTMLInputElement | null>(null)
 const activePoint = ref<1 | 2>(1)
 const zoomLevel = ref(1)
 
@@ -88,6 +91,9 @@ function syncFromVisit(v: VisitRecord) {
     p1.value = { x: v.calib_x1, y: v.calib_y1 }
     p2.value = { x: v.calib_x2, y: v.calib_y2 }
     lengthCm.value = v.calib_length_cm ?? 2
+    isCustomLength.value =
+      v.calib_length_cm !== null &&
+      !PRESET_LENGTHS.includes(v.calib_length_cm as (typeof PRESET_LENGTHS)[number])
     if (v.status === 'draft' && v.measure_mode === 'calibrated') {
       isDetailsOpen.value = true
     }
@@ -95,10 +101,21 @@ function syncFromVisit(v: VisitRecord) {
     p1.value = null
     p2.value = null
     lengthCm.value = 2
+    isCustomLength.value = false
   }
   clickError.value = ''
   apiError.value = ''
   attemptedSubmit.value = false
+}
+
+function selectPresetLength(preset: number) {
+  isCustomLength.value = false
+  lengthCm.value = preset
+}
+
+function enableCustomLength() {
+  isCustomLength.value = true
+  nextTick(() => customLenInputRef.value?.focus())
 }
 
 watch(
@@ -208,6 +225,14 @@ const visibleError = computed(() => {
     if (!validation.value.ok && validation.value.error) return validation.value.error
   }
   return ''
+})
+
+const shortStatusText = computed(() => {
+  if (isPanelDisabled.value) return 'Tersimpan'
+  if (!p1.value) return 'Tandai titik 1'
+  if (!p2.value) return 'Tandai titik 2'
+  if (!validation.value.ok) return 'Titik belum pas'
+  return 'Dua titik siap'
 })
 
 const statusText = computed(() => {
@@ -472,6 +497,7 @@ async function handleDeleteCalibration() {
     p1.value = null
     p2.value = null
     lengthCm.value = 2
+    isCustomLength.value = false
     attemptedSubmit.value = false
     emit('updated', updated)
     emit('notify', 'Kalibrasi dihapus. Pengukuran kembali memakai luas foto.')
@@ -501,17 +527,73 @@ async function handleDeleteCalibration() {
     </summary>
 
     <div class="cal-in">
-      <ol>
-        <li>
-          Sentuh atau seret pada foto untuk menandai <b>2 garis angka</b> di penggaris (bukan tepi penggaris).
-        </li>
-        <li>Pilih jarak kedua titik (cm), lalu tekan <b>Terapkan kalibrasi</b>.</li>
-        <li>Pastikan penggaris dekat dan sejajar dengan permukaan luka.</li>
-      </ol>
+      <p class="cal-hint-short">Tandai dua garis angka di penggaris.</p>
 
-      <div class="cal-zoom-bar" role="group" aria-label="Perbesaran foto kalibrasi">
-        <span class="cal-zoom-label">Perbesar foto</span>
-        <div class="cal-zoom-controls">
+      <div class="cal-stage-wrap">
+        <div
+          class="cal-stage"
+          :class="{ 'is-zoomed': zoomLevel > 1 }"
+          tabindex="0"
+          role="region"
+          aria-label="Foto asli untuk memilih dua titik kalibrasi. Gunakan tombol panah untuk menggeser titik aktif, Shift untuk langkah 10 piksel."
+          @keydown="onStageKeydown"
+        >
+          <div class="cal-canvas" :style="{ width: `${zoomLevel * 100}%` }">
+            <img
+              v-if="imageUrl"
+              id="calImg"
+              ref="imgRef"
+              class="cal-img"
+              :class="{
+                'cal-img-interactive': !isPanelDisabled && !isSubmitting && zoomLevel === 1,
+                'cal-img-zoomed': zoomLevel > 1,
+              }"
+              :src="imageUrl"
+              alt="Foto asli luka untuk penentuan dua titik kalibrasi penggaris"
+              draggable="false"
+              @pointerdown="handlePointerDown"
+              @pointermove="handlePointerMove"
+              @pointerup="handlePointerEnd"
+              @pointercancel="handlePointerEnd"
+              @load="measureBox"
+            />
+            <div
+              v-if="loupeStyle"
+              class="cal-loupe"
+              :style="loupeStyle"
+              aria-hidden="true"
+            >
+              <span class="cal-loupe-cross-h"></span>
+              <span class="cal-loupe-cross-v"></span>
+              <span class="cal-loupe-dot"></span>
+            </div>
+            <svg
+              v-if="boxWidth > 0 && boxHeight > 0 && markerList.length"
+              class="cal-overlay"
+              :viewBox="`0 0 ${boxWidth} ${boxHeight}`"
+              aria-hidden="true"
+            >
+              <line
+                v-if="dispP1 && dispP2"
+                :x1="dispP1.x" :y1="dispP1.y" :x2="dispP2.x" :y2="dispP2.y"
+                stroke="#0F2942" stroke-width="2.5" stroke-dasharray="6 4"
+              />
+              <g v-for="m in markerList" :key="m.num">
+                <circle
+                  :cx="m.pt.x" :cy="m.pt.y" r="11"
+                  :fill="activePoint === m.num ? '#1F6368' : '#0F2942'"
+                  stroke="#FFFFFF" stroke-width="2.5"
+                />
+                <text
+                  :x="m.pt.x" :y="m.pt.y + 4" text-anchor="middle"
+                  fill="#FFFFFF" font-size="12" font-weight="700"
+                >{{ m.num }}</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <div class="cal-floating-zoom" role="group" aria-label="Perbesaran foto kalibrasi">
           <button
             id="calZoomOut"
             type="button"
@@ -539,134 +621,87 @@ async function handleDeleteCalibration() {
         </div>
       </div>
 
-      <div
-        class="cal-stage"
-        :class="{ 'is-zoomed': zoomLevel > 1 }"
-        tabindex="0"
-        role="region"
-        aria-label="Foto asli untuk memilih dua titik kalibrasi. Gunakan tombol panah untuk menggeser titik aktif, Shift untuk langkah 10 piksel."
-        @keydown="onStageKeydown"
-      >
-        <div class="cal-canvas" :style="{ width: `${zoomLevel * 100}%` }">
-          <img
-            v-if="imageUrl"
-            id="calImg"
-            ref="imgRef"
-            class="cal-img"
-            :class="{
-              'cal-img-interactive': !isPanelDisabled && !isSubmitting && zoomLevel === 1,
-              'cal-img-zoomed': zoomLevel > 1,
-            }"
-            :src="imageUrl"
-            alt="Foto asli luka untuk penentuan dua titik kalibrasi penggaris"
-            draggable="false"
-            @pointerdown="handlePointerDown"
-            @pointermove="handlePointerMove"
-            @pointerup="handlePointerEnd"
-            @pointercancel="handlePointerEnd"
-            @load="measureBox"
-          />
-          <div
-            v-if="loupeStyle"
-            class="cal-loupe"
-            :style="loupeStyle"
-            aria-hidden="true"
-          >
-            <span class="cal-loupe-cross-h"></span>
-            <span class="cal-loupe-cross-v"></span>
-            <span class="cal-loupe-dot"></span>
-          </div>
-          <svg
-            v-if="boxWidth > 0 && boxHeight > 0 && markerList.length"
-            class="cal-overlay"
-            :viewBox="`0 0 ${boxWidth} ${boxHeight}`"
-            aria-hidden="true"
-          >
-            <line
-              v-if="dispP1 && dispP2"
-              :x1="dispP1.x" :y1="dispP1.y" :x2="dispP2.x" :y2="dispP2.y"
-              stroke="#0F2942" stroke-width="2.5" stroke-dasharray="6 4"
-            />
-            <g v-for="m in markerList" :key="m.num">
-              <circle
-                :cx="m.pt.x" :cy="m.pt.y" r="11"
-                :fill="activePoint === m.num ? '#1F6368' : '#0F2942'"
-                stroke="#FFFFFF" stroke-width="2.5"
-              />
-              <text
-                :x="m.pt.x" :y="m.pt.y + 4" text-anchor="middle"
-                fill="#FFFFFF" font-size="12" font-weight="700"
-              >{{ m.num }}</text>
-            </g>
-          </svg>
-        </div>
-      </div>
+      <p id="calShortStatus" class="cal-short-status" role="status" aria-live="polite">{{ shortStatusText }}</p>
 
-      <p id="calStatus" class="cal-status" role="status" aria-live="polite">{{ statusText }}</p>
-
-      <div class="cal-pts" role="group" aria-label="Pilih titik aktif dan geser halus">
+      <div class="cal-pts" role="group" aria-label="Pilih titik dan geser halus 1 piksel">
         <button
-          id="pt1" type="button" class="btn btn-secondary"
+          id="pt1" type="button" class="btn btn-secondary cal-pt-btn"
+          aria-label="Pilih Titik 1"
           :aria-pressed="activePoint === 1" :disabled="isPanelDisabled || isSubmitting"
           @click="activePoint = 1"
-        >{{ activePoint === 1 ? 'Titik 1 aktif' : 'Pilih Titik 1' }}</button>
+        >1</button>
         <button
-          id="pt2" type="button" class="btn btn-secondary"
+          id="pt2" type="button" class="btn btn-secondary cal-pt-btn"
+          aria-label="Pilih Titik 2"
           :aria-pressed="activePoint === 2" :disabled="isPanelDisabled || isSubmitting"
           @click="activePoint = 2"
-        >{{ activePoint === 2 ? 'Titik 2 aktif' : 'Pilih Titik 2' }}</button>
-
-        <div class="cal-nudge" role="group" aria-label="Geser halus titik aktif 1 piksel">
-          <button
-            type="button" class="btn btn-secondary cal-nudge-btn"
-            aria-label="Geser titik aktif ke kiri 1 piksel"
-            :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
-            @click="nudgeActivePoint(-1, 0)"
-          >←</button>
-          <button
-            type="button" class="btn btn-secondary cal-nudge-btn"
-            aria-label="Geser titik aktif ke atas 1 piksel"
-            :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
-            @click="nudgeActivePoint(0, -1)"
-          >↑</button>
-          <button
-            type="button" class="btn btn-secondary cal-nudge-btn"
-            aria-label="Geser titik aktif ke bawah 1 piksel"
-            :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
-            @click="nudgeActivePoint(0, 1)"
-          >↓</button>
-          <button
-            type="button" class="btn btn-secondary cal-nudge-btn"
-            aria-label="Geser titik aktif ke kanan 1 piksel"
-            :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
-            @click="nudgeActivePoint(1, 0)"
-          >→</button>
-        </div>
+        >2</button>
+        <button
+          type="button" class="btn btn-secondary cal-nudge-btn"
+          aria-label="Geser titik aktif ke kiri 1 piksel"
+          :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
+          @click="nudgeActivePoint(-1, 0)"
+        >←</button>
+        <button
+          type="button" class="btn btn-secondary cal-nudge-btn"
+          aria-label="Geser titik aktif ke atas 1 piksel"
+          :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
+          @click="nudgeActivePoint(0, -1)"
+        >↑</button>
+        <button
+          type="button" class="btn btn-secondary cal-nudge-btn"
+          aria-label="Geser titik aktif ke bawah 1 piksel"
+          :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
+          @click="nudgeActivePoint(0, 1)"
+        >↓</button>
+        <button
+          type="button" class="btn btn-secondary cal-nudge-btn"
+          aria-label="Geser titik aktif ke kanan 1 piksel"
+          :disabled="isPanelDisabled || isSubmitting || !(activePoint === 1 ? p1 : p2)"
+          @click="nudgeActivePoint(1, 0)"
+        >→</button>
       </div>
 
-      <div class="cal-form">
-        <div class="cal-len-group">
-          <label for="calLen">Jarak dua titik di penggaris (cm)</label>
-          <div class="cal-presets" role="group" aria-label="Pilih cepat jarak penggaris">
-            <button
-              v-for="preset in [1, 2, 5, 10]"
-              :key="preset"
-              type="button"
-              class="btn btn-secondary cal-preset-btn"
-              :aria-pressed="lengthCm === preset"
-              :disabled="isPanelDisabled || isSubmitting"
-              @click="lengthCm = preset"
-            >{{ preset }} cm</button>
-          </div>
+      <div class="cal-len-group">
+        <div class="cal-presets" role="group" aria-label="Jarak dua titik di penggaris (cm)">
+          <button
+            v-for="preset in PRESET_LENGTHS"
+            :key="preset"
+            type="button"
+            class="btn btn-secondary cal-preset-btn"
+            :aria-pressed="!isCustomLength && lengthCm === preset"
+            :disabled="isPanelDisabled || isSubmitting"
+            @click="selectPresetLength(preset)"
+          >{{ preset }} cm</button>
+          <button
+            id="calPresetCustom"
+            type="button"
+            class="btn btn-secondary cal-preset-btn"
+            :aria-pressed="isCustomLength"
+            :disabled="isPanelDisabled || isSubmitting"
+            @click="enableCustomLength"
+          >Lainnya</button>
+        </div>
+        <div v-if="isCustomLength" class="cal-custom-len">
+          <label for="calLen">Jarak penggaris (cm)</label>
           <input
-            id="calLen" v-model.number="lengthCm" type="number"
-            min="0.1" max="50" step="0.1" inputmode="decimal"
+            id="calLen"
+            ref="customLenInputRef"
+            v-model.number="lengthCm"
+            type="number"
+            min="0.1"
+            max="50"
+            step="0.1"
+            inputmode="decimal"
             :disabled="isPanelDisabled || isSubmitting"
           />
         </div>
+      </div>
+
+      <div class="cal-apply-row">
         <dl class="cal-out" aria-live="polite">
           <div class="cal-area-card">
-            <dt>Perkiraan luas luka</dt>
+            <dt>Luas luka</dt>
             <dd id="oArea">
               {{
                 isEffectivelyApplied && visit.area_cm2 !== null
@@ -676,28 +711,41 @@ async function handleDeleteCalibration() {
             </dd>
           </div>
         </dl>
+        <button
+          id="calApply" class="btn btn-primary cal-apply-btn" type="button"
+          :disabled="isPanelDisabled || isSubmitting" @click="handleApplyCalibration"
+        >{{ isSubmitting ? 'Menyimpan...' : 'Terapkan' }}</button>
       </div>
 
       <p v-if="visibleError" id="calErr" class="cal-err" role="alert">{{ visibleError }}</p>
 
-      <div class="cal-act">
-        <button
-          id="calApply" class="btn btn-primary" type="button"
-          :disabled="isPanelDisabled || isSubmitting" @click="handleApplyCalibration"
-        >{{ isSubmitting ? 'Menyimpan kalibrasi...' : 'Terapkan kalibrasi' }}</button>
-        <button
-          id="calReset" class="btn btn-secondary" type="button"
-          :disabled="isPanelDisabled || isSubmitting" @click="handleResetPoints"
-        >Atur ulang titik</button>
-        <button
-          v-if="isApplied" id="calClear" class="btn btn-secondary" type="button"
-          :disabled="isPanelDisabled || isSubmitting" @click="handleDeleteCalibration"
-        >Hapus kalibrasi</button>
-      </div>
+      <details class="cal-howto">
+        <summary>Cara pakai</summary>
+        <ol class="cal-howto-list">
+          <li>
+            Sentuh atau seret pada foto untuk menandai <b>2 garis angka</b> di penggaris (bukan tepi penggaris).
+          </li>
+          <li>Pilih jarak kedua titik (cm), lalu tekan <b>Terapkan</b>.</li>
+          <li>Pastikan penggaris dekat dan sejajar dengan permukaan luka.</li>
+        </ol>
+      </details>
 
       <details class="cal-tech">
         <summary>Atur koordinat &amp; detail teknis</summary>
         <div class="cal-tech-body">
+          <p id="calStatus" class="cal-status" role="status" aria-live="polite">{{ statusText }}</p>
+
+          <div class="cal-tech-actions">
+            <button
+              id="calReset" class="btn btn-secondary" type="button"
+              :disabled="isPanelDisabled || isSubmitting" @click="handleResetPoints"
+            >Atur ulang titik</button>
+            <button
+              v-if="isApplied" id="calClear" class="btn btn-secondary" type="button"
+              :disabled="isPanelDisabled || isSubmitting" @click="handleDeleteCalibration"
+            >Hapus kalibrasi</button>
+          </div>
+
           <p class="cal-meta">Ukuran foto asli: <code>{{ imgWidthPx }} × {{ imgHeightPx }} px</code></p>
 
           <div class="cal-coords-grid" aria-label="Koordinat piksel alternatif tanpa mouse">
